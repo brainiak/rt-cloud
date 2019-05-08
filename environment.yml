@@ -1,0 +1,23 @@
+name: rtcloud
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - numpy
+  - scipy
+  - pydicom
+  - toml
+  - ipython
+  - jupyter
+  - pytest
+  - flake8
+  - mypy
+  - pip
+  - tornado
+  - websocket-client
+  - bcrypt
+  - requests
+  - openssl
+  - pip:
+    - watchdog
+    - inotify

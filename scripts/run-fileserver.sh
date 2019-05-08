@@ -10,7 +10,7 @@ while test $# -gt 0
 do
   case "$1" in
     -h)
-      echo "$0 [-c <toml_file>] [-ip <local_ip_or_hostname] [--localfiles]"
+      echo "$0 [-s <server:port>] [-d <allowed_dirs>] [-f <allowed_file_extensions]"
       exit 0
       ;;
     -s) SERVER=$2
@@ -43,6 +43,6 @@ fi
 # activate conda python env
 source ~/.bashrc
 conda deactivate
-conda activate rtAtten
+conda activate rtcloud
 
 python rtCommon/fileServer.py $USER_PARAM $PASSWD_PARAM -s $SERVER -d $ALLOWDIRS -f $ALLOWFILES

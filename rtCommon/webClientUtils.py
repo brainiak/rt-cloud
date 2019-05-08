@@ -114,8 +114,9 @@ def classificationResultStruct(runId, trId, value):
 
 
 def sendClassicationResult(webpipes, runId, trId, value):
-    cmd = classificationResultStruct(runId, trId, value)
-    clientWebpipeCmd(webpipes, cmd)
+    if webpipes is not None:
+        cmd = classificationResultStruct(runId, trId, value)
+        clientWebpipeCmd(webpipes, cmd)
 
 
 def clientWebpipeCmd(webpipes, cmd):

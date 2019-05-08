@@ -311,9 +311,9 @@ if __name__ == "__main__":
     parser.add_argument('-f', action="store", dest="allowedFileTypes", default=defaultAllowedTypes,
                         help="Allowed file types - comma separated list")
     parser.add_argument('-u', '--username', action="store", dest="username", default=None,
-                        help="rtAtten website username")
+                        help="rtcloud website username")
     parser.add_argument('-p', '--password', action="store", dest="password", default=None,
-                        help="rtAtten website password")
+                        help="rtcloud website password")
     args = parser.parse_args()
 
     if not re.match(r'.*:\d+', args.server):

@@ -45,7 +45,7 @@ popd
 # activate conda python env
 source ~/.bashrc
 conda deactivate
-conda activate rtAtten
+conda activate rtcloud
 
 if [ -z $IP ]; then
   echo "Warning: no ip address supplied, credentials won't be updated"
