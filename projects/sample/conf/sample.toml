@@ -1,0 +1,8 @@
+# Config file for sample.py project
+sessionId = "20180310T123000"
+subjectName = "0301181_sample"
+subjectNum = 1
+subjectDay = 1
+sessionNum = 1
+Runs = [1, 2, 3]
+ScanNums = [11, 13, 15]

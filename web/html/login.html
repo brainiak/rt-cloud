@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Real-time Login</title>
+    <link rel="stylesheet" href="css/main.css">
+  </head>
+  <body>
+    <div class="logo">
+      <img class="logoimg" src="img/logo.svg" />
+      <div class="logotext">Brainiak</div>
+      <div class="projectTitle">Real-time Study</div>
+    </div>
+
+    <p>Real-time Study Login</p>
+    <p>{{ error_msg }}</p>
+    <form action="/login?next={{nextpage}}" method="post">
+      {% module xsrf_form_html() %}
+      <div class="table">
+        <div class="row">
+          <label class="cell10p">Name:</label>
+          <input type="text" class="cell5p" size="20"  name="name">
+        </div>
+        <div class="row">
+          <label class="cell10p">Password:</label>
+          <input type="password" class="cell5p" size="20"  name="password">
+        </div>
+        <input type="submit" value="Sign in" />
+      </div>
+    </form>
+  </body>
+</html>

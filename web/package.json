@@ -1,0 +1,31 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "browserify src/main.js -o build/mainBundle.js -t [ babelify --presets [ @babel/preset-env @babel/preset-react ] ]"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "autoscroll-react": "^3.2.0",
+    "dateformat": "^3.0.3",
+    "path": "^0.12.7",
+    "react": "^16.8.4",
+    "react-dom": "^16.8.4",
+    "react-tabs": "^2.3.0",
+    "react-vis": "^1.11.6",
+    "toml": "^2.3.6"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.3.4",
+    "@babel/preset-env": "^7.3.4",
+    "@babel/preset-react": "^7.0.0",
+    "babelify": "^10.0.0",
+    "browserify": "^16.2.3",
+    "watchify": "^3.11.1"
+  }
+}

@@ -1,0 +1,90 @@
+body {
+  margin: 8px;
+  font-family: Avenir, Helvetica, Arial, "Work sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.2em;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #fff;
+  background-color: #1e4b74;
+  /* background-image: url("img/logo.svg"); */
+  /* background-repeat: no-repeat; */
+  /* background-position: right top; */
+  /* background-size: 20% auto; */
+}
+input {
+  background-color: #BBC8D5;
+  border-radius: 4px;
+  font-size: 0.8em;
+}
+button {
+  font-size: 1em;
+  background-color: #BBC8D5;
+  border-radius: 8px;
+  border: 1px solid DarkSlateGray;
+  margin: 4px 8px 4px 4px;
+}
+.logo {
+  position: absolute;
+  z-index: 2;
+  height: auto;
+  width: 20%;
+  top: 4px;
+  right: 4px;
+  background-position: right top;
+}
+.logoimg {
+  max-width: 60%;
+  height: auto;
+  float: right;
+}
+.logotext {
+  position: absolute;
+  font-size:  calc(7px + 2vw);
+  top: 30%;
+  right: 5%;
+  font-weight: bold;
+  text-align: center;
+}
+.projectTitle {
+  position: absolute;
+  font-size:  calc(5px + 1vw);
+  bottom: -1em;
+  right: 0;
+  font-weight: 400;
+  text-align: center;
+}
+.inputfile {
+  font-size: 1em;
+  background-color: transparent;
+  color: transparent;
+  margin: 2px 8px 4px 4px;
+}
+#screen {
+  flex: 1; /* fill remaining space */
+  overflow: hidden;
+}
+.table {
+  display: table;
+}
+.row {
+  display: table-row;
+}
+.cell5p {
+  display: table-cell;
+  margin-right: 5px;
+  margin-bottom: 5px;
+  padding-right: 5px;
+}
+.cell10p {
+  display: table-cell;
+  margin-right: 10px;
+  margin-bottom: 5px;
+  padding-right: 10px;
+}
+.hidden {
+  visibility: hidden;
+}
+.disabled {
+  pointer-events:none;
+  opacity: 0.5;
+}
