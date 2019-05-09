@@ -8,7 +8,7 @@ import json
 import numpy as np
 from subprocess import call
 from rtCommon.utils import loadConfigFile
-from rtCommon.StructDict import StructDict
+from rtCommon.structDict import StructDict
 import time
 import nilearn
 from nilearn.masking import apply_mask
