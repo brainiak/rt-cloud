@@ -31,16 +31,6 @@ import matplotlib.pyplot as plt
 
 
 
-def readDicomFromBuffer(data):
-    dataBytesIO = dicom.filebase.DicomBytesIO(data)
-    dicomImg = dicom.dcmread(dataBytesIO)
-    return dicomImg
-
-
-def readDicomFromFile(filename):
-    dicomImg = dicom.read_file(filename)
-    return dicomImg
-
 def anonymizeDicom(dicomFilePath):
     """Read dicom + header, anonymize header"""
     dicomImg = readDicomFromFile(dicomFilePath)
