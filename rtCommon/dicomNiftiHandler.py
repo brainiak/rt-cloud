@@ -47,7 +47,7 @@ def anonymizeDicom(dicomFilePath):
 def saveAsNiftiImage(dicomDataObject,expected_dicom_name,cfg):
     #A = time.time()
     nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
-    tempNiftiDir = os.path.join(cfg.codeDir, 'tmp/convertedNiftis/')
+    tempNiftiDir = os.path.join(cfg.dataDir, 'tmp/convertedNiftis/')
     if not os.path.exists(tempNiftiDir):
         command = 'mkdir -pv {0}'.format(tempNiftiDir)
         call(command,shell=True)
