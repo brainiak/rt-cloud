@@ -52,3 +52,24 @@ def applyMask(volume, roiInds):
     # maskedVolume.flat[roiInds] = volume.flat[roiInds]
     maskedVolume = volume.flat[roiInds]
     return maskedVolume
+
+
+def anonymizeDicom(dicomImg):
+    """Anonymize header"""
+    del dicomImg.PatientID
+    del dicomImg.PatientAge
+    del dicomImg.PatientBirthDate
+    del dicomImg.PatientName
+    del dicomImg.PatientSex
+    del dicomImg.PatientSize
+    del dicomImg.PatientWeight
+    del dicomImg.PatientPosition
+    return dicomImg
+
+
+def writeDicomToBuffer(dicomImg):
+    dataBytesIO = dicom.filebase.DicomBytesIO()
+    dicom.filewriter.write_file(dataBytesIO, dicomImg)
+    dataBytesIO.seek(0)
+    data = dataBytesIO.read()
+    return data

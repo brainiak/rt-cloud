@@ -30,20 +30,6 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 
 
-
-def anonymizeDicom(dicomFilePath):
-    """Read dicom + header, anonymize header"""
-    dicomImg = readDicomFromFile(dicomFilePath)
-    del dicomImg.PatientID
-    del dicomImg.PatientAge
-    del dicomImg.PatientBirthDate
-    del dicomImg.PatientName
-    del dicomImg.PatientSex
-    del dicomImg.PatientSize
-    del dicomImg.PatientWeight
-    del dicomImg.PatientPosition
-    return dicomImg
-
 def saveAsNiftiImage(dicomDataObject,expected_dicom_name,cfg):
     #A = time.time()
     nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
@@ -79,7 +65,7 @@ def main():
     # saveAsNiftiImage(dicomImg,expected_dicom_name,cfg)
 
 
-    # # TEST EXACTLY THE SAME  
+    # # TEST EXACTLY THE SAME
     # f1 = '/jukebox/norman/amennen/github/brainiak/rtAttenPenn/greenEyes/tmp/convertedNiftis/9-11-1.nii.gz'
     # f2 = '/jukebox/norman/amennen/github/brainiak/rtAttenPenn/greenEyes/data/sub-102/ses-02/converted_niftis/9-11-1.nii.gz'
 

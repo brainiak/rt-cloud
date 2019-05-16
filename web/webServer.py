@@ -541,6 +541,7 @@ class Web():
                     Web.wsDataConn.close()
                 # add new connection
                 Web.wsDataConn = self
+                print('DataWebSocket: connected {}'.format(self.request.remote_ip))
             except Exception as err:
                 logging.error('WebServer: Open Data Socket error: {}'.format(err))
             finally:

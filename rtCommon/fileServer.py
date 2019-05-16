@@ -16,6 +16,7 @@ rootPath = os.path.dirname(currPath)
 sys.path.append(rootPath)
 from rtCommon.errors import StateError
 from rtCommon.fileWatcher import FileWatcher
+from rtCommon.readDicom import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
 from rtCommon.utils import DebugLevels, findNewestFile, installLoggers
 from rtCommon.webClientUtils import login, certFile, checkSSLCertAltName, makeSSLCertFile
 
@@ -123,8 +124,7 @@ class WebSocketFileWatcher:
                         # TODO - may need some retry logic here if the file was read
                         #  before it was completely written. Maybe checking filesize
                         #  against data size.
-                        with open(filename, 'rb') as fp:
-                            data = fp.read()
+                        data = readFile(filename)
                         b64Data = b64encode(data)
                         b64StrData = b64Data.decode('utf-8')
                         response = {'status': 200, 'filename': filename, 'data': b64StrData}
@@ -147,8 +147,7 @@ class WebSocketFileWatcher:
                     response = {'status': 400, 'error': errStr}
                     logging.log(logging.WARNING, errStr)
                 else:
-                    with open(filename, 'rb') as fp:
-                        data = fp.read()
+                    data = readFile(filename)
                     b64Data = b64encode(data)
                     b64StrData = b64Data.decode('utf-8')
                     response = {'status': 200, 'filename': filename, 'data': b64StrData}
@@ -174,8 +173,7 @@ class WebSocketFileWatcher:
                         response = {'status': 400, 'error': errStr}
                         logging.log(logging.WARNING, errStr)
                     else:
-                        with open(filename, 'rb') as fp:
-                            data = fp.read()
+                        data = readFile(filename)
                         b64Data = b64encode(data)
                         b64StrData = b64Data.decode('utf-8')
                         response = {'status': 200, 'filename': filename, 'data': b64StrData}
@@ -296,6 +294,20 @@ class WebSocketFileWatcher:
             return False
         # default case
         return True
+
+
+def readFile(filename):
+    data = None
+    fileExtension = Path(filename).suffix
+    if fileExtension == '.dcm':
+        # Anonymize Dicom files
+        dicomImg = readDicomFromFile(filename)
+        dicomImg = anonymizeDicom(dicomImg)
+        data = writeDicomToBuffer(dicomImg)
+    else:
+        with open(filename, 'rb') as fp:
+            data = fp.read()
+    return data
 
 
 if __name__ == "__main__":
