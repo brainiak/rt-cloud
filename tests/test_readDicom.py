@@ -5,7 +5,7 @@ from nibabel.nicom import dicomreaders
 from rtCommon.fileClient import FileInterface
 
 test_dicomFile = '001_000005_000100.dcm'
-test_dicomTruncFile = '001_000005_000100_trunc.dcm'
+test_dicomTruncFile = 'trunc_001_000005_000100.dcm'
 
 
 def test_readDicom():
