@@ -49,12 +49,12 @@ def readDicomFromFile(filename):
     return dicomImg
 
 
-def readRetryDicomFromFileInterface(fileInterface, filename):
+def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
     retries = 0
     while retries < 5:
         retries += 1
         try:
-            data = fileInterface.watchFile(filename)
+            data = fileInterface.watchFile(filename, timeout)
             dicomImg = readDicomFromBuffer(data)
             # check that pixel array is complete
             dicomImg.convert_pixel_data()
