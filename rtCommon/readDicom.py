@@ -1,3 +1,5 @@
+import time
+import logging
 import numpy as np  # type: ignore
 from rtCommon.errors import StateError
 try:
@@ -45,6 +47,23 @@ def readDicomFromBuffer(data):
 def readDicomFromFile(filename):
     dicomImg = dicom.read_file(filename)
     return dicomImg
+
+
+def readRetryDicomFromFileInterface(fileInterface, filename):
+    retries = 0
+    while retries < 5:
+        retries += 1
+        try:
+            data = fileInterface.watchFile(filename)
+            dicomImg = readDicomFromBuffer(data)
+            # check that pixel array is complete
+            dicomImg.convert_pixel_data()
+            # successful
+            return dicomImg
+        except Exception as err:
+            logging.warning("LoadImage error, retry in 100 ms: {} ".format(err))
+            time.sleep(0.1)
+    return None
 
 
 def applyMask(volume, roiInds):

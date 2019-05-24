@@ -2,7 +2,7 @@ import os
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.utils import findNewestFile
 import rtCommon.webClientUtils as wcutils
-from rtCommon.errors import RequestError
+from rtCommon.errors import RequestError, StateError
 
 
 class FileInterface:
@@ -10,6 +10,7 @@ class FileInterface:
         self.local = not filesremote
         self.webpipes = webpipes
         self.fileWatcher = None
+        self.initWatchSet = False
         if self.local:
             self.fileWatcher = FileWatcher()
 
@@ -58,10 +59,13 @@ class FileInterface:
         else:
             initWatchCmd = wcutils.initWatchReqStruct(dir, filePattern, minFileSize, demoStep)
             wcutils.clientWebpipeCmd(self.webpipes, initWatchCmd)
+        self.initWatchSet = True
         return
 
     def watchFile(self, filename, timeout=5):
         data = None
+        if not self.initWatchSet:
+            raise StateError("FileInterface: watchFile() called without an initWatch()")
         if self.local:
             retVal = self.fileWatcher.waitForFile(filename, timeout=timeout)
             if retVal is None:

@@ -18,6 +18,7 @@ dependencies:
   - bcrypt
   - requests
   - openssl
+  - nibabel
   - pip:
     - watchdog
     - inotify

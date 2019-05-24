@@ -165,7 +165,7 @@ class Web():
         try:
             Web.sendDataMsgFromThread(cmd, timeout=5)
         except Exception as err:
-            logging.warn('Web: dataLog: error {}'.format(err))
+            logging.warning('Web: dataLog: error {}'.format(err))
             return False
         return True
 
@@ -395,7 +395,7 @@ class Web():
             except Exception as err:
                 errorReply = 'Exception: {} {}'.format(type(err), err)
             assert errorReply is not None, "Assert: Web.LoginHandler.error not empty"
-            logging.warn('Login Failure: {}'.format(login_name))
+            logging.warning('Login Failure: {}'.format(login_name))
             params = {
                 "error_msg": errorReply,
                 "nextpage": self.get_query_argument('next', '/')
@@ -528,7 +528,7 @@ class Web():
         def open(self):
             user_id = self.get_secure_cookie("login")
             if not user_id:
-                logging.warn('Data websocket authentication failed')
+                logging.warning('Data websocket authentication failed')
                 response = {'cmd': 'error', 'status': 401, 'error': 'Websocket authentication failed'}
                 self.write_message(json.dumps(response))
                 self.close()

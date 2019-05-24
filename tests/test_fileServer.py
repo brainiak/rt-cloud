@@ -18,7 +18,7 @@ testDir = os.path.dirname(__file__)
 
 @pytest.fixture(scope="module")
 def dicomTestFilename():  # type: ignore
-    return os.path.join(testDir, 'test_input/001_000001_000001.dcm')
+    return os.path.join(testDir, 'test_input/001_000005_000100.dcm')
 
 
 class TestFileWatcher:

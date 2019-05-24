@@ -1,10 +1,16 @@
 import pytest
 import os
 import rtCommon.readDicom as rd
+from nibabel.nicom import dicomreaders
+from rtCommon.fileClient import FileInterface
+
+test_dicomFile = '001_000005_000100.dcm'
+test_dicomTruncFile = '001_000005_000100_trunc.dcm'
 
 
 def test_readDicom():
-    dicomFile = os.path.join(os.path.dirname(__file__), 'test_input/001_000001_000001.dcm')
+    dicomDir = os.path.join(os.path.dirname(__file__), 'test_input')
+    dicomFile = os.path.join(dicomDir, test_dicomFile)
     dicomImg1 = rd.readDicomFromFile(dicomFile)
     vol1 = rd.parseDicomVolume(dicomImg1, 64)
     assert vol1 is not None
@@ -15,3 +21,19 @@ def test_readDicom():
     vol2 = rd.parseDicomVolume(dicomImg2, 64)
     assert vol2 is not None
     assert (vol1 == vol2).all()
+
+    fileInterface = FileInterface()
+    fileInterface.initWatch(dicomDir, '*.dcm', 0)
+    dicomImg3 = rd.readRetryDicomFromFileInterface(fileInterface, dicomFile)
+    vol3 = rd.parseDicomVolume(dicomImg3, 64)
+    assert vol3 is not None
+    assert (vol1 == vol3).all()
+
+    # Test convert to nifti
+    niftiObject = dicomreaders.mosaic_to_nii(dicomImg3)
+    assert niftiObject is not None
+
+    # read in a truncated file, should fail and return None.
+    trucatedDicomFile = os.path.join(dicomDir, test_dicomTruncFile)
+    dicomImg4 = rd.readRetryDicomFromFileInterface(fileInterface, trucatedDicomFile)
+    assert dicomImg4 is None
