@@ -648,25 +648,23 @@ def defaultBrowserMainCallback(client, message):
         # TODO - may need to remove certain fields that can't be jsonified
         Web.sendUserConfig(Web.cfg, filesremote=Web.filesremote)
     elif cmd == "run":
-        runThread = Web.runInfo.threadId
-
-        if runThread is not None:
-            runThread.join(timeout=1)
-            if runThread.is_alive():
+        if Web.runInfo.threadId is not None:
+            Web.runInfo.threadId.join(timeout=1)
+            if Web.runInfo.threadId.is_alive():
                 Web.setUserError("Client thread already runnning, skipping new request")
                 return
-            runThread = None
+            Web.runInfo.threadId = None
         Web.runInfo.stopRun = False
-        runThread = threading.Thread(name='runSessionThread', target=runSession,
-                                     args=(Web.cfg, Web.fmriPyScript, Web.filesremote))
-        runThread.setDaemon(True)
-        runThread.start()
+        Web.runInfo.threadId = threading.Thread(name='runSessionThread', target=runSession,
+                                                args=(Web.cfg, Web.fmriPyScript, Web.filesremote))
+        Web.runInfo.threadId.setDaemon(True)
+        Web.runInfo.threadId.start()
     elif cmd == "stop":
-        if runThread is not None:
+        if Web.runInfo.threadId is not None:
             Web.runInfo.stopRun = True
-            runThread.join(timeout=1)
-            if not runThread.is_alive():
-                runThread = None
+            Web.runInfo.threadId.join(timeout=1)
+            if not Web.runInfo.threadId.is_alive():
+                Web.runInfo.threadId = None
                 Web.runInfo.stopRun = False
     else:
         Web.setUserError("unknown command " + cmd)

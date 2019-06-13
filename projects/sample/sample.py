@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import argparse
 # import project modules
 # Add base project path (two directories up)
@@ -36,6 +37,7 @@ def doRuns(cfg, fileInterface, webComm):
     print('runs: {}'.format(cfg.Runs))
     val = 0
     for idx in range(len(cfg.Runs)):
+        time.sleep(1)
         run = cfg.Runs[idx]
         scan = cfg.ScanNums[idx]
         print('processing run {}, scan {}'.format(run, scan))
