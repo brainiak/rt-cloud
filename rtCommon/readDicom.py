@@ -93,6 +93,8 @@ def anonymizeDicom(dicomImg):
     del dicomImg.ContentTime
     del dicomImg.InstanceCreationDate
     del dicomImg.InstanceCreationTime
+    del dicomImg.PerformedProcedureStepStartDate
+    del dicomImg.PerformedProcedureStepStartTime
     return dicomImg
 
 
