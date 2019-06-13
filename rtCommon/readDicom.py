@@ -83,6 +83,16 @@ def anonymizeDicom(dicomImg):
     del dicomImg.PatientSize
     del dicomImg.PatientWeight
     del dicomImg.PatientPosition
+    del dicomImg.StudyDate
+    del dicomImg.StudyTime
+    del dicomImg.SeriesDate
+    del dicomImg.SeriesTime
+    del dicomImg.AcquisitionDate
+    del dicomImg.AcquisitionTime
+    del dicomImg.ContentDate
+    del dicomImg.ContentTime
+    del dicomImg.InstanceCreationDate
+    del dicomImg.InstanceCreationTime
     return dicomImg
 
 
