@@ -28,7 +28,7 @@ Use the sample project in rt-cloud/projects/sample as a template for making your
 ### Project Code
 You'll need to copy several blocks of code to your project to get it web enabled. These are:
 
-1) Accept at least the following command line parameters in your project python file:
+Accept at least the following command line parameters in your project python file:
 
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
@@ -44,14 +44,14 @@ You'll need to copy several blocks of code to your project to get it web enabled
                            help='dicom files retrieved from remote server')
     args = argParser.parse_args()
 
-2) Set up communication with the web server
+Set up communication with the web server
 
     webComm = None
     if args.webpipe:
         webComm = wcutils.openWebServerConnection(args.webpipe)
         wcutils.watchForExit()
 
-3) Open a FileInterface object for reading and writing files
+Open a FileInterface object for reading and writing files
 
     fileInterface = FileInterface(filesremote=args.filesremote, webpipes=webComm)
 
