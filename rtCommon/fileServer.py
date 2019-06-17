@@ -61,6 +61,7 @@ class WebSocketFileWatcher:
                                             on_error=WebSocketFileWatcher.on_error,
                                             cookie="login="+WebSocketFileWatcher.sessionCookie)
                 logging.log(DebugLevels.L1, "Connected to: %s", wsAddr)
+                print("Connected to: {}".format(wsAddr))
                 ws.run_forever(sslopt={"ca_certs": certFile})
             except Exception as err:
                 logging.log(logging.INFO, "WSFileWatcher Exception {}: {}".format(type(err).__name__, str(err)))

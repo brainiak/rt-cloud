@@ -10,7 +10,7 @@ while test $# -gt 0
 do
   case "$1" in
     -h)
-      echo "$0 [-s <server:port>] [-d <allowed_dirs>] [-f <allowed_file_extensions]"
+      echo "$0 [-s <server:port>] [-d <allowed_dirs>] [-f <allowed_file_extensions] [-u username] [-p password]"
       exit 0
       ;;
     -s) SERVER=$2

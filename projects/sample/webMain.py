@@ -10,6 +10,8 @@ from rtCommon.utils import loadConfigFile
 from rtCommon.structDict import StructDict
 from web.webServer import Web
 
+    # HERE: Set the path to the fMRI Python script to run here
+scriptToRun = 'projects/sample/sample.py'
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
@@ -20,8 +22,8 @@ if __name__ == "__main__":
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment file (.json or .toml)')
     args = argParser.parse_args()
-    # HERE: Set the path to the fMRI Python script to run here
-    params = StructDict({'fmriPyScript': 'projects/sample/sample.py',
+
+    params = StructDict({'fmriPyScript': scriptToRun,
                          'filesremote': args.filesremote,
                          })
 

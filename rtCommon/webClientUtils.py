@@ -142,7 +142,11 @@ def clientWebpipeCmd(webpipes, cmd):
             decodedData = b64decode(response['data'])
             if retVals.filename is None:
                 raise StateError('clientWebpipeCmd: filename field is None')
-            retVals.data = formatFileData(retVals.filename, decodedData)
+            # Note: we used to format data for files with .dcm or .mat extensions
+            # Now the caller is responsible for calling either readDicomFromBuffer(data)
+            # or utils.loadMatFileFromBuffer(data). The following formatring line is commented out
+            # retVals.data = formatFileData(retVals.filename, decodedData)
+            retVals.data = decodedData
     elif retVals.statusCode not in (200, 408):
         raise RequestError('WebRequest error: status {}: {}'.format(retVals.statusCode, response['error']))
     return retVals
