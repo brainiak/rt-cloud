@@ -27,29 +27,33 @@ Use the sample project in rt-cloud/projects/sample as a template for making your
 
 ### Project Code
 You'll need to copy several blocks of code to your project to get it web enabled. These are:
-- Args parsing for command line arguments the webServer expects
-        argParser = argparse.ArgumentParser()
-        argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
-                               help='experiment config file (.json or .toml)')
-        argParser.add_argument('--runs', '-r', default='', type=str,
-                               help='Comma separated list of run numbers')
-        argParser.add_argument('--scans', '-s', default='', type=str,
-                               help='Comma separated list of scan number')
-        # This parameter is used by webserver
-        argParser.add_argument('--webpipe', '-w', default=None, type=str,
-                               help='Named pipe to communicate with webServer')
-        argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
-                               help='dicom files retrieved from remote server')
-        args = argParser.parse_args()
 
-- Set up communication with the web server
-        webComm = None
-        if args.webpipe:
-            webComm = wcutils.openWebServerConnection(args.webpipe)
-            wcutils.watchForExit()
+1) Accept at least the following command line parameters in your project python file:
 
-- Open a FileInterface object for reading and writing files
-        fileInterface = FileInterface(filesremote=args.filesremote, webpipes=webComm)
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
+                           help='experiment config file (.json or .toml)')
+    argParser.add_argument('--runs', '-r', default='', type=str,
+                           help='Comma separated list of run numbers')
+    argParser.add_argument('--scans', '-s', default='', type=str,
+                           help='Comma separated list of scan number')
+    # This parameter is used by webserver
+    argParser.add_argument('--webpipe', '-w', default=None, type=str,
+                           help='Named pipe to communicate with webServer')
+    argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
+                           help='dicom files retrieved from remote server')
+    args = argParser.parse_args()
+
+2) Set up communication with the web server
+
+    webComm = None
+    if args.webpipe:
+        webComm = wcutils.openWebServerConnection(args.webpipe)
+        wcutils.watchForExit()
+
+3) Open a FileInterface object for reading and writing files
+
+    fileInterface = FileInterface(filesremote=args.filesremote, webpipes=webComm)
 
 Then within your python script, use the FileInterface object to request remote files. For example to retrieve dicom images as they are created, init a watch on the appropriate directory and then watch for them.
 
