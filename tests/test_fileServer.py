@@ -14,6 +14,7 @@ from rtCommon.readDicom import readDicomFromFile, anonymizeDicom, writeDicomToBu
 
 
 testDir = os.path.dirname(__file__)
+tmpDir = os.path.join(testDir, 'tmp/')
 
 
 @pytest.fixture(scope="module")
@@ -50,7 +51,7 @@ class TestFileWatcher:
             kwargs={
                 'retryInterval': 0.5,
                 'allowedDirs': ['/tmp', testDir],
-                'allowedTypes': ['.dcm', '.mat'],
+                'allowedTypes': ['.dcm', '.mat', '.bin', '.txt'],
                 'username': 'test',
                 'password': 'test'
             }
@@ -91,6 +92,12 @@ class TestFileWatcher:
 
         res = WebSocketFileWatcher.validateRequestedFile(None, '/sys/data/file.dcm')
         assert res is False
+
+        res = WebSocketFileWatcher.validateRequestedFile(None, '/tmp/file.bin')
+        assert res is True
+
+        res = WebSocketFileWatcher.validateRequestedFile(None, '/tmp/file.txt')
+        assert res is True
 
     def test_getFile(cls, dicomTestFilename):
         print("test_getFile")
@@ -140,3 +147,22 @@ class TestFileWatcher:
         cmd = wcutils.getFileReqStruct('/nope/file.dcm')
         response = Web.sendDataMsgFromThread(cmd)
         assert(response['status'] == 400)
+
+        # Test putTextFile
+        testText = 'hello2'
+        textFileName = os.path.join(tmpDir, 'test2.txt')
+        cmd = wcutils.putTextFileReqStruct(textFileName, testText)
+        response = Web.sendDataMsgFromThread(cmd)
+        assert response['status'] == 200
+
+        # Test putBinaryData function
+        testData = b'\xFE\xED\x01\x23'
+        dataFileName = os.path.join(tmpDir, 'test2.bin')
+        cmd = wcutils.putBinaryFileReqStruct(dataFileName, testData)
+        response = Web.sendDataMsgFromThread(cmd)
+        assert response['status'] == 200
+        # read back an compare to original
+        cmd = wcutils.getFileReqStruct(dataFileName)
+        response = Web.sendDataMsgFromThread(cmd)
+        responseData = b64decode(response['data'])
+        assert responseData == testData

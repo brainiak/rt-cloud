@@ -93,3 +93,15 @@ class FileInterface:
             putFileCmd = wcutils.putTextFileReqStruct(filename, text)
             wcutils.clientWebpipeCmd(self.webpipes, putFileCmd)
         return
+
+    def putBinaryFile(self, filename, data):
+        if self.local:
+            outputDir = os.path.dirname(filename)
+            if not os.path.exists(outputDir):
+                os.makedirs(outputDir)
+            with open(filename, 'wb+') as binFile:
+                binFile.write(data)
+        else:
+            putFileCmd = wcutils.putBinaryFileReqStruct(filename, data)
+            wcutils.clientWebpipeCmd(self.webpipes, putFileCmd)
+        return

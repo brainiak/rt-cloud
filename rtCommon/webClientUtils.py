@@ -9,6 +9,7 @@ import requests
 import threading
 from pathlib import Path
 from base64 import b64decode
+from base64 import b64encode
 import rtCommon.utils as utils
 from rtCommon.structDict import StructDict
 from rtCommon.readDicom import readDicomFromBuffer
@@ -103,6 +104,17 @@ def putTextFileReqStruct(filename, str):
     }
     return cmd
 
+
+def putBinaryFileReqStruct(filename, data):
+    b64Data = b64encode(data)
+    b64StrData = b64Data.decode('utf-8')
+    cmd = {
+        'cmd': 'putBinaryFile',
+        'route': 'dataserver',
+        'filename': filename,
+        'data': b64StrData,
+    }
+    return cmd
 
 def classificationResultStruct(runId, trId, value):
     cmd = {'cmd': 'classificationResult',

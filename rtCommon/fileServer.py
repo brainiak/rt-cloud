@@ -8,6 +8,7 @@ import logging
 import threading
 import websocket
 from base64 import b64encode
+from base64 import b64decode
 from pathlib import Path
 # import project modules
 # Add base project path (two directories up)
@@ -60,7 +61,7 @@ class WebSocketFileWatcher:
                                             on_close=WebSocketFileWatcher.on_close,
                                             on_error=WebSocketFileWatcher.on_error,
                                             cookie="login="+WebSocketFileWatcher.sessionCookie)
-                logging.log(DebugLevels.L1, "Connected to: %s", wsAddr)
+                logging.log(logging.INFO, "Connected to: %s", wsAddr)
                 print("Connected to: {}".format(wsAddr))
                 ws.run_forever(sslopt={"ca_certs": certFile})
             except Exception as err:
@@ -79,7 +80,7 @@ class WebSocketFileWatcher:
                 filePattern = request['filePattern']
                 minFileSize = request['minFileSize']
                 demoStep = request.get('demoStep')
-                logging.log(DebugLevels.L3, "initWatch: %s, %s, %d", dir, filePattern, minFileSize)
+                logging.log(logging.INFO, "initWatch: %s, %s, %d", dir, filePattern, minFileSize)
                 if dir is None or filePattern is None or minFileSize is None:
                     errStr = "InitWatch: Missing file information: {} {}".format(dir, filePattern)
                     response = {'status': 400, 'error': errStr}
@@ -102,7 +103,7 @@ class WebSocketFileWatcher:
             elif cmd == 'watchFile':
                 filename = request['filename']
                 timeout = request['timeout']
-                logging.log(DebugLevels.L3, "watchFile: %s", filename)
+                logging.log(logging.INFO, "watchFile: %s", filename)
                 if filename is None:
                     errStr = 'WatchFile: Missing filename'
                     response = {'status': 400, 'error': errStr}
@@ -134,7 +135,7 @@ class WebSocketFileWatcher:
                 if filename is not None and not os.path.isabs(filename):
                     # relative path to the watch dir
                     filename = os.path.join(fileWatcher.watchDir, filename)
-                logging.log(DebugLevels.L3, "getFile: %s", filename)
+                logging.log(logging.INFO, "getFile: %s", filename)
                 if filename is None:
                     errStr = "GetFile: Missing filename"
                     response = {'status': 400, 'error': errStr}
@@ -154,7 +155,7 @@ class WebSocketFileWatcher:
                     response = {'status': 200, 'filename': filename, 'data': b64StrData}
             elif cmd == 'getNewestFile':
                 filename = request['filename']
-                logging.log(DebugLevels.L3, "getNewestFile: %s", filename)
+                logging.log(logging.INFO, "getNewestFile: %s", filename)
                 if filename is None:
                     errStr = "GetNewestFile: Missing filename"
                     response = {'status': 400, 'error': errStr}
@@ -183,7 +184,7 @@ class WebSocketFileWatcher:
             elif cmd == 'putTextFile':
                 filename = request['filename']
                 text = request['text']
-                logging.log(DebugLevels.L3, "putTextFile: %s", filename)
+                logging.log(logging.INFO, "putTextFile: %s", filename)
                 if filename is None:
                     errStr = 'PutTextFile: Missing filename field'
                     response = {'status': 400, 'error': errStr}
@@ -208,9 +209,33 @@ class WebSocketFileWatcher:
                     with open(filename, 'w+') as volFile:
                         volFile.write(text)
                     response = {'status': 200}
+            elif cmd == 'putBinaryFile':
+                filename = request['filename']
+                encodedData = request['data']
+                logging.log(logging.INFO, "PutBinaryFile: %s", filename)
+                if filename is None:
+                    errStr = 'PutBinaryFile: Missing filename field'
+                    response = {'status': 400, 'error': errStr}
+                    logging.log(logging.WARNING, errStr)
+                elif encodedData is None:
+                    errStr = 'PutBinaryFile: Missing data field'
+                    response = {'status': 400, 'error': errStr}
+                    logging.log(logging.WARNING, errStr)
+                elif WebSocketFileWatcher.validateRequestedFile(None, filename) is False:
+                    errStr = 'PutBinaryFile: Non-allowed file {}'.format(filename)
+                    response = {'status': 400, 'error': errStr}
+                    logging.log(logging.WARNING, errStr)
+                else:
+                    data = b64decode(encodedData)
+                    outputDir = os.path.dirname(filename)
+                    if not os.path.exists(outputDir):
+                        os.makedirs(outputDir)
+                    with open(filename, 'wb+') as binFile:
+                        binFile.write(data)
+                    response = {'status': 200}
             elif cmd == 'dataLog':
                 filename = request['filename']
-                logging.log(DebugLevels.L3, "dataLog: %s", filename)
+                logging.log(logging.INFO, "dataLog: %s", filename)
                 logLine = request['logLine']
                 if filename is None:
                     errStr = 'DataLog: Missing filename field'

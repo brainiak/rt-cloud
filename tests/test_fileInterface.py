@@ -4,6 +4,7 @@ from rtCommon.fileClient import FileInterface
 
 
 testDir = os.path.dirname(__file__)
+tmpDir = os.path.join(testDir, 'tmp/')
 
 
 @pytest.fixture(scope="module")
@@ -46,10 +47,20 @@ class TestFileInterface:
         # Test put text file
         print('test putTextFile')
         text = 'hello world'
-        textFilename = '~/tmp/test1.txt'
+        textFilename = os.path.join(tmpDir, 'test1.txt')
         TestFileInterface.fileWatcher.putTextFile(textFilename, text)
         with open(textFilename, 'r') as fp:
             text1 = fp.read()
         assert text1 == text, 'putTextFile assertion'
+
+        # Test put binary file
+        print('test putBinaryFile')
+        data = b'\xAB\xCD\xFE\xED\x01\x23\x45\x67'
+        binFilename = os.path.join(tmpDir, 'test1.bin')
+        TestFileInterface.fileWatcher.putBinaryFile(binFilename, data)
+        # read back data and compare to original
+        with open(binFilename, 'rb') as fp:
+            data1 = fp.read()
+        assert data1 == data, 'putBinaryFile assertion'
 
         return
