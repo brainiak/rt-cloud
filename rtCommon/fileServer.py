@@ -36,6 +36,7 @@ class WebSocketFileWatcher:
     sessionCookie = None
     needLogin = True
     shouldExit = False
+    validationError = None
     # Synchronizing across threads
     clientLock = threading.Lock()
     fileWatchLock = threading.Lock()
@@ -295,6 +296,7 @@ class WebSocketFileWatcher:
     @staticmethod
     def validateRequestedFile(dir, file, textFileTypeOnly=False):
         # Restrict requests to certain directories and file types
+        WebSocketFileWatcher.validationError = None
         if WebSocketFileWatcher.allowedDirs is None or WebSocketFileWatcher.allowedTypes is None:
             raise StateError('Allowed Directories or File Types is not set')
         if file is not None and file != '':
@@ -302,8 +304,10 @@ class WebSocketFileWatcher:
             fileExtension = Path(filename).suffix
             if textFileTypeOnly:
                 if fileExtension != '.txt':
+                    WebSocketFileWatcher.validationError = 'Only .txt files allowed'
                     return False
             elif fileExtension not in WebSocketFileWatcher.allowedTypes:
+                WebSocketFileWatcher.validationError = 'Not an allowed file type'
                 return False
             if fileDir is not None and fileDir != '':  # and os.path.isabs(fileDir):
                 dirMatch = False
@@ -312,11 +316,13 @@ class WebSocketFileWatcher:
                         dirMatch = True
                         break
                 if dirMatch is False:
+                    WebSocketFileWatcher.validationError = 'Not within an allowed directory'
                     return False
         if dir is not None and dir != '':
             for allowedDir in WebSocketFileWatcher.allowedDirs:
                 if dir.startswith(allowedDir):
                     return True
+            WebSocketFileWatcher.validationError = 'Not within an allowed directory'
             return False
         # default case
         return True

@@ -730,6 +730,7 @@ def runSession(cfg, pyScript, filesremote=False):
             line = ''
         if line != '':
             Web.userLog(line)
+            logging.info(line)
     # processing complete, set status
     endStatus = 'complete \u2714'
     if Web.runInfo.stopRun is True:
