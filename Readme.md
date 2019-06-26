@@ -41,7 +41,7 @@ Accept at least the following command line parameters in your project python fil
     argParser.add_argument('--webpipe', '-w', default=None, type=str,
                            help='Named pipe to communicate with webServer')
     argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
-                           help='dicom files retrieved from remote server')
+                           help='retrieve dicom files from the remote server')
     args = argParser.parse_args()
 
 Set up communication with the web server

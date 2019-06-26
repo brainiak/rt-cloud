@@ -730,7 +730,7 @@ def runSession(cfg, pyScript, filesremote=False):
             line = ''
         if line != '':
             Web.userLog(line)
-            logging.info(line)
+            logging.info(line.rstrip())
     # processing complete, set status
     endStatus = 'complete \u2714'
     if Web.runInfo.stopRun is True:
@@ -792,10 +792,11 @@ def processPyScriptRequest(request):
         raise StateError('handleFifoRequests: cmd field not in request: {}'.format(request))
     cmd = request['cmd']
     route = request.get('route')
+    timeout = request.get('timeout', 10)
     response = StructDict({'status': 200})
     if route == 'dataserver':
         try:
-            response = Web.sendDataMsgFromThread(request, timeout=10)
+            response = Web.sendDataMsgFromThread(request, timeout=timeout)
             if response is None:
                 raise StateError('handleFifoRequests: Response None from sendDataMessage')
             if 'status' not in response:
