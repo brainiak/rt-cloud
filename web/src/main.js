@@ -5,6 +5,7 @@ const path = require('path');
 const SettingsPane = require('./settingsPane.js')
 const StatusPane = require('./statusPane.js')
 const XYPlotPane = require('./xyplotPane.js')
+const UploadFilesPane = require('./uploadFilesPane.js')
 const { Tab, Tabs, TabList, TabPanel } = require('react-tabs')
 
 
@@ -25,6 +26,7 @@ class TopPane extends React.Component {
       error: '',
       classVals: [[], [{x:0, y:0}]], // classification results
       logLines: [],  // image classification log
+      uploadedFileLog: [],
     }
     this.classVals = [[], [{x:0, y:0}]]
     this.webSocket = null
@@ -35,6 +37,7 @@ class TopPane extends React.Component {
     this.requestDefaultConfig = this.requestDefaultConfig.bind(this)
     this.startRun = this.startRun.bind(this);
     this.stopRun = this.stopRun.bind(this);
+    this.uploadFiles = this.uploadFiles.bind(this);
     this.createWebSocket = this.createWebSocket.bind(this)
     this.formatConfigValues = this.formatConfigValues.bind(this)
     this.clearRunStatus = this.clearRunStatus.bind(this)
@@ -89,6 +92,15 @@ class TopPane extends React.Component {
 
   stopRun() {
     this.webSocket.send(JSON.stringify({cmd: 'stop'}))
+  }
+
+  uploadFiles(srcFile, compress) {
+    this.setState({error: ''})
+    var cmdStr = {cmd: 'uploadFiles',
+                  srcFile: srcFile,
+                  compress: compress,
+                 }
+    this.webSocket.send(JSON.stringify(cmdStr))
   }
 
   formatConfigValues() {
@@ -201,6 +213,13 @@ class TopPane extends React.Component {
           status = ''
         }
         this.setState({runStatus: status})
+      } else if (cmd == 'uploadProgress') {
+        var fileName = request['file']
+        var itemPos = this.state.uploadedFileLog.length + 1
+        var newLine = elem('pre', { style: logLineStyle,  key: itemPos }, fileName)
+        // Need to use concat() to create a new logLines object or React won't know to re-render
+        var uploadedFileLog = this.state.uploadedFileLog.concat([newLine])
+        this.setState({uploadedFileLog: uploadedFileLog})
       } else if (cmd == 'classificationResult') {
         var runId = request['runId']
         var vol = request['trId']
@@ -229,7 +248,7 @@ class TopPane extends React.Component {
         console.log("## Got Error: " + request['error'])
         this.setState({error: request['error']})
       } else {
-        errStr = "Unknown message type: " + cmd
+        var errStr = "Unknown message type: " + cmd
         console.log(errStr)
         this.setState({error: errStr})
       }
@@ -244,6 +263,7 @@ class TopPane extends React.Component {
          elem(Tab, {}, 'Run'),
          elem(Tab, {}, 'Data Plots'),
          elem(Tab, {}, 'Settings'),
+         elem(Tab, {}, 'Upload Files'),
        ),
        elem(TabPanel, {},
          elem(StatusPane,
@@ -278,7 +298,14 @@ class TopPane extends React.Component {
            }
          ),
        ),
-
+       elem(TabPanel, {},
+         elem(UploadFilesPane,
+           {uploadFiles: this.uploadFiles,
+            uploadedFileLog: this.state.uploadedFileLog,
+            error: this.state.error,
+           }
+         ),
+       ),
      )
     return tp
   }

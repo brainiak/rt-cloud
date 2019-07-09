@@ -15,11 +15,11 @@ import asyncio
 import threading
 import subprocess
 from pathlib import Path
-from base64 import b64decode
+from rtCommon.webClientUtils import listFilesReqStruct, getFileReqStruct, decodeMessageData
 from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.certsUtils import getCertPath, getKeyPath
 from rtCommon.utils import DebugLevels, writeFile
-from rtCommon.errors import StateError, RTError
+from rtCommon.errors import StateError, RequestError, RTError
 
 certsDir = 'certs'
 sslCertFile = 'rtcloud.crt'
@@ -101,6 +101,9 @@ class Web():
             "cookie_secret": cookieSecret,
             "login_url": "/login",
             "xsrf_cookies": True,
+            "websocket_max_message_size": 1024*1024*256,
+            # "max_message_size": 1024*1024*256,
+            # "max_buffer_size": 1024*1024*256,
         }
         Web.app = tornado.web.Application([
             (r'/', Web.UserHttp),
@@ -311,8 +314,6 @@ class Web():
             raise TimeoutError("sendDataMessage: Data Request Timed Out({}) {}".format(timeout, msg))
         if callbackStruct.response is None:
             raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.format(msg))
-        if callbackStruct.status == 200 and 'writefile' in callbackStruct.response:
-            writeResponseDataToFile(callbackStruct.response)
         return callbackStruct.response
 
     @staticmethod
@@ -443,6 +444,7 @@ class Web():
                 self.close()
                 return
             logging.log(DebugLevels.L1, "Biofeedback WebSocket opened")
+            self.set_nodelay(True)
             Web.threadLock.acquire()
             try:
                 Web.wsBiofeedbackConns.append(self)
@@ -477,6 +479,7 @@ class Web():
                 self.close()
                 return
             logging.log(DebugLevels.L1, "User WebSocket opened")
+            self.set_nodelay(True)
             Web.threadLock.acquire()
             try:
                 Web.wsBrowserMainConns.append(self)
@@ -506,6 +509,7 @@ class Web():
                 self.close()
                 return
             logging.log(DebugLevels.L1, "Event WebSocket opened")
+            self.set_nodelay(True)
             Web.threadLock.acquire()
             try:
                 Web.wsEventConns.append(self)
@@ -534,6 +538,7 @@ class Web():
                 self.close()
                 return
             logging.log(DebugLevels.L1, "Data WebSocket opened")
+            self.set_nodelay(True)
             Web.threadLock.acquire()
             try:
                 # close any existing connections
@@ -566,7 +571,11 @@ class Web():
                 Web.threadLock.release()
 
         def on_message(self, message):
-            Web.dataCallback(self, message)
+            try:
+                Web.dataCallback(self, message)
+            except Exception as err:
+                logging.error('DataWebSocket: on_message error: {}'.format(err))
+
 
 
 def loadPasswdFile(filename):
@@ -595,29 +604,27 @@ def getCookieSecret(dir):
 
 
 def writeResponseDataToFile(response):
-    '''For responses that have writefile set, write the data to a file'''
     global CommonOutputDir
     if response['status'] != 200:
         raise StateError('writeResponseDataToFile: status not 200')
-    if 'writefile' in response and response['writefile'] is True:
-        # write the returned data out to a file
-        if 'data' not in response:
-            raise StateError('writeResponseDataToFile: data field not in response: {}'.format(response))
-        if 'filename' not in response:
-            del response['data']
-            raise StateError('writeResponseDataToFile: filename field not in response: {}'.format(response))
-        filename = response['filename']
-        decodedData = b64decode(response['data'])
-        # prepend with common output path and write out file
-        # note: can't just use os.path.join() because if two or more elements
-        #   have an aboslute path it discards the earlier elements
-        outputFilename = os.path.normpath(CommonOutputDir + filename)
-        dirName = os.path.dirname(outputFilename)
-        if not os.path.exists(dirName):
-            os.makedirs(dirName)
-        writeFile(outputFilename, decodedData)
-        response['filename'] = outputFilename
+    # write the returned data out to a file
+    if 'data' not in response:
+        raise StateError('writeResponseDataToFile: data field not in response: {}'.format(response))
+    if 'filename' not in response:
         del response['data']
+        raise StateError('writeResponseDataToFile: filename field not in response: {}'.format(response))
+    filename = response['filename']
+    decodedData = decodeMessageData(response)
+    # prepend with common output path and write out file
+    # note: can't just use os.path.join() because if two or more elements
+    #   have an aboslute path it discards the earlier elements
+    outputFilename = os.path.normpath(CommonOutputDir + filename)
+    dirName = os.path.dirname(outputFilename)
+    if not os.path.exists(dirName):
+        os.makedirs(dirName)
+    writeFile(outputFilename, decodedData)
+    response['filename'] = outputFilename
+    # del response['data']
 
 
 #####################
@@ -666,6 +673,17 @@ def defaultBrowserMainCallback(client, message):
             if not Web.runInfo.threadId.is_alive():
                 Web.runInfo.threadId = None
                 Web.runInfo.stopRun = False
+    elif cmd == "uploadFiles":
+        if Web.runInfo.uploadThread is not None:
+            Web.runInfo.uploadThread.join(timeout=1)
+            if Web.runInfo.uploadThread.is_alive():
+                Web.setUserError("Upload thread already runnning, skipping new request")
+                return
+        Web.runInfo.uploadThread = threading.Thread(name='uploadFiles',
+                                                    target=uploadFiles,
+                                                    args=(request,))
+        Web.runInfo.uploadThread.setDaemon(True)
+        Web.runInfo.uploadThread.start()
     else:
         Web.setUserError("unknown command " + cmd)
 
@@ -792,11 +810,11 @@ def processPyScriptRequest(request):
         raise StateError('handleFifoRequests: cmd field not in request: {}'.format(request))
     cmd = request['cmd']
     route = request.get('route')
-    timeout = request.get('timeout', 10)
+    localtimeout = request.get('timeout', 10) + 5
     response = StructDict({'status': 200})
     if route == 'dataserver':
         try:
-            response = Web.sendDataMsgFromThread(request, timeout=timeout)
+            response = Web.sendDataMsgFromThread(request, timeout=localtimeout)
             if response is None:
                 raise StateError('handleFifoRequests: Response None from sendDataMessage')
             if 'status' not in response:
@@ -856,6 +874,51 @@ def signalFifoExit(fifoThread, webpipes):
     fifoThread.join(timeout=1)
     if fifoThread.is_alive() is not False:
         raise StateError('runSession: fifoThread not completed')
+
+
+def uploadFiles(request):
+    if 'cmd' not in request or request['cmd'] != "uploadFiles":
+        raise StateError('uploadFiles: incorrect cmd request: {}'.format(request))
+    if Web.wsDataConn is None:
+        # A remote fileWatcher hasn't connected yet
+        errStr = 'Waiting for fileWatcher to attach, please try again momentarily'
+        Web.setUserError(errStr)
+        return
+    try:
+        srcFile = request['srcFile']
+        compress = request['compress']
+    except KeyError as err:
+        Web.setUserError("UploadFiles request missing a parameter: {}".format(err))
+        return
+    # get the list of file to upload
+    cmd = listFilesReqStruct(srcFile)
+    response = Web.sendDataMsgFromThread(cmd, timeout=10)
+    if response['status'] != 200:
+        Web.setUserError("Error listing files {}: {}".format(srcFile, response['error']))
+        return
+    fileList = response['data']
+    if type(fileList) is not list:
+        Web.setUserError("Invalid fileList reponse type {}: expecting list".format(type(fileList)))
+        return
+    if len(fileList) == 0:
+        response = {'cmd': 'uploadProgress', 'file': 'No Matching Files'}
+        Web.sendUserMsgFromThread(json.dumps(response))
+        return
+    for file in fileList:
+        try:
+            cmd = getFileReqStruct(file, compress=compress)
+            response = Web.sendDataMsgFromThread(cmd, timeout=60)
+            if response['status'] != 200:
+                raise RequestError(response['error'])
+            writeResponseDataToFile(response)
+        except Exception as err:
+            Web.setUserError(
+                "Error uploading file {}: {}".format(file, str(err)))
+            return
+        response = {'cmd': 'uploadProgress', 'file': file}
+        Web.sendUserMsgFromThread(json.dumps(response))
+    response = {'cmd': 'uploadProgress', 'file': '------upload complete------'}
+    Web.sendUserMsgFromThread(json.dumps(response))
 
 
 def makeFifo():

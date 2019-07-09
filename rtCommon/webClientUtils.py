@@ -3,13 +3,14 @@ import sys
 import re
 import json
 import time
+import zlib
+import hashlib
 import logging
 import getpass
 import requests
 import threading
 from pathlib import Path
-from base64 import b64decode
-from base64 import b64encode
+from base64 import b64encode, b64decode
 import rtCommon.utils as utils
 from rtCommon.structDict import StructDict
 from rtCommon.readDicom import readDicomFromBuffer
@@ -61,24 +62,33 @@ def processShouldExitThread():
 
 
 # Set of helper functions for creating remote file requests
-def getFileReqStruct(filename, writefile=False):
-    cmd = {'cmd': 'getFile', 'route': 'dataserver', 'filename': filename}
-    if writefile is True:
-        cmd['writefile'] = True
+def getFileReqStruct(filename, compress=False):
+    cmd = {'cmd': 'getFile',
+           'route': 'dataserver',
+           'filename': filename,
+           'compress': compress}
     return cmd
 
 
-def getNewestFileReqStruct(filename, writefile=False):
-    cmd = {'cmd': 'getNewestFile', 'route': 'dataserver', 'filename': filename}
-    if writefile is True:
-        cmd['writefile'] = True
+def getNewestFileReqStruct(filename, compress=False):
+    cmd = {'cmd': 'getNewestFile',
+           'route': 'dataserver',
+           'filename': filename,
+           'compress': compress}
     return cmd
 
 
-def watchFileReqStruct(filename, timeout=5, writefile=False):
-    cmd = {'cmd': 'watchFile', 'route': 'dataserver', 'filename': filename, 'timeout': timeout}
-    if writefile is True:
-        cmd['writefile'] = True
+def listFilesReqStruct(filePattern):
+    cmd = {'cmd': 'listFiles', 'route': 'dataserver', 'filename': filePattern}
+    return cmd
+
+
+def watchFileReqStruct(filename, timeout=5, compress=False):
+    cmd = {'cmd': 'watchFile',
+           'route': 'dataserver',
+           'filename': filename,
+           'timeout': timeout,
+           'compress': compress}
     return cmd
 
 
@@ -87,7 +97,7 @@ def initWatchReqStruct(dir, filePattern, minFileSize, demoStep=0):
         'cmd': 'initWatch',
         'route': 'dataserver',
         'dir': dir,
-        'filePattern': filePattern,
+        'filename': filePattern,
         'minFileSize': minFileSize
     }
     if demoStep is not None and demoStep > 0:
@@ -105,16 +115,17 @@ def putTextFileReqStruct(filename, str):
     return cmd
 
 
-def putBinaryFileReqStruct(filename, data):
-    b64Data = b64encode(data)
-    b64StrData = b64Data.decode('utf-8')
+def putBinaryFileReqStruct(filename, data, compress=False):
     cmd = {
         'cmd': 'putBinaryFile',
         'route': 'dataserver',
         'filename': filename,
-        'data': b64StrData,
     }
+    cmd = encodeMessageData(cmd, data, compress)
+    if 'error' in cmd:
+        raise RequestError(cmd['error'])
     return cmd
+
 
 def classificationResultStruct(runId, trId, value):
     cmd = {'cmd': 'classificationResult',
@@ -143,7 +154,6 @@ def clientWebpipeCmd(webpipes, cmd):
         raise StateError('WebPipe closed')
     response = json.loads(msg)
     retVals = StructDict()
-    decodedData = None
     if 'status' not in response:
         raise StateError('clientWebpipeCmd: status not in response: {}'.format(response))
     retVals.statusCode = response['status']
@@ -151,17 +161,53 @@ def clientWebpipeCmd(webpipes, cmd):
         if 'filename' in response:
             retVals.filename = response['filename']
         if 'data' in response:
-            decodedData = b64decode(response['data'])
             if retVals.filename is None:
                 raise StateError('clientWebpipeCmd: filename field is None')
             # Note: we used to format data for files with .dcm or .mat extensions
             # Now the caller is responsible for calling either readDicomFromBuffer(data)
             # or utils.loadMatFileFromBuffer(data). The following formatring line is commented out
             # retVals.data = formatFileData(retVals.filename, decodedData)
-            retVals.data = decodedData
+            retVals.data = decodeMessageData(response)
     elif retVals.statusCode not in (200, 408):
         raise RequestError('WebRequest error: status {}: {}'.format(retVals.statusCode, response['error']))
     return retVals
+
+
+def encodeMessageData(message, data, compress):
+    message['hash'] = hashlib.md5(data).hexdigest()
+    dataSize = len(data)
+    if compress or dataSize > (20*2**20):
+        message['compressed'] = True
+        data = zlib.compress(data)
+    message['data'] = b64encode(data).decode('utf-8')
+    # if 'compressed' in message:
+    #     print('Compression ratio: {:.2f}'.format(len(message['data'])/dataSize))
+    if len(message['data']) > 100*1024*1024:
+        message['status'] = 400
+        message['error'] = 'Error: encoded file exceeds max size of 100MB'
+        message['data'] = None
+    return message
+
+
+def decodeMessageData(message):
+    data = None
+    if 'data' not in message:
+        message['status'] = 400
+        message['error'] = "Missing data field"
+        return None
+    decodedData = b64decode(message['data'])
+    if 'compressed' in message:
+        data = zlib.decompress(decodedData)
+    else:
+        data = decodedData
+    if 'hash' in message:
+        dataHash = hashlib.md5(data).hexdigest()
+        if dataHash != message['hash']:
+            message['status'] = 400
+            message['error'] = "Hash checksum mismatch {} {}".\
+                format(dataHash, message['hash'])
+            return None
+    return data
 
 
 def formatFileData(filename, data):

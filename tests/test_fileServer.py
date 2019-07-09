@@ -110,7 +110,7 @@ class TestFileWatcher:
         assert response['status'] == 400
 
         # Initialize with allowed directory
-        cmd = wcutils.initWatchReqStruct(testDir, '*', 0)
+        cmd = wcutils.initWatchReqStruct(testDir, '*.dcm', 0)
         response = Web.sendDataMsgFromThread(cmd)
         assert response['status'] == 200
 
@@ -123,19 +123,33 @@ class TestFileWatcher:
         cmd = wcutils.watchFileReqStruct(dicomTestFilename)
         response = Web.sendDataMsgFromThread(cmd)
         assert response['status'] == 200
-        responseData = b64decode(response['data'])
+        responseData = wcutils.decodeMessageData(response)
+        assert responseData == data
+
+        # Try compressed version
+        cmd = wcutils.watchFileReqStruct(dicomTestFilename, compress=True)
+        response = Web.sendDataMsgFromThread(cmd)
+        assert response['status'] == 200
+        responseData = wcutils.decodeMessageData(response)
         assert responseData == data
 
         cmd = wcutils.getFileReqStruct(dicomTestFilename)
         response = Web.sendDataMsgFromThread(cmd)
         assert response['status'] == 200
-        responseData = b64decode(response['data'])
+        responseData = wcutils.decodeMessageData(response)
+        assert responseData == data
+
+        # Try compressed version
+        cmd = wcutils.getFileReqStruct(dicomTestFilename, compress=True)
+        response = Web.sendDataMsgFromThread(cmd)
+        assert response['status'] == 200
+        responseData = wcutils.decodeMessageData(response)
         assert responseData == data
 
         cmd = wcutils.getNewestFileReqStruct(dicomTestFilename)
         response = Web.sendDataMsgFromThread(cmd)
         assert response['status'] == 200
-        responseData = b64decode(response['data'])
+        responseData = wcutils.decodeMessageData(response)
         assert responseData == data
 
         # Try to get a non-allowed file
@@ -158,7 +172,7 @@ class TestFileWatcher:
         # Test putBinaryData function
         testData = b'\xFE\xED\x01\x23'
         dataFileName = os.path.join(tmpDir, 'test2.bin')
-        cmd = wcutils.putBinaryFileReqStruct(dataFileName, testData)
+        cmd = wcutils.putBinaryFileReqStruct(dataFileName, testData, compress=True)
         response = Web.sendDataMsgFromThread(cmd)
         assert response['status'] == 200
         # read back an compare to original
