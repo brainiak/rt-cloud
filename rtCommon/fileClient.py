@@ -14,6 +14,11 @@ class FileInterface:
         if self.local:
             self.fileWatcher = FileWatcher()
 
+    def __del__(self):
+        if self.fileWatcher is not None:
+            self.fileWatcher.__del__()
+            self.fileWatcher = None
+
     def getFile(self, filename):
         data = None
         if self.local:

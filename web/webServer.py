@@ -16,6 +16,7 @@ import threading
 import subprocess
 from pathlib import Path
 from rtCommon.webClientUtils import listFilesReqStruct, getFileReqStruct, decodeMessageData
+from rtCommon.webClientUtils import defaultWebPipeName, makeFifo
 from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.certsUtils import getCertPath, getKeyPath
 from rtCommon.utils import DebugLevels, writeFile
@@ -26,6 +27,7 @@ sslCertFile = 'rtcloud.crt'
 sslPrivateKey = 'rtcloud_private.key'
 CommonOutputDir = '/rtfmriData/'
 maxDaysLoginCookieValid = 0.5
+
 
 moduleDir = os.path.dirname(os.path.realpath(__file__))
 rootDir = os.path.dirname(moduleDir)
@@ -126,6 +128,12 @@ class Web():
             # RuntimeError thrown if no current event loop
             # Start the event loop
             asyncio.set_event_loop(asyncio.new_event_loop())
+
+        # start thread listening for remote file requests on a default named pipe
+        webpipes = makeFifo(pipename=defaultWebPipeName)
+        fifoThread = threading.Thread(name='defaultWebpipeThread', target=repeatWebPipeRequestHandler, args=(webpipes,))
+        fifoThread.setDaemon(True)
+        fifoThread.start()
 
         ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         ssl_ctx.load_cert_chain(getCertPath(certsDir, sslCertFile),
@@ -721,7 +729,7 @@ def runSession(cfg, pyScript, filesremote=False):
     webpipes = makeFifo()
     cmdStr += ' --webpipe {}'.format(webpipes.fifoname)
     # start thread listening for remote file requests on fifo queue
-    fifoThread = threading.Thread(name='fifoThread', target=pyScriptRequestHandler, args=(webpipes,))
+    fifoThread = threading.Thread(name='fifoThread', target=webPipeRequestHandler, args=(webpipes,))
     fifoThread.setDaemon(True)
     fifoThread.start()
     # print(cmdStr)
@@ -776,7 +784,12 @@ def procOutputReader(proc, lineQueue):
             break
 
 
-def pyScriptRequestHandler(webpipes):
+def repeatWebPipeRequestHandler(webpipes):
+    while True:
+        webPipeRequestHandler(webpipes)
+
+
+def webPipeRequestHandler(webpipes):
     '''A thread routine that listens for requests from a process through a pair of named pipes.
     This allows another process to send web requests without directly integrating
     the web server into the process.
@@ -919,24 +932,3 @@ def uploadFiles(request):
         Web.sendUserMsgFromThread(json.dumps(response))
     response = {'cmd': 'uploadProgress', 'file': '------upload complete------'}
     Web.sendUserMsgFromThread(json.dumps(response))
-
-
-def makeFifo():
-    fifodir = '/tmp/pipes/'
-    if not os.path.exists(fifodir):
-        os.makedirs(fifodir)
-    # remove all previous pipes
-    for p in Path(fifodir).glob("web_*"):
-        p.unlink()
-    # create new pipe
-    fifoname = os.path.join(fifodir, 'web_pipe_{}'.format(int(time.time())))
-    # fifo stuct
-    webpipes = StructDict()
-    webpipes.name_out = fifoname + '.toclient'
-    webpipes.name_in = fifoname + '.fromclient'
-    if not os.path.exists(webpipes.name_out):
-        os.mkfifo(webpipes.name_out)
-    if not os.path.exists(webpipes.name_in):
-        os.mkfifo(webpipes.name_in)
-    webpipes.fifoname = fifoname
-    return webpipes

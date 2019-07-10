@@ -55,7 +55,7 @@ def doRuns(cfg, fileInterface, webComm):
     return
 
 
-def main():
+def main(argv=None):
     logger = logging.getLogger()
     logger.setLevel(logLevel)
 
@@ -71,7 +71,7 @@ def main():
                            help='Named pipe to communicate with webServer')
     argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
                            help='retrieve dicom files from the remote server')
-    args = argParser.parse_args()
+    args = argParser.parse_args(argv)
 
     cfg = loadConfigFile(args.config)
     if args.runs != '' and args.scans != '':
@@ -79,16 +79,14 @@ def main():
         cfg.Runs = [int(x) for x in args.runs.split(',')]
         cfg.ScanNums = [int(x) for x in args.scans.split(',')]
 
-    webComm = None
-    if args.webpipe:
-        webComm = wcutils.openWebServerConnection(args.webpipe)
-        wcutils.watchForExit()
+    webComm = wcutils.initWebPipeConnection(args.webpipe, args.filesremote)
     fileInterface = FileInterface(filesremote=args.filesremote, webpipes=webComm)
 
     # Do processing
     doRuns(cfg, fileInterface, webComm)
-    sys.exit(0)
+    return 0
 
 
 if __name__ == "__main__":
     main()
+    sys.exit(0)

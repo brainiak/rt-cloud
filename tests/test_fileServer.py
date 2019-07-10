@@ -5,6 +5,7 @@ import threading
 import time
 import logging
 from base64 import b64decode
+import projects.sample.sample as sample
 from rtCommon.utils import installLoggers
 from rtCommon.fileServer import WebSocketFileWatcher
 from web.webServer import Web
@@ -31,6 +32,7 @@ class TestFileWatcher:
         installLoggers(logging.DEBUG, logging.DEBUG, filename='logs/tests.log')
         # Start a webServer thread running
         params = StructDict({'fmriPyScript': 'projects/sample/sample.py',
+                             'filesremote': True,
                              'port': 8921,
                             })
         cfg = StructDict({'sessionId': "test",
@@ -61,6 +63,7 @@ class TestFileWatcher:
         time.sleep(1)
 
     def teardown_class(cls):
+        WebSocketFileWatcher.stop()
         Web.stop()
         time.sleep(1)
         pass
@@ -180,3 +183,8 @@ class TestFileWatcher:
         response = Web.sendDataMsgFromThread(cmd)
         responseData = b64decode(response['data'])
         assert responseData == testData
+
+    def test_runFromCommandLine(cls):
+        argv = ['--filesremote']
+        ret = sample.main(argv)
+        assert ret == 0

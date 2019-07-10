@@ -29,11 +29,14 @@ def test_readDicom():
     assert vol3 is not None
     assert (vol1 == vol3).all()
 
-    # Test convert to nifti
-    niftiObject = dicomreaders.mosaic_to_nii(dicomImg3)
-    assert niftiObject is not None
-
     # read in a truncated file, should fail and return None.
     trucatedDicomFile = os.path.join(dicomDir, test_dicomTruncFile)
     dicomImg4 = rd.readRetryDicomFromFileInterface(fileInterface, trucatedDicomFile)
     assert dicomImg4 is None
+
+    # Test convert to nifti
+    niftiObject = dicomreaders.mosaic_to_nii(dicomImg3)
+    assert niftiObject is not None
+
+    fileInterface.fileWatcher.__del__()
+    fileInterface.fileWatcher = None

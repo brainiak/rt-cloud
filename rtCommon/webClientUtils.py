@@ -18,6 +18,7 @@ from rtCommon.errors import RequestError, StateError
 from requests.packages.urllib3.contrib import pyopenssl
 
 certFile = 'certs/rtcloud.crt'
+defaultWebPipeName = 'rt_webpipe_default'
 
 
 def openWebServerConnection(pipeName):
@@ -26,9 +27,7 @@ def openWebServerConnection(pipeName):
     Pipe.Open() blocks until the other end opens it as well. Therefore open the reader first
     here and the writer first within the webserver.
     '''
-    webpipes = StructDict()
-    webpipes.name_in = pipeName + '.toclient'
-    webpipes.name_out = pipeName + '.fromclient'
+    webpipes = makeFifo(pipename=pipeName, isServer=False)
     webpipes.fd_in = open(webpipes.name_in, mode='r')
     webpipes.fd_out = open(webpipes.name_out, mode='w', buffering=1)
     return webpipes
@@ -134,6 +133,25 @@ def classificationResultStruct(runId, trId, value):
            'value': value,
            }
     return cmd
+
+
+def initWebPipeConnection(webPipeName, filesRemote):
+    webComm = None
+    if webPipeName:
+        # Process is being run from a webserver
+        # Watch for parent process exiting and then exit when it does
+        watchForExit()
+    # If filesremote is true, must create a webpipe connecton to the webserver to retrieve the files
+    # If filesremote is false, but runing from a webserver, still need a webpipe connection to return logging output
+    # Only when local files and not run from a webserver is no webpipe connection needed
+    if filesRemote:
+        # Must have a webpipe for remote files
+        if webPipeName is None:
+            # No webpipe name specified, use default name
+            webPipeName = defaultWebPipeName
+    if webPipeName:
+        webComm = openWebServerConnection(webPipeName)
+    return webComm
 
 
 def sendClassicationResult(webpipes, runId, trId, value):
@@ -269,3 +287,33 @@ def makeSSLCertFile(serverName):
     if not success:
         print('Failed to make certificate:')
         sys.exit()
+
+
+def makeFifo(pipename=None, isServer=True):
+    fifodir = '/tmp/pipes/'
+    if not os.path.exists(fifodir):
+        os.makedirs(fifodir)
+    # create new pipe
+    if pipename is None:
+        fifoname = os.path.join(fifodir, 'web_pipe_{}'.format(int(time.time())))
+        if isServer:
+            # remove previous temporary named pipes
+            for p in Path(fifodir).glob("web_pipe_*"):
+                p.unlink()
+    else:
+        fifoname = os.path.join(fifodir, pipename)
+    # fifo stuct
+    webpipes = StructDict()
+    if isServer:
+        webpipes.name_out = fifoname + '.toclient'
+        webpipes.name_in = fifoname + '.fromclient'
+    else:
+        webpipes.name_out = fifoname + '.fromclient'
+        webpipes.name_in = fifoname + '.toclient'
+
+    if not os.path.exists(webpipes.name_out):
+        os.mkfifo(webpipes.name_out)
+    if not os.path.exists(webpipes.name_in):
+        os.mkfifo(webpipes.name_in)
+    webpipes.fifoname = fifoname
+    return webpipes

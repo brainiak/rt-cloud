@@ -51,6 +51,7 @@ class WebSocketFileWatcher:
                 allowedTypes[i] = '.' + allowedTypes[i]
         WebSocketFileWatcher.allowedTypes = allowedTypes
         # go into loop trying to do webSocket connection periodically
+        WebSocketFileWatcher.shouldExit = False
         while not WebSocketFileWatcher.shouldExit:
             try:
                 if WebSocketFileWatcher.needLogin or WebSocketFileWatcher.sessionCookie is None:
@@ -68,6 +69,10 @@ class WebSocketFileWatcher:
             except Exception as err:
                 logging.log(logging.INFO, "WSFileWatcher Exception {}: {}".format(type(err).__name__, str(err)))
                 time.sleep(retryInterval)
+
+    @staticmethod
+    def stop():
+        WebSocketFileWatcher.shouldExit = True
 
     @staticmethod
     def on_message(client, message):

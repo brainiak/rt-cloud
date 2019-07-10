@@ -46,10 +46,7 @@ Accept at least the following command line parameters in your project python fil
 
 Set up communication with the web server
 
-    webComm = None
-    if args.webpipe:
-        webComm = wcutils.openWebServerConnection(args.webpipe)
-        wcutils.watchForExit()
+    webComm = wcutils.initWebPipeConnection(args.webpipe, args.filesremote)
 
 Open a FileInterface object for reading and writing files
 
@@ -178,3 +175,6 @@ On Mac:
 4. In 'Certificates' pane, double-click the 'rtcloud.princeton.edu' certificate
 5. Select the 'Trust' drop-down item.
 6. In 'When using the certificate' selector choose 'Always Trust'
+
+## Further Reading
+[details](docs/details.md)
