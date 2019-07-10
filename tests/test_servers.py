@@ -1,6 +1,5 @@
 import pytest
 import os
-import sys
 import threading
 import time
 import logging
@@ -23,7 +22,7 @@ def dicomTestFilename():  # type: ignore
     return os.path.join(testDir, 'test_input/001_000005_000100.dcm')
 
 
-class TestFileWatcher:
+class TestServers:
     webThread = None
     fileThread = None
     pingCount = 0
