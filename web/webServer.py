@@ -68,14 +68,14 @@ class Web():
     filesremote = False
     fmriPyScript = None
     cfg = None
-    test = False
+    testMode = False
     runInfo = StructDict({'threadId': None, 'stopRun': False})
 
     @staticmethod
-    def start(params, cfg, test=False):
+    def start(params, cfg, testMode=False):
         if Web.app is not None:
             raise RuntimeError("Web Server already running.")
-        Web.test = test
+        Web.testMode = testMode
         # Set default value before checking for param overrides
         Web.browserMainCallback = defaultBrowserMainCallback
         Web.browserBiofeedCallback = defaultBrowserBiofeedCallback
@@ -135,10 +135,15 @@ class Web():
         fifoThread.setDaemon(True)
         fifoThread.start()
 
-        ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        ssl_ctx.load_cert_chain(getCertPath(certsDir, sslCertFile),
-                                getKeyPath(certsDir, sslPrivateKey))
-        print("Listening on: https://localhost:{}".format(Web.httpPort))
+        if Web.testMode is True:
+            print("Listening on: http://localhost:{}".format(Web.httpPort))
+            ssl_ctx = None
+        else:
+            ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ssl_ctx.load_cert_chain(getCertPath(certsDir, sslCertFile),
+                                    getKeyPath(certsDir, sslPrivateKey))
+            print("Listening on: https://localhost:{}".format(Web.httpPort))
+
         Web.httpServer = tornado.httpserver.HTTPServer(Web.app, ssl_options=ssl_ctx)
         Web.httpServer.listen(Web.httpPort)
         Web.ioLoopInst = tornado.ioloop.IOLoop.current()
@@ -377,7 +382,7 @@ class Web():
             try:
                 login_name = self.get_argument("name")
                 login_passwd = self.get_argument("password")
-                if Web.test is True:
+                if Web.testMode is True:
                     if login_name == login_passwd == 'test':
                         self.set_secure_cookie("login", login_name, expires_days=maxDaysLoginCookieValid)
                         self.redirect(self.get_query_argument('next', '/'))

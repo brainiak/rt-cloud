@@ -11,7 +11,7 @@ from rtCommon.utils import loadConfigFile, installLoggers
 from rtCommon.structDict import StructDict
 from web.webServer import Web
 
-    # HERE: Set the path to the fMRI Python script to run here
+# HERE: Set the path to the fMRI Python script to run here
 scriptToRun = 'projects/sample/sample.py'
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
@@ -23,6 +23,8 @@ if __name__ == "__main__":
                            help='dicom files retrieved from remote server')
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment file (.json or .toml)')
+    argParser.add_argument('--test', '-t', default=False, action='store_true',
+                           help='start webserver in test mode, unsecure')
     args = argParser.parse_args()
 
     params = StructDict({'fmriPyScript': scriptToRun,
@@ -32,4 +34,4 @@ if __name__ == "__main__":
     cfg = loadConfigFile(args.config)
 
     web = Web()
-    web.start(params, cfg)
+    web.start(params, cfg, testMode=args.test)

@@ -42,8 +42,11 @@ class WebSocketFileWatcher:
     fileWatchLock = threading.Lock()
 
     @staticmethod
-    def runFileWatcher(serverAddr, retryInterval=10, allowedDirs=defaultAllowedDirs,
-                       allowedTypes=defaultAllowedTypes, username=None, password=None):
+    def runFileWatcher(serverAddr, retryInterval=10,
+                       allowedDirs=defaultAllowedDirs,
+                       allowedTypes=defaultAllowedTypes,
+                       username=None, password=None,
+                       testMode=False):
         WebSocketFileWatcher.serverAddr = serverAddr
         WebSocketFileWatcher.allowedDirs = allowedDirs
         for i in range(len(allowedTypes)):
@@ -55,8 +58,11 @@ class WebSocketFileWatcher:
         while not WebSocketFileWatcher.shouldExit:
             try:
                 if WebSocketFileWatcher.needLogin or WebSocketFileWatcher.sessionCookie is None:
-                    WebSocketFileWatcher.sessionCookie = login(serverAddr, username, password)
+                    WebSocketFileWatcher.sessionCookie = login(serverAddr, username, password, testMode=testMode)
                 wsAddr = os.path.join('wss://', serverAddr, 'wsData')
+                if testMode:
+                    print("Warning: using non-encrypted connection for test mode")
+                    wsAddr = os.path.join('ws://', serverAddr, 'wsData')
                 logging.log(DebugLevels.L6, "Trying connection: %s", wsAddr)
                 ws = websocket.WebSocketApp(wsAddr,
                                             on_message=WebSocketFileWatcher.on_message,
@@ -68,6 +74,7 @@ class WebSocketFileWatcher:
                 ws.run_forever(sslopt={"ca_certs": certFile})
             except Exception as err:
                 logging.log(logging.INFO, "WSFileWatcher Exception {}: {}".format(type(err).__name__, str(err)))
+                print('sleep {}'.format(retryInterval))
                 time.sleep(retryInterval)
 
     @staticmethod
@@ -312,6 +319,8 @@ if __name__ == "__main__":
                         help="rtcloud website username")
     parser.add_argument('-p', '--password', action="store", dest="password", default=None,
                         help="rtcloud website password")
+    parser.add_argument('--test', default=False, action='store_true',
+                         help='Use unsecure non-encrypted connection')
     args = parser.parse_args()
 
     if not re.match(r'.*:\d+', args.server):
@@ -340,4 +349,5 @@ if __name__ == "__main__":
                                         allowedDirs=args.allowedDirs,
                                         allowedTypes=args.allowedFileTypes,
                                         username=args.username,
-                                        password=args.password)
+                                        password=args.password,
+                                        testMode=args.test)

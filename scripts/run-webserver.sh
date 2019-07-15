@@ -5,16 +5,18 @@ while test $# -gt 0
 do
   case "$1" in
     -h)
-      echo "$0 [-p [project] -c <toml_file>] [-ip <local_ip_or_hostname] [--localfiles]"
+      echo "$0 [-p [project] -c <toml_file>] [-ip <local_ip_or_hostname] [--localfiles] [--test]"
       exit 0
       ;;
     -c) CFG=$2
       ;;
     -ip) IP=$2
       ;;
+    -p) PROJECT=$2
+      ;;
     --localfiles) USELOCALFILES=1
       ;;
-    -p) PROJECT=$2
+    --test) TEST_PARAM='-t'
       ;;
   esac
   shift
@@ -54,4 +56,4 @@ else
 fi
 
 
-python projects/$PROJECT/webMain.py $R_PARAM $CFG_PARAM
+python projects/$PROJECT/webMain.py $R_PARAM $CFG_PARAM $TEST_PARAM

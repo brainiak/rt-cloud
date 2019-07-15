@@ -175,7 +175,11 @@ class TopPane extends React.Component {
   }
 
   createWebSocket() {
-    var wsUserURL = 'wss://' + location.hostname + ':' + location.port + '/wsUser'
+    var wsProtocol = 'wss://'
+    if (location.protocol == 'http:') {
+        wsProtocol = 'ws://'
+    }
+    var wsUserURL = wsProtocol + location.hostname + ':' + location.port + '/wsUser'
     console.log(wsUserURL)
     var webSocket = new WebSocket(wsUserURL);
     webSocket.onopen = (openEvent) => {

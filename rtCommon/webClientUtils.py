@@ -242,12 +242,16 @@ def formatFileData(filename, data):
     return result
 
 
-def login(serverAddr, username, password):
+def login(serverAddr, username, password, testMode=False):
     loginURL = os.path.join('https://', serverAddr, 'login')
+    if testMode:
+        loginURL = os.path.join('http://', serverAddr, 'login')
+        username = 'test'
+        password = 'test'
     session = requests.Session()
     session.verify = certFile
     try:
-        getResp = session.get(loginURL)
+        getResp = session.get(loginURL, timeout=10)
     except Exception as err:
         raise ConnectionError('Connection error: {}'.format(loginURL))
     if getResp.status_code != 200:
