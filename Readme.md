@@ -56,19 +56,15 @@ A fileServer is started on the scanner computer that can watch for files within 
     - *Mac Specific:* Google "what's my ip address"
     - *Linux Specific:* <code>hostname -i</code>
 - Make a private key and an ssl certificate or copy an existing one into the certs directory<br>
-    <code>
-    mkdir certs; openssl genrsa -out certs/rtcloud_private.key 2048<br>
-    bash scripts/make-sslcert.sh -ip *[local_ip_addr]*
-    </code>
+    - <code>mkdir certs; openssl genrsa -out certs/rtcloud_private.key 2048</code>
+    - <code>bash scripts/make-sslcert.sh -ip *[local_ip_addr]*</code>
 - Create the conda environment<br>
-    <code>
-    conda env create -f environment.yml<br>
-    conda activate rtcloud
-    </code>
+    - <code>conda env create -f environment.yml</code>
+    - <code>conda activate rtcloud</code>
 - Install node module dependencies<br>
-    <code>cd web; npm install; cd ..</code>
+    - <code>cd web; npm install; cd ..</code>
 - Create a user:<br>
-    <code>bash scripts/add-user.sh -u [new_username] -p [password] </code>
+    - <code>bash scripts/add-user.sh -u [new_username] -p [password]</code>
 
 
 #### Step 3: Install FileServer on Console Computer (All OS Types)
@@ -84,15 +80,12 @@ Note that the --test option runs in test mode which doesn't use SSL encryption a
 
 1. Open a terminal
     - Start the webServer<br>
-        <code>
-        conda activate rtcloud<br>
-        bash scripts/run-webserver.sh -p sample --test
-        </code>
+        - <code>conda activate rtcloud</code>
+        - <code>bash scripts/run-webserver.sh -p sample --test</code>
 - Open another terminal
     - Start the fileServer<br>
-        <code>
-        conda activate rtcloud<br>
-        bash scripts/run-fileserver.sh -s localhost:8888 --test</code>
+        - <code>conda activate rtcloud</code>
+        - <code>bash scripts/run-fileserver.sh -s localhost:8888 --test</code>
 - Navigate web browser to URL http://localhost:8888
     - If prompted for username and password enter:<br>
         username 'test', password 'test'
