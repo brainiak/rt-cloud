@@ -33,13 +33,13 @@ A fileServer is started on the scanner computer that can watch for files within 
 ## Installation
 
 #### Step 1: Install Mini-Conda and NodeJS
-
+*On the cloud computer where processing will take place, do these steps*
 1. Check if you have mini-conda already installed. In a terminal run <code>conda -V</code>
     - *Mac Specific:* [Install Mini-Conda](https://docs.conda.io/en/latest/miniconda.html)
     - *Linux Specific:* Install Mini-Conda
         - <code>wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh</code>
         - <code>bash Miniconda3-latest-Linux-x86_64.sh -b</code>
-- Check if you have Node.js and NPM installed. In a terminal run <code>node -v</code> and <code>npm -v</code>
+2. Check if you have Node.js and NPM installed. In a terminal run <code>node -v</code> and <code>npm -v</code>
     - *Mac Specific:* Install Node.js
         - Check if Homebrew 'brew' is installed run <code>brew -h</code>
             - [Install Homebrew](https://treehouse.github.io/installation-guides/mac/homebrew) if it is not installed
@@ -50,28 +50,32 @@ A fileServer is started on the scanner computer that can watch for files within 
         - <code>sudo yum install nodejs</code>
 
 #### Step 2: Install Realtime WebServer on cloud VM (All OS types)
+*On the cloud computer where processing will take place, do these steps*
 1. Pull the source code <code>git clone https://github.com/brainiak/rt-cloud.git</code>
-- <code>cd rt-cloud/</code>
-- Get the local ip address *<local_ip_addr>*
+2. <code>cd rt-cloud/</code>
+3. Get the local ip address *<local_ip_addr>*
     - *Mac Specific:* Google "what's my ip address"
     - *Linux Specific:* <code>hostname -i</code>
-- Make a private key and an ssl certificate or copy an existing one into the certs directory<br>
+4. Make a private key and an ssl certificate or copy an existing one into the certs directory<br>
     - <code>mkdir certs; openssl genrsa -out certs/rtcloud_private.key 2048</code>
     - <code>bash scripts/make-sslcert.sh -ip *[local_ip_addr]*</code>
-- Create the conda environment<br>
+5. Create the conda environment<br>
     - <code>conda env create -f environment.yml</code>
     - <code>conda activate rtcloud</code>
-- Install node module dependencies<br>
+6. Install node module dependencies<br>
     - <code>cd web; npm install; cd ..</code>
-- Create a user:<br>
+7. Create a user:<br>
     - <code>bash scripts/add-user.sh -u [new_username] -p [password]</code>
 
 
 #### Step 3: Install FileServer on Console Computer (All OS Types)
-From the console computer where dicoms are written:
-1. Repeat Step 1 above to install Mini-Conda
-- Clone the rt-cloud code <code>git clone https://github.com/brainiak/rt-cloud.git</code>
-- Copy the ssl certificate created in Step 2 above to this computer's rt-cloud/certs directory
+*On the console computer where dicoms are written, do these steps*
+1. Repeat Step 1.1 above to install Mini-Conda
+2. Clone the rt-cloud code <code>git clone https://github.com/brainiak/rt-cloud.git</code>
+3. Copy the ssl certificate created in Step 2.4 above to this computer's rt-cloud/certs directory
+    - Copy rt-cloud/certs/rtcloud.crt from the cloud computer
+    - Copy it into the rt-cloud/certs directory on the fileServer computer
+
 
 
 ## Testing the Sample Project

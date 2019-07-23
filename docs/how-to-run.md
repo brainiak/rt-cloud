@@ -80,13 +80,13 @@ There are several security mechanisms
 - **Direction of connection** - The fileserver doesn't allow connections to it. The fileserver always initiates the connection going to the webserver.
 
 ## Definitions
-1. **[local_ip_addr]** - network address of the computer where a command is issued
+- **[allowed_dirs]** - This allows restricting which directories the fileServer is allowed to return files from. Specify as a comma separated list with no spaces, e.g. '-d /tmp,/data,/home/username'
+- **[allowed_file_extensions]** - This allows restricting which file types the fileServer is allowed to return. Specify as a comma separated list with no spaces, e.g. '-f .dcm,.txt,.mat'
+- **[config_file]** - the location of project specific configurations in a toml file format. This will typically be located in a directory within the project such as *rtcloud/projects/your_project/conf/*. E.g. the sample project config file is *rtcloud/projects/sample/conf/sample.toml*
+- **[local_ip_addr]** - network address of the computer where a command is issued
     - Get the local ip address
         - Mac: Google "what's my ip address"
         - Linux: <code>hostname -i</code>
-- **[config_file]** - the location of project specific configurations in a toml file format. This will typically be located in a directory within the project such as *rtcloud/projects/your_project/conf/*. E.g. the sample project config file is *rtcloud/projects/sample/conf/sample.toml*
-- **[allowed_dirs]** - This allows restricting which directories the fileServer is allowed to return files from. Specify as a comma separated list with no spaces, e.g. '-d /tmp,/data,/home/username'
-- **[allowed_file_extensions]** - This allows restricting which file types the fileServer is allowed to return. Specify as a comma separated list with no spaces, e.g. '-f .dcm,.txt,.mat'
+- **[username] [password]** - The username and password to login to the webServer. This was created with the adduser.sh script during installation of the webServer.
 - **[webserver_addr:port]** - The network address and port number that the webServer is listening on. The default port is 8888. E.g. '-s 125.130.21.34:8888'
 - **[your_project_name]** - The name of the subdirectory under the *rtcloud/projects/* directory which contains your project specific code
-- **[username] [password]** - The username and password to login to the webServer. This was created with the adduser.sh script during installation of the webServer.
