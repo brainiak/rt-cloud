@@ -14,11 +14,15 @@ from base64 import b64encode, b64decode
 import rtCommon.utils as utils
 from rtCommon.structDict import StructDict
 from rtCommon.readDicom import readDicomFromBuffer
-from rtCommon.errors import RequestError, StateError
+from rtCommon.errors import RequestError, StateError, ValidationError
 from requests.packages.urllib3.contrib import pyopenssl
 
 certFile = 'certs/rtcloud.crt'
 defaultWebPipeName = 'rt_webpipe_default'
+
+# Cache of multi-part data transfers in progress
+multiPartDataCache = {}
+dataPartSize = 10 * (2**20)
 
 
 def openWebServerConnection(pipeName):
@@ -114,15 +118,12 @@ def putTextFileReqStruct(filename, str):
     return cmd
 
 
-def putBinaryFileReqStruct(filename, data, compress=False):
+def putBinaryFileReqStruct(filename):
     cmd = {
         'cmd': 'putBinaryFile',
         'route': 'dataserver',
         'filename': filename,
     }
-    cmd = encodeMessageData(cmd, data, compress)
-    if 'error' in cmd:
-        raise RequestError(cmd['error'])
     return cmd
 
 
@@ -165,30 +166,75 @@ def clientWebpipeCmd(webpipes, cmd):
     This allows a separate client process to make requests of the web server process.
     It writes the request on fd_out and recieves the reply on fd_in.
     '''
-    webpipes.fd_out.write(json.dumps(cmd) + os.linesep)
-    msg = webpipes.fd_in.readline()
-    if len(msg) == 0:
-        # fifo closed
-        raise StateError('WebPipe closed')
-    response = json.loads(msg)
-    retVals = StructDict()
-    if 'status' not in response:
-        raise StateError('clientWebpipeCmd: status not in response: {}'.format(response))
-    retVals.statusCode = response['status']
-    if retVals.statusCode == 200:  # success
-        if 'filename' in response:
-            retVals.filename = response['filename']
+    data = None
+    savedError = None
+    incomplete = True
+    while incomplete:
+        webpipes.fd_out.write(json.dumps(cmd) + os.linesep)
+        msg = webpipes.fd_in.readline()
+        if len(msg) == 0:
+            # fifo closed
+            raise StateError('WebPipe closed')
+        response = json.loads(msg)
+        status = response.get('status', -1)
+        if status != 200:
+            raise RequestError('clientWebpipeCmd: Cmd: {} status {}: error {}'.
+                               format(cmd.get('cmd'), status, response.get('error')))
         if 'data' in response:
-            if retVals.filename is None:
-                raise StateError('clientWebpipeCmd: filename field is None')
-            # Note: we used to format data for files with .dcm or .mat extensions
-            # Now the caller is responsible for calling either readDicomFromBuffer(data)
-            # or utils.loadMatFileFromBuffer(data). The following formatring line is commented out
-            # retVals.data = formatFileData(retVals.filename, decodedData)
-            retVals.data = decodeMessageData(response)
-    elif retVals.statusCode not in (200, 408):
-        raise RequestError('WebRequest error: status {}: {}'.format(retVals.statusCode, response['error']))
+            try:
+                data = unpackDataMessage(response)
+            except Exception as err:
+                # The call may be incomplete, save the error and keep receiving as needed
+                logging.error('clientWebpipeCmd: {}'.format(err))
+                if savedError is None:
+                    savedError = err
+            cmd['callId'] = response.get('callId', -1)
+        # Check if need to continue to get more parts
+        incomplete = response.get('incomplete', False)
+    if savedError:
+        raise RequestError('clientWebpipeCmd: {}'.format(savedError))
+    retVals = StructDict()
+    retVals.statusCode = response.get('status', -1)
+    if 'filename' in response:
+        retVals.filename = response['filename']
+    if data:
+        retVals.data = data
+        if retVals.filename is None:
+            raise StateError('clientWebpipeCmd: filename field is None')
     return retVals
+
+
+def generateDataParts(data, msg, compress):
+    dataSize = len(data)
+    # update message for all data parts with the following info
+    numParts = (dataSize + dataPartSize - 1) // dataPartSize
+    msg['status'] = 200
+    msg['fileSize'] = dataSize
+    msg['fileHash'] = hashlib.md5(data).hexdigest()
+    msg['numParts'] = numParts
+    if numParts > 1:
+        msg['multipart'] = True
+    i = 0
+    partId = 0
+    dataSize = len(data)
+    while i < dataSize:
+        msgPart = msg.copy()
+        partId += 1
+        sendSize = dataSize - i
+        if sendSize > dataPartSize:
+            sendSize = dataPartSize
+        dataPart = data[i:i+sendSize]
+        msgPart['partId'] = partId
+        try:
+            msgPart = encodeMessageData(msgPart, dataPart, compress)
+        except Exception as err:
+            msgPart['status'] = 400
+            msgPart['error'] = str(err)
+            yield msgPart
+            break
+        yield msgPart
+        i += sendSize
+    return
 
 
 def encodeMessageData(message, data, compress):
@@ -198,21 +244,19 @@ def encodeMessageData(message, data, compress):
         message['compressed'] = True
         data = zlib.compress(data)
     message['data'] = b64encode(data).decode('utf-8')
+    message['dataSize'] = dataSize
     # if 'compressed' in message:
     #     print('Compression ratio: {:.2f}'.format(len(message['data'])/dataSize))
     if len(message['data']) > 100*1024*1024:
-        message['status'] = 400
-        message['error'] = 'Error: encoded file exceeds max size of 100MB'
         message['data'] = None
+        raise ValidationError('encodeMessageData: encoded file exceeds max size of 100MB')
     return message
 
 
 def decodeMessageData(message):
     data = None
     if 'data' not in message:
-        message['status'] = 400
-        message['error'] = "Missing data field"
-        return None
+        raise RequestError('decodeMessageData: data field not in response')
     decodedData = b64decode(message['data'])
     if 'compressed' in message:
         data = zlib.decompress(decodedData)
@@ -221,11 +265,75 @@ def decodeMessageData(message):
     if 'hash' in message:
         dataHash = hashlib.md5(data).hexdigest()
         if dataHash != message['hash']:
-            message['status'] = 400
-            message['error'] = "Hash checksum mismatch {} {}".\
-                format(dataHash, message['hash'])
-            return None
+            raise RequestError('decodeMessageData: Hash checksum mismatch {} {}'.
+                               format(dataHash, message['hash']))
     return data
+
+
+def unpackDataMessage(msg):
+    global multiPartDataCache
+    try:
+        if msg.get('status') != 200:
+            # On error delete any partial transfers
+            fileHash = msg.get('fileHash')
+            if fileHash is not None and fileHash in multiPartDataCache:
+                del multiPartDataCache[fileHash]
+            raise RequestError('unpackDataMessage: {} {}'.format(msg.get('status'), msg.get('error')))
+        data = decodeMessageData(msg)
+        multipart = msg.get('multipart', False)
+        numParts = msg.get('numParts', 1)
+        partId = msg.get('partId', 1)
+        logging.debug('unpackDataMessage: callid {}, part {} of {}'.format(msg.get('callId'), partId, numParts))
+        if multipart is False or numParts == 1:
+            # All data sent in a single message
+            return data
+        else:
+            assert numParts > 1
+            assert multipart is True
+            if partId > numParts:
+                raise RequestError(
+                    'unpackDataMessage: Inconsistent parts: partId {} exceeds numParts {}'.
+                    format(partId, numParts))
+            # get the data structure for this data
+            fileHash = msg.get('fileHash')
+            if partId > 1:
+                partialDataStruct = multiPartDataCache.get(fileHash)
+                if partialDataStruct is None:
+                    raise RequestError('unpackDataMessage: partialDataStruct not found')
+            else:
+                partialDataStruct = StructDict({'cachedDataParts': [None]*numParts, 'numCachedParts': 0})
+                multiPartDataCache[fileHash] = partialDataStruct
+            partialDataStruct.cachedDataParts[partId-1] = data
+            partialDataStruct.numCachedParts += 1
+            if partialDataStruct.numCachedParts == numParts:
+                # All parts of the multipart transfer have been received
+                # Concatenate the data into one bytearray
+                data = bytearray()
+                for i in range(numParts):
+                    dataPart = partialDataStruct.cachedDataParts[i]
+                    if dataPart is None:
+                        raise StateError('unpackDataMessage: missing dataPart {}'.format(i))
+                    data.extend(dataPart)
+                # Check fileHash and fileSize
+                dataHash = hashlib.md5(data).hexdigest()
+                dataSize = len(data)
+                if dataHash != fileHash:
+                    raise RequestError("unpackDataMessage: File checksum mismatch {} {}".
+                                       format(dataHash, fileHash))
+                if dataSize != msg.get('fileSize', 0):
+                    raise RequestError("unpackDataMessage: File size mismatch {} {}".
+                                       format(dataSize, msg.get('fileSize', 0)))
+                # delete the multipart data cache for this item
+                del multiPartDataCache[fileHash]
+                return data
+        # Multi-part transfer not complete, nothing to return
+        return None
+    except Exception as err:
+        # removed any cached data
+        fileHash = msg.get('fileHash')
+        if fileHash and fileHash in multiPartDataCache:
+            del multiPartDataCache[fileHash]
+        raise err
 
 
 def formatFileData(filename, data):
@@ -252,7 +360,7 @@ def login(serverAddr, username, password, testMode=False):
     session.verify = certFile
     try:
         getResp = session.get(loginURL, timeout=10)
-    except Exception as err:
+    except Exception:
         raise ConnectionError('Connection error: {}'.format(loginURL))
     if getResp.status_code != 200:
         raise requests.HTTPError('Get URL: {}, returned {}'.format(loginURL, getResp.status_code))

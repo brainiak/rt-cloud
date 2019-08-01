@@ -16,7 +16,7 @@ import threading
 import subprocess
 from pathlib import Path
 from rtCommon.webClientUtils import listFilesReqStruct, getFileReqStruct, decodeMessageData
-from rtCommon.webClientUtils import defaultWebPipeName, makeFifo
+from rtCommon.webClientUtils import defaultWebPipeName, makeFifo, unpackDataMessage
 from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.certsUtils import getCertPath, getKeyPath
 from rtCommon.utils import DebugLevels, writeFile
@@ -179,7 +179,10 @@ class Web():
     def dataLog(filename, logStr):
         cmd = {'cmd': 'dataLog', 'logLine': logStr, 'filename': filename}
         try:
-            Web.sendDataMsgFromThread(cmd, timeout=5)
+            response = Web.sendDataMsgFromThread(cmd, timeout=5)
+            if response.get('status') != 200:
+                logging.warning('Web: dataLog: error {}'.format(response.get('error')))
+                return False
         except Exception as err:
             logging.warning('Web: dataLog: error {}'.format(err))
             return False
@@ -201,20 +204,11 @@ class Web():
         Web.sendUserMsgFromThread(json.dumps(response))
 
     @staticmethod
-    def sendDataMessage(cmd, callbackStruct):
-        if callbackStruct is None or callbackStruct.event is None:
-            raise StateError("sendDataMessage: No threading.event attribute in callbackStruct")
+    def sendDataMessage(cmd):
+        ''' This function is called within the ioloop thread by scheduling the call'''
         Web.threadLock.acquire()
         try:
-            Web.dataSequenceNum += 1
-            seqNum = Web.dataSequenceNum
-            cmd['seqNum'] = seqNum
             msg = json.dumps(cmd)
-            callbackStruct.seqNum = seqNum
-            callbackStruct.timeStamp = time.time()
-            callbackStruct.status = 0
-            callbackStruct.error = None
-            Web.dataCallbacks[seqNum] = callbackStruct
             Web.wsDataConn.write_message(msg)
         except Exception as err:
             errStr = 'sendDataMessage error: type {}: {}'.format(type(err), str(err))
@@ -229,37 +223,26 @@ class Web():
             raise StateError('dataCallback: cmd field missing from response: {}'.format(response))
         if 'status' not in response:
             raise StateError('dataCallback: status field missing from response: {}'.format(response))
-        if 'seqNum' not in response:
-            raise StateError('dataCallback: seqNum field missing from response: {}'.format(response))
-        seqNum = response['seqNum']
-        origCmd = response['cmd']
-        logging.log(DebugLevels.L6, "callback {}: {} {}".format(seqNum, origCmd, response['status']))
+        if 'callId' not in response:
+            raise StateError('dataCallback: callId field missing from response: {}'.format(response))
+        status = response.get('status', -1)
+        callId = response.get('callId', -1)
+        origCmd = response.get('cmd', 'NoCommand')
+        logging.log(DebugLevels.L6, "callback {}: {} {}".format(callId, origCmd, status))
         # Thread Synchronized Section
         Web.threadLock.acquire()
         try:
-            callbackStruct = Web.dataCallbacks.pop(seqNum, None)
+            callbackStruct = Web.dataCallbacks.get(callId, None)
             if callbackStruct is None:
-                logging.error('WebServer: dataCallback seqNum {} not found, current seqNum {}'
-                              .format(seqNum, Web.dataSequenceNum))
+                logging.error('WebServer: dataCallback callId {} not found, current callId {}'
+                              .format(callId, Web.dataSequenceNum))
                 return
-            if callbackStruct.seqNum != seqNum:
+            if callbackStruct.callId != callId:
                 # This should never happen
-                raise StateError('seqNum mismtach {} {}'.format(callbackStruct.seqNum, seqNum))
-            callbackStruct.response = response
-            callbackStruct.status = response['status']
-            if callbackStruct.status == 200:
-                if origCmd in ('ping', 'initWatch', 'putTextFile', 'dataLog'):
-                    pass
-                elif origCmd in ('getFile', 'getNewestFile', 'watchFile'):
-                    if 'data' not in response:
-                        raise StateError('dataCallback: data field missing from response: {}'.format(response))
-                else:
-                    callbackStruct.error = 'Unrecognized origCmd {}'.format(origCmd)
-            else:
-                if 'error' not in response or response['error'] == '':
-                    raise StateError('dataCallback: error field missing from response: {}'.format(response))
-                callbackStruct.error = response['error']
-            callbackStruct.event.set()
+                raise StateError('callId mismtach {} {}'.format(callbackStruct.callId, callId))
+            callbackStruct.responses.append(response)
+            callbackStruct.numResponses += 1
+            callbackStruct.semaphore.release()
         except Exception as err:
             logging.error('WebServer: dataCallback error: {}'.format(err))
             raise err
@@ -279,17 +262,18 @@ class Web():
         try:
             maxSeconds = 300
             now = time.time()
-            for seqNum in Web.dataCallbacks.keys():
+            for callId in Web.dataCallbacks.keys():
                 # check how many seconds old each callback is
-                cb = Web.dataCallbacks[seqNum]
+                cb = Web.dataCallbacks[callId]
                 secondsElapsed = now - cb.timeStamp
                 if secondsElapsed > maxSeconds:
                     # older than max threshold so remove
                     cb.status = 400
                     cb.error = 'Callback time exceeded max threshold {}s {}s'.format(maxSeconds, secondsElapsed)
-                    cb.response = {'cmd': 'unknown', 'status': cb.status, 'error': cb.error}
-                    cb.event.set()
-                    del Web.dataCallbacks[seqNum]
+                    cb.responses.append({'cmd': 'unknown', 'status': cb.status, 'error': cb.error})
+                    for i in range(len(cb.responses)):
+                        cb.semaphore.release()
+                    del Web.dataCallbacks[callId]
         except Exception as err:
             logging.error('Web pruneCallbacks: error {}'.format(err))
         finally:
@@ -317,17 +301,55 @@ class Web():
     def sendDataMsgFromThread(msg, timeout=None):
         if Web.wsDataConn is None:
             raise StateError("WebServer: No Data Websocket Connection")
-        callbackStruct = StructDict()
-        callbackStruct.event = threading.Event()
-        # schedule the call with io thread
-        Web.ioLoopInst.add_callback(Web.sendDataMessage, msg, callbackStruct)
-        # wait for completion of call
-        callbackStruct.event.wait(timeout)
-        if callbackStruct.event.is_set() is False:
+        callId = msg.get('callId')
+        try:
+            Web.threadLock.acquire()
+            if not callId:
+                Web.dataSequenceNum += 1
+                callId = Web.dataSequenceNum
+                msg['callId'] = callId
+                callbackStruct = StructDict()
+                callbackStruct.numResponses = 0
+                callbackStruct.responses = []
+                callbackStruct.semaphore = threading.Semaphore(value=0)
+                callbackStruct.callId = callId
+                callbackStruct.timeStamp = time.time()
+                Web.dataCallbacks[callId] = callbackStruct
+                Web.ioLoopInst.add_callback(Web.sendDataMessage, msg)
+            else:
+                # call msg was already sent, now waiting for multipart callbacks
+                callbackStruct = Web.dataCallbacks.get(callId, None)
+                if callbackStruct is None:
+                    raise StateError('sendDataMsgFromThread: no callbackStruct found for callId {}'.format(callId))
+        finally:
+            Web.threadLock.release()
+
+        # wait semaphore signal indicating a callback for this callId has occured
+        signaled = callbackStruct.semaphore.acquire(timeout=timeout)
+        if signaled is False:
             raise TimeoutError("sendDataMessage: Data Request Timed Out({}) {}".format(timeout, msg))
-        if callbackStruct.response is None:
+        try:
+            # Thread synchronized
+            Web.threadLock.acquire()
+            # Remove from front of list not back to stay in order
+            # Can test removing from back of list to make sure out-of-order works too
+            response = callbackStruct.responses.pop(0)
+            if 'data' in response:
+                status = response.get('status', -1)
+                numParts = response.get('numParts', 1)
+                complete = (callbackStruct.numResponses == numParts and len(callbackStruct.responses) == 0)
+                if complete or status != 200:
+                    # End the multipart transfer
+                    response['incomplete'] = False
+                    Web.dataCallbacks.pop(callId, None)
+                else:
+                    response['incomplete'] = True
+        except IndexError:
             raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.format(msg))
-        return callbackStruct.response
+        finally:
+            Web.threadLock.release()
+        response['callId'] = callbackStruct.callId
+        return response
 
     @staticmethod
     def sendUserMsgFromThread(msg):
@@ -574,11 +596,12 @@ class Web():
             try:
                 Web.wsDataConn = None
                 # signal the close to anyone waiting for replies
-                for seqNum, cb in Web.dataCallbacks.items():
+                for callId, cb in Web.dataCallbacks.items():
                     cb.status = 499
                     cb.error = 'Client closed connection'
-                    cb.response = {'cmd': 'unknown', 'status': cb.status, 'error': cb.error}
-                    cb.event.set()
+                    cb.responses.append({'cmd': 'unknown', 'status': cb.status, 'error': cb.error})
+                    for i in range(len(cb.responses)):
+                        cb.semaphore.release()
                 Web.dataCallbacks = {}
             finally:
                 Web.threadLock.release()
@@ -588,7 +611,6 @@ class Web():
                 Web.dataCallback(self, message)
             except Exception as err:
                 logging.error('DataWebSocket: on_message error: {}'.format(err))
-
 
 
 def loadPasswdFile(filename):
@@ -616,28 +638,24 @@ def getCookieSecret(dir):
     return cookieSecret
 
 
-def writeResponseDataToFile(response):
-    global CommonOutputDir
-    if response['status'] != 200:
-        raise StateError('writeResponseDataToFile: status not 200')
-    # write the returned data out to a file
-    if 'data' not in response:
-        raise StateError('writeResponseDataToFile: data field not in response: {}'.format(response))
-    if 'filename' not in response:
-        del response['data']
-        raise StateError('writeResponseDataToFile: filename field not in response: {}'.format(response))
-    filename = response['filename']
-    decodedData = decodeMessageData(response)
-    # prepend with common output path and write out file
-    # note: can't just use os.path.join() because if two or more elements
-    #   have an aboslute path it discards the earlier elements
-    outputFilename = os.path.normpath(CommonOutputDir + filename)
-    dirName = os.path.dirname(outputFilename)
-    if not os.path.exists(dirName):
-        os.makedirs(dirName)
-    writeFile(outputFilename, decodedData)
-    response['filename'] = outputFilename
-    # del response['data']
+def handleDataRequest(cmd):
+    savedError = None
+    incomplete = True
+    while incomplete:
+        response = Web.sendDataMsgFromThread(cmd, timeout=60)
+        if response.get('status') != 200:
+            raise RequestError('handleDataRequest: status not 200: {}'.format(response.get('status')))
+        try:
+            data = unpackDataMessage(response)
+        except Exception as err:
+            logging.error('handleDataRequest: unpackDataMessage: {}'.format(err))
+            if savedError is None:
+                savedError = err
+        cmd['callId'] = response.get('callId', -1)
+        incomplete = response.get('incomplete', False)
+    if savedError:
+        raise RequestError('handleDataRequest: unpackDataMessage: {}'.format(savedError))
+    return data
 
 
 #####################
@@ -911,12 +929,14 @@ def uploadFiles(request):
     # get the list of file to upload
     cmd = listFilesReqStruct(srcFile)
     response = Web.sendDataMsgFromThread(cmd, timeout=10)
-    if response['status'] != 200:
-        Web.setUserError("Error listing files {}: {}".format(srcFile, response['error']))
+    if response.get('status') != 200:
+        Web.setUserError("Error listing files {}: {}".
+                         format(srcFile, response.get('error')))
         return
-    fileList = response['data']
+    fileList = response.get('data')
     if type(fileList) is not list:
-        Web.setUserError("Invalid fileList reponse type {}: expecting list".format(type(fileList)))
+        Web.setUserError("Invalid fileList reponse type {}: expecting list".
+                         format(type(fileList)))
         return
     if len(fileList) == 0:
         response = {'cmd': 'uploadProgress', 'file': 'No Matching Files'}
@@ -925,10 +945,22 @@ def uploadFiles(request):
     for file in fileList:
         try:
             cmd = getFileReqStruct(file, compress=compress)
-            response = Web.sendDataMsgFromThread(cmd, timeout=60)
-            if response['status'] != 200:
-                raise RequestError(response['error'])
-            writeResponseDataToFile(response)
+            data = handleDataRequest(cmd)
+            # write the returned data out to a file
+            filename = response.get('filename')
+            if filename is None:
+                if 'data' in response: del response['data']
+                raise StateError('sendDataRequestToFile: filename field not in response: {}'.format(response))
+            # prepend with common output path and write out file
+            # note: can't just use os.path.join() because if two or more elements
+            #   have an aboslute path it discards the earlier elements
+            global CommonOutputDir
+            outputFilename = os.path.normpath(CommonOutputDir + filename)
+            dirName = os.path.dirname(outputFilename)
+            if not os.path.exists(dirName):
+                os.makedirs(dirName)
+            writeFile(outputFilename, data)
+            response['filename'] = outputFilename
         except Exception as err:
             Web.setUserError(
                 "Error uploading file {}: {}".format(file, str(err)))

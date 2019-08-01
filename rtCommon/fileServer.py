@@ -11,15 +11,15 @@ import websocket
 from pathlib import Path
 # import project modules
 # Add base project path (two directories up)
+from rtCommon.errors import StateError, RTError
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(currPath)
 sys.path.append(rootPath)
-from rtCommon.errors import StateError
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.readDicom import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
 from rtCommon.utils import DebugLevels, findNewestFile, installLoggers
 from rtCommon.webClientUtils import login, certFile, checkSSLCertAltName, makeSSLCertFile
-from rtCommon.webClientUtils import encodeMessageData, decodeMessageData
+from rtCommon.webClientUtils import generateDataParts, unpackDataMessage
 
 defaultAllowedDirs = ['/tmp', '/data']
 defaultAllowedTypes = ['.dcm', '.mat']
@@ -87,6 +87,8 @@ class WebSocketFileWatcher:
         response = {'status': 400, 'error': 'unhandled request'}
         try:
             request = json.loads(message)
+            response = request.copy()
+            if 'data' in response: del response['data']
             cmd = request.get('cmd')
             dir = request.get('dir')
             filename = request.get('filename')
@@ -99,10 +101,10 @@ class WebSocketFileWatcher:
                 dir, filename = os.path.split(filename)
             if filename is None:
                 errStr = "{}: Missing filename param".format(cmd)
-                return send_error_response(client, request, errStr)
+                return send_error_response(client, response, errStr)
             if dir is None:
                 errStr = "{}: Missing dir param".format(cmd)
-                return send_error_response(client, request, errStr)
+                return send_error_response(client, response, errStr)
             if cmd in ('watchFile', 'getFile', 'getNewestFile'):
                 if not os.path.isabs(dir):
                     # make path relative to the watch dir
@@ -111,26 +113,27 @@ class WebSocketFileWatcher:
                 textOnly = True
             if WebSocketFileWatcher.validateRequestedFile(dir, filename, textFileTypeOnly=textOnly) is False:
                 errStr = '{}: Non-allowed dir or filetype {} {}'.format(cmd, dir, filename)
-                return send_error_response(client, request, errStr)
+                return send_error_response(client, response, errStr)
             if cmd in ('putTextFile', 'putBinaryFile', 'dataLog'):
                 if not os.path.exists(dir):
                     os.makedirs(dir)
             if not os.path.exists(dir):
                 errStr = '{}: No such directory: {}'.format(cmd, dir)
-                return send_error_response(client, request, errStr)
+                return send_error_response(client, response, errStr)
             # Now handle requests
             if cmd == 'initWatch':
                 minFileSize = request.get('minFileSize')
                 demoStep = request.get('demoStep')
                 if minFileSize is None:
                     errStr = "InitWatch: Missing minFileSize param"
-                    return send_error_response(client, request, errStr)
+                    return send_error_response(client, response, errStr)
                 WebSocketFileWatcher.fileWatchLock.acquire()
                 try:
                     fileWatcher.initFileNotifier(dir, filename, minFileSize, demoStep)
                 finally:
                     WebSocketFileWatcher.fileWatchLock.release()
-                response = {'status': 200}
+                response.update({'status': 200})
+                return send_response(client, response)
             elif cmd == 'watchFile':
                 WebSocketFileWatcher.fileWatchLock.acquire()
                 filename = os.path.join(dir, filename)
@@ -140,82 +143,91 @@ class WebSocketFileWatcher:
                     WebSocketFileWatcher.fileWatchLock.release()
                 if retVal is None:
                     errStr = "WatchFile: 408 Timeout {}s: {}".format(timeout, filename)
-                    response = {'status': 408, 'error': errStr}
+                    response.update({'status': 408, 'error': errStr})
                     logging.log(logging.WARNING, errStr)
+                    return send_response(client, response)
                 else:
-                    response = readDataCreateResponse(filename, compress)
+                    return send_data_response(client, response, compress)
             elif cmd == 'getFile':
                 filename = os.path.join(dir, filename)
                 if not os.path.exists(filename):
                     errStr = "GetFile: File not found {}".format(filename)
-                    return send_error_response(client, request, errStr)
-                response = readDataCreateResponse(filename, compress)
+                    return send_error_response(client, response, errStr)
+                return send_data_response(client, response, compress)
             elif cmd == 'getNewestFile':
                 resultFilename = findNewestFile(dir, filename)
                 if resultFilename is None or not os.path.exists(resultFilename):
                     errStr = 'GetNewestFile: file not found: {}'.format(os.path.join(dir, filename))
-                    return send_error_response(client, request, errStr)
-                response = readDataCreateResponse(resultFilename, compress)
+                    return send_error_response(client, response, errStr)
+                response.update({'status': 200, 'filename': resultFilename})
+                return send_data_response(client, response, compress)
             elif cmd == 'listFiles':
                 if not os.path.isabs(dir):
                     errStr = "listFiles must have an absolute path: {}".format(dir)
-                    return send_error_response(client, request, errStr)
+                    return send_error_response(client, response, errStr)
                 filePattern = os.path.join(dir, filename)
                 fileList = [x for x in glob.iglob(filePattern)]
-                response = {'status': 200, 'filePattern': filePattern, 'data': fileList}
+                response.update({'status': 200, 'filePattern': filePattern, 'data': fileList})
+                return send_response(client, response)
             elif cmd == 'putTextFile':
                 text = request.get('text')
                 if text is None:
                     errStr = 'PutTextFile: Missing text field'
-                    return send_error_response(client, request, errStr)
+                    return send_error_response(client, response, errStr)
                 elif type(text) is not str:
                     errStr = "PutTextFile: Only text data allowed"
-                    return send_error_response(client, request, errStr)
+                    return send_error_response(client, response, errStr)
                 fullPath = os.path.join(dir, filename)
                 with open(fullPath, 'w') as volFile:
                     volFile.write(text)
-                response = {'status': 200}
+                response.update({'status': 200})
+                return send_response(client, response)
             elif cmd == 'putBinaryFile':
-                data = decodeMessageData(request)
-                if data is None:
-                    errStr = 'Error not defined'
-                    if 'error' in request:
-                        errStr = request['error']
-                    return send_error_response(client, request, errStr)
-                fullPath = os.path.join(dir, filename)
-                with open(fullPath, 'wb') as binFile:
-                    binFile.write(data)
-                response = {'status': 200}
+                try:
+                    data = unpackDataMessage(request)
+                except Exception as err:
+                    errStr = 'putBinaryFile: {}'.format(err)
+                    return send_error_response(client, response, errStr)
+                # If data is None - Incomplete multipart data, more will follow
+                if data is not None:
+                    fullPath = os.path.join(dir, filename)
+                    with open(fullPath, 'wb') as binFile:
+                        binFile.write(data)
+                response.update({'status': 200})
+                return send_response(client, response)
             elif cmd == 'dataLog':
                 logLine = request.get('logLine')
                 if logLine is None:
                     errStr = 'DataLog: Missing logLine field'
-                    return send_error_response(client, request, errStr)
+                    return send_error_response(client, response, errStr)
                 fullPath = os.path.join(dir, filename)
                 with open(fullPath, 'a') as logFile:
                     logFile.write(logLine + '\n')
-                response = {'status': 200}
+                response.update({'status': 200})
+                return send_response(client, response)
             elif cmd == 'ping':
-                response = {'status': 200}
+                response.update({'status': 200})
+                return send_response(client, response)
             elif cmd == 'error':
-                errorCode = request['status']
+                errorCode = request.get('status', 400)
+                errorMsg = request.get('error', 'missing error msg')
                 if errorCode == 401:
                     WebSocketFileWatcher.needLogin = True
                     WebSocketFileWatcher.sessionCookie = None
-                errStr = 'Error {}: {}'.format(errorCode, request['error'])
-                logging.log(logging.ERROR, request['error'])
+                errStr = 'Error {}: {}'.format(errorCode, errorMsg)
+                logging.log(logging.ERROR, errStr)
                 return
             else:
                 errStr = 'OnMessage: Unrecognized command {}'.format(cmd)
-                response = {'status': 400, 'error': errStr}
-                logging.log(logging.WARNING, errStr)
+                return send_error_response(client, response, errStr)
         except Exception as err:
             errStr = "OnMessage Exception: {}: {}".format(cmd, err)
-            logging.log(logging.WARNING, errStr)
-            response = {'status': 400, 'error': errStr}
+            send_error_response(client, response, errStr)
             if cmd == 'error':
                 sys.exit()
-        send_response(client, request, response)
+            return
+        errStr = 'unhandled request'
+        send_error_response(client, response, errStr)
         return
 
     @staticmethod
@@ -265,10 +277,7 @@ class WebSocketFileWatcher:
         return True
 
 
-def send_response(client, request, response):
-    # merge response into the request dictionary
-    request.update(response)
-    response = request
+def send_response(client, response):
     WebSocketFileWatcher.clientLock.acquire()
     try:
         client.send(json.dumps(response))
@@ -276,17 +285,24 @@ def send_response(client, request, response):
         WebSocketFileWatcher.clientLock.release()
 
 
-def send_error_response(client, request, errStr):
+def send_error_response(client, response, errStr):
     logging.log(logging.WARNING, errStr)
-    response = {'status': 400, 'error': errStr}
-    send_response(client, request, response)
+    response.update({'status': 400, 'error': errStr})
+    send_response(client, response)
 
 
-def readDataCreateResponse(filename, compress=False):
-    data = readFile(filename)
-    response = {'status': 200, 'filename': filename}
-    response = encodeMessageData(response, data, compress)
-    return response
+def send_data_response(client, response, compress=False):
+    filename = response.get('filename')
+    try:
+        data = readFile(filename)
+        if len(data) == 0:
+            raise RTError('Empty or zero length file')
+    except Exception as err:
+        errStr = "readFile Exception: {}: {}".format(filename, err)
+        return send_error_response(client, response, errStr)
+    for msgPart in generateDataParts(data, response, compress):
+        send_response(client, msgPart)
+    return
 
 
 def readFile(filename):
@@ -320,7 +336,7 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--password', action="store", dest="password", default=None,
                         help="rtcloud website password")
     parser.add_argument('--test', default=False, action='store_true',
-                         help='Use unsecure non-encrypted connection')
+                        help='Use unsecure non-encrypted connection')
     args = parser.parse_args()
 
     if not re.match(r'.*:\d+', args.server):

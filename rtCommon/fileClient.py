@@ -2,7 +2,7 @@ import os
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.utils import findNewestFile
 import rtCommon.webClientUtils as wcutils
-from rtCommon.errors import RequestError, StateError
+from rtCommon.errors import StateError
 
 
 class FileInterface:
@@ -27,9 +27,6 @@ class FileInterface:
         else:
             getFileCmd = wcutils.getFileReqStruct(filename)
             retVals = wcutils.clientWebpipeCmd(self.webpipes, getFileCmd)
-            if retVals.statusCode != 200:
-                raise RequestError('getFile_remote: statusCode not 200: {}: {}'
-                                   .format(retVals.statusCode, retVals.error))
             data = retVals.data
         return data
 
@@ -52,9 +49,6 @@ class FileInterface:
         else:
             getNewestFileCmd = wcutils.getNewestFileReqStruct(filePattern)
             retVals = wcutils.clientWebpipeCmd(self.webpipes, getNewestFileCmd)
-            if retVals.statusCode != 200:
-                raise RequestError('getNewestFile_remote: statusCode not 200: {}: {}'
-                                   .format(retVals.statusCode, retVals.error))
             data = retVals.data
         return data
 
@@ -81,9 +75,6 @@ class FileInterface:
         else:
             watchCmd = wcutils.watchFileReqStruct(filename, timeout=timeout)
             retVals = wcutils.clientWebpipeCmd(self.webpipes, watchCmd)
-            if retVals.statusCode != 200:
-                raise RequestError('watchFile_remote: statusCode not 200: {}: {}'
-                                   .format(retVals.statusCode, retVals.error))
             data = retVals.data
         return data
 
@@ -99,7 +90,7 @@ class FileInterface:
             wcutils.clientWebpipeCmd(self.webpipes, putFileCmd)
         return
 
-    def putBinaryFile(self, filename, data):
+    def putBinaryFile(self, filename, data, compress=False):
         if self.local:
             outputDir = os.path.dirname(filename)
             if not os.path.exists(outputDir):
@@ -107,6 +98,18 @@ class FileInterface:
             with open(filename, 'wb+') as binFile:
                 binFile.write(data)
         else:
-            putFileCmd = wcutils.putBinaryFileReqStruct(filename, data)
-            wcutils.clientWebpipeCmd(self.webpipes, putFileCmd)
+            try:
+                fileHash = None
+                putFileCmd = wcutils.putBinaryFileReqStruct(filename)
+                for putFilePart in wcutils.generateDataParts(data, putFileCmd, compress):
+                    fileHash = putFilePart.get('fileHash')
+                    wcutils.clientWebpipeCmd(self.webpipes, putFilePart)
+            except Exception:
+                # Send error notice to clear any partially cached data on the server side
+                # Add fileHash to message and send status=400 to notify
+                if fileHash:
+                    putFileCmd['fileHash'] = fileHash
+                    putFileCmd['status'] = 400
+                    wcutils.clientWebpipeCmd(self.webpipes, putFileCmd)
+
         return
