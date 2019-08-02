@@ -11,10 +11,10 @@ import websocket
 from pathlib import Path
 # import project modules
 # Add base project path (two directories up)
-from rtCommon.errors import StateError, RTError
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(currPath)
 sys.path.append(rootPath)
+from rtCommon.errors import StateError, RTError
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.readDicom import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
 from rtCommon.utils import DebugLevels, findNewestFile, installLoggers

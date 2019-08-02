@@ -204,6 +204,60 @@ class Web():
         Web.sendUserMsgFromThread(json.dumps(response))
 
     @staticmethod
+    def sendDataMsgFromThread(msg, timeout=None):
+        if Web.wsDataConn is None:
+            raise StateError("WebServer: No Data Websocket Connection")
+        callId = msg.get('callId')
+        try:
+            Web.threadLock.acquire()
+            if not callId:
+                Web.dataSequenceNum += 1
+                callId = Web.dataSequenceNum
+                msg['callId'] = callId
+                callbackStruct = StructDict()
+                callbackStruct.numResponses = 0
+                callbackStruct.responses = []
+                callbackStruct.semaphore = threading.Semaphore(value=0)
+                callbackStruct.callId = callId
+                callbackStruct.timeStamp = time.time()
+                Web.dataCallbacks[callId] = callbackStruct
+                Web.ioLoopInst.add_callback(Web.sendDataMessage, msg)
+            else:
+                # call msg was already sent, now waiting for multipart callbacks
+                callbackStruct = Web.dataCallbacks.get(callId, None)
+                if callbackStruct is None:
+                    raise StateError('sendDataMsgFromThread: no callbackStruct found for callId {}'.format(callId))
+        finally:
+            Web.threadLock.release()
+
+        # wait semaphore signal indicating a callback for this callId has occured
+        signaled = callbackStruct.semaphore.acquire(timeout=timeout)
+        if signaled is False:
+            raise TimeoutError("sendDataMessage: Data Request Timed Out({}) {}".format(timeout, msg))
+        try:
+            # Thread synchronized
+            Web.threadLock.acquire()
+            # Remove from front of list not back to stay in order
+            # Can test removing from back of list to make sure out-of-order works too
+            response = callbackStruct.responses.pop(0)
+            if 'data' in response:
+                status = response.get('status', -1)
+                numParts = response.get('numParts', 1)
+                complete = (callbackStruct.numResponses == numParts and len(callbackStruct.responses) == 0)
+                if complete or status != 200:
+                    # End the multipart transfer
+                    response['incomplete'] = False
+                    Web.dataCallbacks.pop(callId, None)
+                else:
+                    response['incomplete'] = True
+        except IndexError:
+            raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.format(msg))
+        finally:
+            Web.threadLock.release()
+        response['callId'] = callbackStruct.callId
+        return response
+
+    @staticmethod
     def sendDataMessage(cmd):
         ''' This function is called within the ioloop thread by scheduling the call'''
         Web.threadLock.acquire()
@@ -280,6 +334,10 @@ class Web():
             Web.threadLock.release()
 
     @staticmethod
+    def sendUserMsgFromThread(msg):
+        Web.ioLoopInst.add_callback(Web.sendUserMessage, msg)
+
+    @staticmethod
     def sendUserMessage(msg):
         Web.threadLock.acquire()
         try:
@@ -289,6 +347,10 @@ class Web():
             Web.threadLock.release()
 
     @staticmethod
+    def sendBiofeedbackMsgFromThread(msg):
+        Web.ioLoopInst.add_callback(Web.sendBiofeedbackMessage, msg)
+
+    @staticmethod
     def sendBiofeedbackMessage(msg):
         Web.threadLock.acquire()
         try:
@@ -296,68 +358,6 @@ class Web():
                 client.write_message(msg)
         finally:
             Web.threadLock.release()
-
-    @staticmethod
-    def sendDataMsgFromThread(msg, timeout=None):
-        if Web.wsDataConn is None:
-            raise StateError("WebServer: No Data Websocket Connection")
-        callId = msg.get('callId')
-        try:
-            Web.threadLock.acquire()
-            if not callId:
-                Web.dataSequenceNum += 1
-                callId = Web.dataSequenceNum
-                msg['callId'] = callId
-                callbackStruct = StructDict()
-                callbackStruct.numResponses = 0
-                callbackStruct.responses = []
-                callbackStruct.semaphore = threading.Semaphore(value=0)
-                callbackStruct.callId = callId
-                callbackStruct.timeStamp = time.time()
-                Web.dataCallbacks[callId] = callbackStruct
-                Web.ioLoopInst.add_callback(Web.sendDataMessage, msg)
-            else:
-                # call msg was already sent, now waiting for multipart callbacks
-                callbackStruct = Web.dataCallbacks.get(callId, None)
-                if callbackStruct is None:
-                    raise StateError('sendDataMsgFromThread: no callbackStruct found for callId {}'.format(callId))
-        finally:
-            Web.threadLock.release()
-
-        # wait semaphore signal indicating a callback for this callId has occured
-        signaled = callbackStruct.semaphore.acquire(timeout=timeout)
-        if signaled is False:
-            raise TimeoutError("sendDataMessage: Data Request Timed Out({}) {}".format(timeout, msg))
-        try:
-            # Thread synchronized
-            Web.threadLock.acquire()
-            # Remove from front of list not back to stay in order
-            # Can test removing from back of list to make sure out-of-order works too
-            response = callbackStruct.responses.pop(0)
-            if 'data' in response:
-                status = response.get('status', -1)
-                numParts = response.get('numParts', 1)
-                complete = (callbackStruct.numResponses == numParts and len(callbackStruct.responses) == 0)
-                if complete or status != 200:
-                    # End the multipart transfer
-                    response['incomplete'] = False
-                    Web.dataCallbacks.pop(callId, None)
-                else:
-                    response['incomplete'] = True
-        except IndexError:
-            raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.format(msg))
-        finally:
-            Web.threadLock.release()
-        response['callId'] = callbackStruct.callId
-        return response
-
-    @staticmethod
-    def sendUserMsgFromThread(msg):
-        Web.ioLoopInst.add_callback(Web.sendUserMessage, msg)
-
-    @staticmethod
-    def sendBiofeedbackMsgFromThread(msg):
-        Web.ioLoopInst.add_callback(Web.sendBiofeedbackMessage, msg)
 
     class UserHttp(tornado.web.RequestHandler):
         def get_current_user(self):
@@ -638,26 +638,6 @@ def getCookieSecret(dir):
     return cookieSecret
 
 
-def handleDataRequest(cmd):
-    savedError = None
-    incomplete = True
-    while incomplete:
-        response = Web.sendDataMsgFromThread(cmd, timeout=60)
-        if response.get('status') != 200:
-            raise RequestError('handleDataRequest: status not 200: {}'.format(response.get('status')))
-        try:
-            data = unpackDataMessage(response)
-        except Exception as err:
-            logging.error('handleDataRequest: unpackDataMessage: {}'.format(err))
-            if savedError is None:
-                savedError = err
-        cmd['callId'] = response.get('callId', -1)
-        incomplete = response.get('incomplete', False)
-    if savedError:
-        raise RequestError('handleDataRequest: unpackDataMessage: {}'.format(savedError))
-    return data
-
-
 #####################
 # Callback Functions
 #####################
@@ -910,6 +890,26 @@ def signalFifoExit(fifoThread, webpipes):
     fifoThread.join(timeout=1)
     if fifoThread.is_alive() is not False:
         raise StateError('runSession: fifoThread not completed')
+
+
+def handleDataRequest(cmd):
+    savedError = None
+    incomplete = True
+    while incomplete:
+        response = Web.sendDataMsgFromThread(cmd, timeout=60)
+        if response.get('status') != 200:
+            raise RequestError('handleDataRequest: status not 200: {}'.format(response.get('status')))
+        try:
+            data = unpackDataMessage(response)
+        except Exception as err:
+            logging.error('handleDataRequest: unpackDataMessage: {}'.format(err))
+            if savedError is None:
+                savedError = err
+        cmd['callId'] = response.get('callId', -1)
+        incomplete = response.get('incomplete', False)
+    if savedError:
+        raise RequestError('handleDataRequest: unpackDataMessage: {}'.format(savedError))
+    return data
 
 
 def uploadFiles(request):
