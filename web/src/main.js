@@ -64,8 +64,10 @@ class TopPane extends React.Component {
   setConfigItem(name, value) {
     for (let key in this.state.config) {
       if (key == name) {
-        var revConfig = Object.assign({}, this.state.config, { [name]: value })
-        this.setState({config: revConfig})
+        this.setState((previousState, currentProps) => {
+            var revConfig = Object.assign({}, previousState.config, { [name]: value })
+            return {config: revConfig}
+        })
         return
       }
     }
@@ -86,8 +88,11 @@ class TopPane extends React.Component {
     this.setState({logLines: []})
     this.setState({error: ''})
 
-    this.formatConfigValues()
-    this.webSocket.send(JSON.stringify({cmd: 'run', config: this.state.config}))
+    var cfg = this.formatConfigValues(this.state.config)
+    if (cfg == null) {
+        return
+    }
+    this.webSocket.send(JSON.stringify({cmd: 'run', config: cfg}))
   }
 
   stopRun() {
@@ -103,55 +108,49 @@ class TopPane extends React.Component {
     this.webSocket.send(JSON.stringify(cmdStr))
   }
 
-  formatConfigValues() {
+  formatConfigValues(cfg) {
     // After user changes on the web page we need to convert some values from strings
     // First format Runs and ScanNums to be numbers not strings
-    var runs = this.getConfigItem('Runs')
-    var scans = this.getConfigItem('ScanNums')
+    var runs = cfg['Runs']
+    var scans = cfg['ScanNums']
     if (! Array.isArray(runs) || ! Array.isArray(scans)) {
       this.setState({error: 'Runs or ScanNums must be an array'})
-      return
+      return null
     }
-
     if (typeof runs[0] === 'string') {
       if (runs.length > 1) {
         this.setState({error: 'Runs is string array > length 1'})
-        return
+        return null
       }
-      runs = runs[0].split(',').map(Number);
+      cfg['Runs'] = runs[0].split(',').map(Number);
     }
 
     if (typeof scans[0] === 'string') {
       if (scans.length > 1) {
         this.setState({error: 'Scans is string array > length 1'})
-        return
+        return null
       }
-      scans = scans[0].split(',').map(Number);
+      cfg['ScanNums'] = scans[0].split(',').map(Number);
     }
-    this.setConfigItem('Runs', runs)
-    this.setConfigItem('ScanNums', scans)
 
     // Next change all true/false strings to booleans
     // and change all number strings to numbers
-    var revConfig = Object.assign({}, this.state.config)
-      for (let key in revConfig) {
-        var modified = false
-        if (typeof revConfig[key] === 'string') {
-          var value = revConfig[key]
+      for (let key in cfg) {
+        if (typeof cfg[key] === 'string') {
+          var value = cfg[key]
           // check if the string should be a boolean
           switch(value.toLowerCase()) {
             case 'false':
             case 'flase':
             case 'fales':
             case 'flsae':
-              revConfig[key] = false
-              modified = true
+            case 'fasle':
+              cfg[key] = false
               break;
             case 'true':
             case 'ture':
             case 'treu':
-              revConfig[key] = true
-              modified = true
+              cfg[key] = true
               break;
           }
           var regexInt = /^\d+$/;
@@ -159,19 +158,15 @@ class TopPane extends React.Component {
           var regexIP = /\d+\.\d+.\d+\.\d+/;
           if (regexInt.test(value) == true) {
             // string should be an integer
-            revConfig[key] = parseInt(value, 10)
-            modified = true
+            cfg[key] = parseInt(value, 10)
           } else if (regexFloat.test(value) == true &&
                      regexIP.test(value) == false) {
             // string should be a float
-            revConfig[key] = parseFloat(value)
-            modified = true
+            cfg[key] = parseFloat(value)
           }
         }
       }
-      if (modified) {
-        this.setState({config: revConfig})
-      }
+      return cfg
   }
 
   createWebSocket() {
