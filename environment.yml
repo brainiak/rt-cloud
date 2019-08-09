@@ -19,6 +19,7 @@ dependencies:
   - requests
   - openssl
   - nibabel
+  - wsaccel
   - pip:
     - watchdog
     - inotify
