@@ -79,8 +79,9 @@ A fileServer is started on the scanner computer that can watch for files within 
 
 
 ## Testing the Sample Project
-For the sample we will run both the webServer and fileServer on the same computer. Follow the above installation steps but install both the fileServer and webServer on the same computer. In a production deployment the webServer would typically run in a cloud VM and the fileServer would run in the control room console computer.
-Note that the --test option runs in test mode which doesn't use SSL encryption and accepts a default username and password, both are 'test'. Never run with the --test option in production.
+For the sample we will run both the webServer and fileServer on the same computer. Follow the above installation steps but install both the fileServer and webServer on the same computer. In a production deployment the webServer would typically run in a cloud VM and the fileServer would run in the control room console computer.<br>
+
+**Note:** The --test option runs in test mode which doesn't use SSL encryption and accepts a default username and password, both are 'test'. **Never run with the --test option in production.**
 
 1. Open a terminal
     - Start the webServer<br>

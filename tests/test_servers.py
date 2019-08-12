@@ -228,15 +228,25 @@ class TestServers:
         assert responseData == data
         print('Read Bigfile time: {}'.format(time.time() - startTime))
 
-        # Write bigFile
+        # Write bigFile Synchronous
         startTime = time.time()
         cmd = wcutils.putBinaryFileReqStruct(bigTestfile)
-        i = 0
         for putFilePart in wcutils.generateDataParts(data, cmd, compress=False):
-            i += 1
             response = Web.sendDataMsgFromThread(putFilePart)
             assert response['status'] == 200
-        print('Write Bigfile time: {}'.format(time.time() - startTime))
+        print('Write Bigfile sync time: {}'.format(time.time() - startTime))
+
+        # Write bigFile Asynchronous
+        startTime = time.time()
+        cmd = wcutils.putBinaryFileReqStruct(bigTestfile)
+        callIds = []
+        for putFilePart in wcutils.generateDataParts(data, cmd, compress=False):
+            callId = Web.sendDataMsgFromThreadAsync(putFilePart)
+            callIds.append(callId)
+        for callId in callIds:
+            response = Web.getDataMsgResponse(callId)
+            assert response['status'] == 200
+        print('Write Bigfile async time: {}'.format(time.time() - startTime))
 
         # Read back written data
         writtenPath = os.path.join(CommonOutputDir, bigTestfile)

@@ -63,7 +63,9 @@ class Web():
     dataSequenceNum = 0
     cbPruneTime = 0
     # Synchronizing across threads
-    threadLock = threading.Lock()
+    callbackLock = threading.Lock()
+    wsConnLock = threading.Lock()
+    httpLock = threading.Lock()
     ioLoopInst = None
     filesremote = False
     fmriPyScript = None
@@ -103,7 +105,7 @@ class Web():
             "cookie_secret": cookieSecret,
             "login_url": "/login",
             "xsrf_cookies": True,
-            "websocket_max_message_size": 1024*1024*256,
+            "websocket_max_message_size": 16*1024*1024,
             # "max_message_size": 1024*1024*256,
             # "max_buffer_size": 1024*1024*256,
         }
@@ -159,7 +161,7 @@ class Web():
         # Currently this should never be called
         raise StateError("Web close() called")
 
-        Web.threadLock.acquire()
+        Web.wsConnLock.acquire()
         try:
             if Web.wsDataConn is not None:
                 Web.wsDataConn.close()
@@ -173,7 +175,7 @@ class Web():
                 client.close()
             Web.wsBiofeedbackConns = []
         finally:
-            Web.threadLock.release()
+            Web.wsConnLock.release()
 
     @staticmethod
     def dataLog(filename, logStr):
@@ -204,39 +206,48 @@ class Web():
         Web.sendUserMsgFromThread(json.dumps(response))
 
     @staticmethod
-    def sendDataMsgFromThread(msg, timeout=None):
+    def sendDataMsgFromThreadAsync(msg):
         if Web.wsDataConn is None:
             raise StateError("WebServer: No Data Websocket Connection")
         callId = msg.get('callId')
-        try:
-            Web.threadLock.acquire()
-            if not callId:
+        if not callId:
+            callbackStruct = StructDict()
+            callbackStruct.dataConn = Web.wsDataConn
+            callbackStruct.numResponses = 0
+            callbackStruct.responses = []
+            callbackStruct.semaphore = threading.Semaphore(value=0)
+            callbackStruct.timeStamp = time.time()
+            callbackStruct.msg = msg.copy()
+            if 'data' in callbackStruct.msg:
+                del callbackStruct.msg['data']
+            Web.callbackLock.acquire()
+            try:
                 Web.dataSequenceNum += 1
                 callId = Web.dataSequenceNum
-                msg['callId'] = callId
-                callbackStruct = StructDict()
-                callbackStruct.numResponses = 0
-                callbackStruct.responses = []
-                callbackStruct.semaphore = threading.Semaphore(value=0)
                 callbackStruct.callId = callId
-                callbackStruct.timeStamp = time.time()
+                msg['callId'] = callId
                 Web.dataCallbacks[callId] = callbackStruct
-                Web.ioLoopInst.add_callback(Web.sendDataMessage, msg)
-            else:
-                # call msg was already sent, now waiting for multipart callbacks
-                callbackStruct = Web.dataCallbacks.get(callId, None)
-                if callbackStruct is None:
-                    raise StateError('sendDataMsgFromThread: no callbackStruct found for callId {}'.format(callId))
-        finally:
-            Web.threadLock.release()
+            finally:
+                Web.callbackLock.release()
+            Web.ioLoopInst.add_callback(Web.sendDataMessage, msg)
+        return callId
 
-        # wait semaphore signal indicating a callback for this callId has occured
+    @staticmethod
+    def getDataMsgResponse(callId, timeout=None):
+        Web.callbackLock.acquire()
+        try:
+            callbackStruct = Web.dataCallbacks.get(callId, None)
+            if callbackStruct is None:
+                raise StateError('sendDataMsgFromThread: no callbackStruct found for callId {}'.format(callId))
+        finally:
+            Web.callbackLock.release()
+        # wait for semaphore signal indicating a callback for this callId has occured
         signaled = callbackStruct.semaphore.acquire(timeout=timeout)
         if signaled is False:
-            raise TimeoutError("sendDataMessage: Data Request Timed Out({}) {}".format(timeout, msg))
+            raise TimeoutError("sendDataMessage: Data Request Timed Out({}) {}".
+                               format(timeout, callbackStruct.msg))
+        Web.callbackLock.acquire()
         try:
-            # Thread synchronized
-            Web.threadLock.acquire()
             # Remove from front of list not back to stay in order
             # Can test removing from back of list to make sure out-of-order works too
             response = callbackStruct.responses.pop(0)
@@ -251,16 +262,23 @@ class Web():
                 else:
                     response['incomplete'] = True
         except IndexError:
-            raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.format(msg))
+            raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.
+                             format(callbackStruct.msg))
         finally:
-            Web.threadLock.release()
+            Web.callbackLock.release()
         response['callId'] = callbackStruct.callId
+        return response
+
+    @staticmethod
+    def sendDataMsgFromThread(msg, timeout=None):
+        callId = Web.sendDataMsgFromThreadAsync(msg)
+        response = Web.getDataMsgResponse(callId, timeout=timeout)
         return response
 
     @staticmethod
     def sendDataMessage(cmd):
         ''' This function is called within the ioloop thread by scheduling the call'''
-        Web.threadLock.acquire()
+        Web.wsConnLock.acquire()
         try:
             msg = json.dumps(cmd)
             Web.wsDataConn.write_message(msg)
@@ -268,7 +286,7 @@ class Web():
             errStr = 'sendDataMessage error: type {}: {}'.format(type(err), str(err))
             raise RTError(errStr)
         finally:
-            Web.threadLock.release()
+            Web.wsConnLock.release()
 
     @staticmethod
     def dataCallback(client, message):
@@ -284,7 +302,7 @@ class Web():
         origCmd = response.get('cmd', 'NoCommand')
         logging.log(DebugLevels.L6, "callback {}: {} {}".format(callId, origCmd, status))
         # Thread Synchronized Section
-        Web.threadLock.acquire()
+        Web.callbackLock.acquire()
         try:
             callbackStruct = Web.dataCallbacks.get(callId, None)
             if callbackStruct is None:
@@ -301,7 +319,7 @@ class Web():
             logging.error('WebServer: dataCallback error: {}'.format(err))
             raise err
         finally:
-            Web.threadLock.release()
+            Web.callbackLock.release()
         if time.time() > Web.cbPruneTime:
             Web.cbPruneTime = time.time() + 60
             Web.pruneCallbacks()
@@ -312,7 +330,7 @@ class Web():
         if numWaitingCallbacks == 0:
             return
         logging.info('Web pruneCallbacks: checking {} callbaks'.format(numWaitingCallbacks))
-        Web.threadLock.acquire()
+        Web.callbackLock.acquire()
         try:
             maxSeconds = 300
             now = time.time()
@@ -331,7 +349,7 @@ class Web():
         except Exception as err:
             logging.error('Web pruneCallbacks: error {}'.format(err))
         finally:
-            Web.threadLock.release()
+            Web.callbackLock.release()
 
     @staticmethod
     def sendUserMsgFromThread(msg):
@@ -339,12 +357,12 @@ class Web():
 
     @staticmethod
     def sendUserMessage(msg):
-        Web.threadLock.acquire()
+        Web.wsConnLock.acquire()
         try:
             for client in Web.wsBrowserMainConns:
                 client.write_message(msg)
         finally:
-            Web.threadLock.release()
+            Web.wsConnLock.release()
 
     @staticmethod
     def sendBiofeedbackMsgFromThread(msg):
@@ -352,12 +370,12 @@ class Web():
 
     @staticmethod
     def sendBiofeedbackMessage(msg):
-        Web.threadLock.acquire()
+        Web.wsConnLock.acquire()
         try:
             for client in Web.wsBiofeedbackConns:
                 client.write_message(msg)
         finally:
-            Web.threadLock.release()
+            Web.wsConnLock.release()
 
     class UserHttp(tornado.web.RequestHandler):
         def get_current_user(self):
@@ -367,11 +385,11 @@ class Web():
         def get(self):
             full_path = os.path.join(Web.htmlDir, Web.webIndexPage)
             logging.log(DebugLevels.L6, 'Index request: pwd: {}'.format(full_path))
-            Web.threadLock.acquire()
+            Web.httpLock.acquire()
             try:
                 self.render(full_path)
             finally:
-                Web.threadLock.release()
+                Web.httpLock.release()
 
     class BiofeedbackHttp(tornado.web.RequestHandler):
         def get_current_user(self):
@@ -381,11 +399,11 @@ class Web():
         def get(self):
             full_path = os.path.join(Web.htmlDir, Web.webBiofeedPage)
             logging.log(DebugLevels.L6, 'Subject feedback http request: pwd: {}'.format(full_path))
-            Web.threadLock.acquire()
+            Web.httpLock.acquire()
             try:
                 self.render(full_path)
             finally:
-                Web.threadLock.release()
+                Web.httpLock.release()
 
     class LoginHandler(tornado.web.RequestHandler):
         loginAttempts = {}
@@ -480,20 +498,20 @@ class Web():
                 return
             logging.log(DebugLevels.L1, "Biofeedback WebSocket opened")
             self.set_nodelay(True)
-            Web.threadLock.acquire()
+            Web.wsConnLock.acquire()
             try:
                 Web.wsBiofeedbackConns.append(self)
             finally:
-                Web.threadLock.release()
+                Web.wsConnLock.release()
 
         def on_close(self):
             logging.log(DebugLevels.L1, "Biofeedback WebSocket closed")
-            Web.threadLock.acquire()
+            Web.wsConnLock.acquire()
             try:
                 if self in Web.wsBiofeedbackConns:
                     Web.wsBiofeedbackConns.remove(self)
             finally:
-                Web.threadLock.release()
+                Web.wsConnLock.release()
 
         def on_message(self, message):
             Web.browserBiofeedCallback(self, message)
@@ -515,22 +533,22 @@ class Web():
                 return
             logging.log(DebugLevels.L1, "User WebSocket opened")
             self.set_nodelay(True)
-            Web.threadLock.acquire()
+            Web.wsConnLock.acquire()
             try:
                 Web.wsBrowserMainConns.append(self)
             finally:
-                Web.threadLock.release()
+                Web.wsConnLock.release()
 
         def on_close(self):
             logging.log(DebugLevels.L1, "User WebSocket closed")
-            Web.threadLock.acquire()
+            Web.wsConnLock.acquire()
             try:
                 if self in Web.wsBrowserMainConns:
                     Web.wsBrowserMainConns.remove(self)
                 else:
                     logging.log(DebugLevels.L1, "on_close: connection not in list")
             finally:
-                Web.threadLock.release()
+                Web.wsConnLock.release()
 
         def on_message(self, message):
             Web.browserMainCallback(self, message)
@@ -545,20 +563,20 @@ class Web():
                 return
             logging.log(DebugLevels.L1, "Event WebSocket opened")
             self.set_nodelay(True)
-            Web.threadLock.acquire()
+            Web.wsConnLock.acquire()
             try:
                 Web.wsEventConns.append(self)
             finally:
-                Web.threadLock.release()
+                Web.wsConnLock.release()
 
         def on_close(self):
             logging.log(DebugLevels.L1, "Event WebSocket closed")
-            Web.threadLock.acquire()
+            Web.wsConnLock.acquire()
             try:
                 if self in Web.wsEventConns:
                     Web.wsEventConns.remove(self)
             finally:
-                Web.threadLock.release()
+                Web.wsConnLock.release()
 
         def on_message(self, message):
             Web.eventCallback(self, message)
@@ -574,37 +592,49 @@ class Web():
                 return
             logging.log(DebugLevels.L1, "Data WebSocket opened")
             self.set_nodelay(True)
-            Web.threadLock.acquire()
+            Web.wsConnLock.acquire()
             try:
-                # close any existing connections
-                if Web.wsDataConn is not None:
-                    Web.wsDataConn.close()
+                # temporarily cache any previous connection
+                prevDataConn = Web.wsDataConn
                 # add new connection
                 Web.wsDataConn = self
-                print('DataWebSocket: connected {}'.format(self.request.remote_ip))
+                # If there was a previous connection close it
+                if prevDataConn is not None:
+                    prevDataConn.close()
             except Exception as err:
                 logging.error('WebServer: Open Data Socket error: {}'.format(err))
             finally:
-                Web.threadLock.release()
+                Web.wsConnLock.release()
+            print('DataWebSocket: connected {}'.format(self.request.remote_ip))
 
         def on_close(self):
-            if Web.wsDataConn != self:
-                logging.log(DebugLevels.L1, "on_close: Data Socket mismatch")
-                return
-            logging.log(DebugLevels.L1, "Data WebSocket closed")
-            Web.threadLock.acquire()
-            try:
+            if Web.wsDataConn == self:
+                Web.wsConnLock.acquire()
                 Web.wsDataConn = None
+                Web.wsConnLock.release()
+                logging.log(DebugLevels.L1, "Data WebSocket closed")
+            else:
+                logging.log(DebugLevels.L1, "on_close: Data WebSocket mismatch")
+            self.close_pending_requests()
+
+        def close_pending_requests(self):
+            Web.callbackLock.acquire()
+            try:
                 # signal the close to anyone waiting for replies
+                callIdsToRemove = []
                 for callId, cb in Web.dataCallbacks.items():
-                    cb.status = 499
-                    cb.error = 'Client closed connection'
-                    cb.responses.append({'cmd': 'unknown', 'status': cb.status, 'error': cb.error})
-                    for i in range(len(cb.responses)):
-                        cb.semaphore.release()
-                Web.dataCallbacks = {}
+                    if cb.dataConn == self:
+                        callIdsToRemove.append(callId)
+                        cb.status = 499
+                        cb.error = 'Client closed connection'
+                        # TODO - check this logic
+                        cb.responses.append({'cmd': 'unknown', 'status': cb.status, 'error': cb.error})
+                        for i in range(len(cb.responses)):
+                            cb.semaphore.release()
+                for callId in callIdsToRemove:
+                    Web.dataCallbacks.pop(callId, None)
             finally:
-                Web.threadLock.release()
+                Web.callbackLock.release()
 
         def on_message(self, message):
             try:
