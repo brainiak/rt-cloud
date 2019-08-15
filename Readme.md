@@ -87,14 +87,14 @@ For the sample we will run both the webServer and fileServer on the same compute
     - Start the webServer<br>
         - <code>conda activate rtcloud</code>
         - <code>bash scripts/run-webserver.sh -p sample --test</code>
-- Open another terminal
+2. Open another terminal
     - Start the fileServer<br>
         - <code>conda activate rtcloud</code>
         - <code>bash scripts/run-fileserver.sh -s localhost:8888 --test</code>
-- Navigate web browser to URL http://localhost:8888
+3. Navigate web browser to URL http://localhost:8888
     - If prompted for username and password enter:<br>
         username 'test', password 'test'
-- Alternate step 3 - Run sample project from the command line connecting to remote fileServer<br>
+4. Alternate step 3 - Run sample project from the command line connecting to remote fileServer<br>
     <code>python projects/sample/sample.py --filesremote</code>
 
 ## Next Steps
@@ -105,8 +105,8 @@ For the sample we will run both the webServer and fileServer on the same compute
     - Navigate web browser to http**s**://localhost:8888 for a SSL connecton
         - i.e. instead of the non-SSL http:// address used above for testing
     - When prompted for login by Web browser use the username and password created in install step 2 above.
-- Install and run the webServer on a remote computer. Run the fileServer on the computer where the dicoms are written.
-- Create your own project python script and wrap it with the real-time framework. See [Wrapping Your Experiment Script with the RealTime Framework](docs/how-to-wrap-your-project.md)
+2. Install and run the webServer on a remote computer. Run the fileServer on the computer where the dicoms are written.
+3. Create your own project python script and wrap it with the real-time framework. See [Wrapping Your Experiment Script with the RealTime Framework](docs/how-to-wrap-your-project.md)
 
 ## Further Reading
 [Details](docs/details.md) - coming soon
