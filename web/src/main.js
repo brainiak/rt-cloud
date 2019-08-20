@@ -8,23 +8,30 @@ const XYPlotPane = require('./xyplotPane.js')
 const UploadFilesPane = require('./uploadFilesPane.js')
 const { Tab, Tabs, TabList, TabPanel } = require('react-tabs')
 
-
 const elem = React.createElement;
 
 const logLineStyle = {
     margin: '0',
 }
 
+// This will be updated based on the value in the config file
+var projectTitle = 'Real-Time Study';
+
 class TopPane extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
-      config: {session: {}},
+      config: {
+          title: 'Real-Time Study',
+          plotXLabel: 'Item #',
+          plotYLabel: 'Value',
+          plotTitle: 'Value vs. Item #',
+      },
       configFileName: 'Default',
       runStatus: '',
       connected: false,
       error: '',
-      classVals: [[], [{x:0, y:0}]], // classification results
+      classVals: [[{x:0, y:0}], []], // classification results
       logLines: [],  // image classification log
       uploadedFileLog: [],
     }
@@ -49,6 +56,10 @@ class TopPane extends React.Component {
   }
 
   setConfig(newConfig) {
+    if (projectTitle != newConfig['title']) {
+        projectTitle = newConfig['title']
+        document.getElementById('title').innerHTML = projectTitle;
+    }
     this.setState({config: newConfig})
   }
 
@@ -64,11 +75,9 @@ class TopPane extends React.Component {
   setConfigItem(name, value) {
     for (let key in this.state.config) {
       if (key == name) {
-        this.setState((previousState, currentProps) => {
-            var revConfig = Object.assign({}, previousState.config, { [name]: value })
-            return {config: revConfig}
-        })
-        return
+          var revConfig = Object.assign({}, this.state.config, { [name]: value })
+          this.setConfig(revConfig)
+          return
       }
     }
   }
@@ -198,7 +207,7 @@ class TopPane extends React.Component {
       var cmd = request['cmd']
       if (cmd == 'config') {
         var config = request['value']
-        this.setState({config: config})
+        this.setConfig(config)
       } else if (cmd == 'userLog') {
         var logItem = request['value'].trim()
         var itemPos = this.state.logLines.length + 1
@@ -282,7 +291,8 @@ class TopPane extends React.Component {
        ),
        elem(TabPanel, {},
          elem(XYPlotPane,
-           {classVals: this.state.classVals,
+           {config: this.state.config,
+            classVals: this.state.classVals,
            }
          ),
        ),
@@ -311,6 +321,8 @@ class TopPane extends React.Component {
 }
 
 function Render() {
+  document.getElementById('title').innerHTML = projectTitle;
+
   const tabDiv = document.getElementById('tabs_container');
   ReactDOM.render(elem(TopPane), tabDiv);
 }

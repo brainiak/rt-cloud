@@ -64,9 +64,7 @@ class UploadFilesPane extends React.Component {
               </button>
           </div>
           <div>
-              <small>Files will be copied to the same path prepended by /rtfmriData/
-              <br />
-              100 MB max file size
+              <small>Files will be copied to the same as source path prepended by /rtfmriData/
               </small>
           </div>
         </div>
