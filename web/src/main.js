@@ -122,25 +122,36 @@ class TopPane extends React.Component {
     // First format Runs and ScanNums to be numbers not strings
     var runs = cfg['Runs']
     var scans = cfg['ScanNums']
-    if (! Array.isArray(runs) || ! Array.isArray(scans)) {
-      this.setState({error: 'Runs or ScanNums must be an array'})
-      return null
-    }
-    if (typeof runs[0] === 'string') {
-      if (runs.length > 1) {
-        this.setState({error: 'Runs is string array > length 1'})
-        return null
+ 
+    // Handle runs values
+    if (Array.isArray(runs)) {
+      if (typeof runs[0] === 'string') {
+        if (runs.length > 1) {
+          runs = runs.map(Number);
+        } else {
+          runs = runs[0].split(',').map(Number);
+        }
       }
-      cfg['Runs'] = runs[0].split(',').map(Number);
     }
+    if (typeof(runs) === 'string') {
+      runs = runs.split(',').map(Number);
+    }
+    cfg['Runs'] = runs
 
-    if (typeof scans[0] === 'string') {
-      if (scans.length > 1) {
-        this.setState({error: 'Scans is string array > length 1'})
-        return null
+    // Handle scan value
+    if (Array.isArray(scans)) {
+      if (typeof scans[0] === 'string') {
+        if (scans.length > 1) {
+          scans = scans.map(Number);
+        } else {
+          scans = scans[0].split(',').map(Number);
+        }
       }
-      cfg['ScanNums'] = scans[0].split(',').map(Number);
     }
+    if (typeof(scans) === 'string') {
+      scans = scans.split(',').map(Number);
+    }
+    cfg['ScanNums'] = scans
 
     // Next change all true/false strings to booleans
     // and change all number strings to numbers
