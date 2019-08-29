@@ -119,10 +119,10 @@ class TopPane extends React.Component {
 
   formatConfigValues(cfg) {
     // After user changes on the web page we need to convert some values from strings
-    // First format Runs and ScanNums to be numbers not strings
-    var runs = cfg['Runs']
-    var scans = cfg['ScanNums']
- 
+    // First format runNum and scanNum to be numbers not strings
+    var runs = cfg['runNum']
+    var scans = cfg['scanNum']
+
     // Handle runs values
     if (Array.isArray(runs)) {
       if (typeof runs[0] === 'string') {
@@ -136,7 +136,7 @@ class TopPane extends React.Component {
     if (typeof(runs) === 'string') {
       runs = runs.split(',').map(Number);
     }
-    cfg['Runs'] = runs
+    cfg['runNum'] = runs
 
     // Handle scan value
     if (Array.isArray(scans)) {
@@ -151,7 +151,7 @@ class TopPane extends React.Component {
     if (typeof(scans) === 'string') {
       scans = scans.split(',').map(Number);
     }
-    cfg['ScanNums'] = scans
+    cfg['scanNum'] = scans
 
     // Next change all true/false strings to booleans
     // and change all number strings to numbers

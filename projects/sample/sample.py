@@ -38,12 +38,12 @@ def doRuns(cfg, fileInterface, webComm):
     d3 = fileInterface.watchFile('/tmp/samp3.txt')
     print('samp3.txt: {}'.format(d3))
 
-    print('runs: {}'.format(cfg.Runs))
+    print('runs: {}'.format(cfg.runNum))
     val = 0
-    for idx in range(len(cfg.Runs)):
+    for idx in range(len(cfg.runNum)):
         time.sleep(1)
-        run = cfg.Runs[idx]
-        scan = cfg.ScanNums[idx]
+        run = cfg.runNum[idx]
+        scan = cfg.scanNum[idx]
         print('processing run {}, scan {}'.format(run, scan))
         startTR = run*10
         endTR = startTR + 10
@@ -76,8 +76,8 @@ def main(argv=None):
     cfg = loadConfigFile(args.config)
     if args.runs != '' and args.scans != '':
         # use the run and scan numbers passed in as parameters
-        cfg.Runs = [int(x) for x in args.runs.split(',')]
-        cfg.ScanNums = [int(x) for x in args.scans.split(',')]
+        cfg.runNum = [int(x) for x in args.runs.split(',')]
+        cfg.scanNum = [int(x) for x in args.scans.split(',')]
 
     webComm = wcutils.initWebPipeConnection(args.webpipe, args.filesremote)
     fileInterface = FileInterface(filesremote=args.filesremote, webpipes=webComm)

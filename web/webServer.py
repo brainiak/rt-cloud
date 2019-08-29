@@ -748,7 +748,7 @@ def runSession(cfg, pyScript, filesremote=False):
     configFileName = os.path.join(confDir, 'cfg_{}_day{}_run{}.toml'.
                                   format(cfg.subjectName,
                                          cfg.subjectDay,
-                                         cfg.Runs[0]))
+                                         cfg.runNum[0]))
     with open(configFileName, 'w+') as fd:
         toml.dump(cfg, fd)
 

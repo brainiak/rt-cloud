@@ -63,7 +63,7 @@ Access configurations within the config structure
     print(cfg.subjectName, cfg.subjectDay)
 
 The following fields must be present in the config toml file for the web version to work:
-  - Runs ([] array)
-  - ScanNums ([] array)
+  - runNum ([] array)
+  - scanNum ([] array)
   - subjectName
   - subjectDay

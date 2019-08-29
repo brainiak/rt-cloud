@@ -18,12 +18,12 @@ class StatusPane extends React.Component {
   }
 
   runNumOnChange(event) {
-    this.props.setConfigItem('Runs', [event.target.value])
+    this.props.setConfigItem('runNum', [event.target.value])
     this.props.clearRunStatus()
   }
 
   scanNumOnChange(event) {
-    this.props.setConfigItem('ScanNums', [event.target.value])
+    this.props.setConfigItem('scanNum', [event.target.value])
     this.props.clearRunStatus()
   }
 
@@ -53,13 +53,13 @@ class StatusPane extends React.Component {
           <p className="row">
             <label className="cell10p">Run #:</label>
             <input className="cell5p" size="20"
-              value={this.props.getConfigItem('Runs')}
+              value={this.props.getConfigItem('runNum')}
               onChange={this.runNumOnChange} />
           </p>
           <p className="row">
             <label className="cell10p">Scan #:</label>
             <input className="cell5p" size="20"
-              value={this.props.getConfigItem('ScanNums')}
+              value={this.props.getConfigItem('scanNum')}
               onChange={this.scanNumOnChange} />
           </p>
         </div>
