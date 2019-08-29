@@ -879,7 +879,7 @@ def processPyScriptRequest(request):
     else:
         if cmd == 'webCommonDir':
             response.filename = CommonOutputDir
-        elif cmd == 'classificationResult':
+        elif cmd == 'resultValue':
             try:
                 # forward to bioFeedback Display
                 Web.sendBiofeedbackMsgFromThread(json.dumps(request))

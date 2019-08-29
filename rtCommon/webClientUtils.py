@@ -127,8 +127,8 @@ def putBinaryFileReqStruct(filename):
     return cmd
 
 
-def classificationResultStruct(runId, trId, value):
-    cmd = {'cmd': 'classificationResult',
+def resultStruct(runId, trId, value):
+    cmd = {'cmd': 'resultValue',
            'runId': runId,
            'trId': trId,
            'value': value,
@@ -155,9 +155,9 @@ def initWebPipeConnection(webPipeName, filesRemote):
     return webComm
 
 
-def sendClassicationResult(webpipes, runId, trId, value):
+def sendResultToWeb(webpipes, runId, trId, value):
     if webpipes is not None:
-        cmd = classificationResultStruct(runId, trId, value)
+        cmd = resultStruct(runId, trId, value)
         clientWebpipeCmd(webpipes, cmd)
 
 

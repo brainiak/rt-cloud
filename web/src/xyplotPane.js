@@ -10,7 +10,7 @@ class XYPlotPane extends React.Component {
     this.renderRunGraph = this.renderRunGraph.bind(this);
   }
 
-  renderRunGraph(runClassVals, runId) {
+  renderRunGraph(runPlotVals, runId) {
     var xLabel = this.props.config['plotXLabel']
     var yLabel = this.props.config['plotYLabel']
     var xRangeLow = this.props.config['plotXRangeLow'] || 0;
@@ -42,7 +42,7 @@ class XYPlotPane extends React.Component {
           <LineMarkSeries
             animation
             color={plotColor}
-            data={runClassVals}/>
+            data={runPlotVals}/>
           <XAxis style={axesStyle} tickTotal={11} />
           <ChartLabel
             text={xLabel}
@@ -74,11 +74,11 @@ class XYPlotPane extends React.Component {
   }
 
   render() {
-    var numRuns = this.props.classVals.length
+    var numRuns = this.props.plotVals.length
     var plots = []
     for (let i = 0; i < numRuns; i++) {
-      if (this.props.classVals[i].length != 0) {
-        plots[i] = this.renderRunGraph(this.props.classVals[i], i+1)
+      if (this.props.plotVals[i].length != 0) {
+        plots[i] = this.renderRunGraph(this.props.plotVals[i], i+1)
       }
     }
     return (

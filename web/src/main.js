@@ -31,11 +31,11 @@ class TopPane extends React.Component {
       runStatus: '',
       connected: false,
       error: '',
-      classVals: [[{x:0, y:0}], []], // classification results
-      logLines: [],  // image classification log
+      plotVals: [[{x:0, y:0}], []], // results to plot
+      logLines: [],
       uploadedFileLog: [],
     }
-    this.classVals = [[], [{x:0, y:0}]]
+    this.resultVals = [[], []]
     this.webSocket = null
     this.setConfigFileName = this.setConfigFileName.bind(this);
     this.setConfig = this.setConfig.bind(this);
@@ -239,30 +239,30 @@ class TopPane extends React.Component {
         // Need to use concat() to create a new logLines object or React won't know to re-render
         var uploadedFileLog = this.state.uploadedFileLog.concat([newLine])
         this.setState({uploadedFileLog: uploadedFileLog})
-      } else if (cmd == 'classificationResult') {
+      } else if (cmd == 'resultValue') {
         var runId = request['runId']
         var vol = request['trId']
-        var classVal = request['value']
-        // Make sure classVals has at least as many arrays as runIds
-        for (let i = this.classVals.length; i < runId; i++) {
-          this.classVals.push([])
+        var resultVal = request['value']
+        // Make sure resultVals has at least as many arrays as runIds
+        for (let i = this.resultVals.length; i < runId; i++) {
+          this.resultVals.push([])
         }
         // clear plots with runId greater than the current one
-        for (let i = runId; i < this.classVals.length; i++) {
-          this.classVals[i] = []
+        for (let i = runId; i < this.resultVals.length; i++) {
+          this.resultVals[i] = []
         }
-        // console.log(`classificationResult: ${classVal} ${vol} ${runId}`)
+        // console.log(`resultValue: ${resultVal} ${vol} ${runId}`)
         if (typeof(vol) == 'number') {
-          // ClassVals is zero-based and runId is 1-based, so classVal index will be runId-1
-          // add new data point to classVals for this runId
-          var runClassVals = this.classVals[runId-1]
-          var itemPos = runClassVals.length + 1
-          runClassVals.push({x: itemPos, y: classVal})
-          this.setState({classVals: this.classVals})
+          // ResultVals is zero-based and runId is 1-based, so resultVal index will be runId-1
+          // add new data point to resultVals for this runId
+          var runResultVals = this.resultVals[runId-1]
+          var itemPos = runResultVals.length + 1
+          runResultVals.push({x: itemPos, y: resultVal})
         } else {
-          // vol is not a number, clear the classVals for this run
-          this.classVals[runId-1] = []
+          // vol is not a number, clear the resultVals for this run
+          this.resultVals[runId-1] = []
         }
+        this.setState({plotVals: this.resultVals})
       } else if (cmd == 'error') {
         console.log("## Got Error: " + request['error'])
         this.setState({error: request['error']})
@@ -303,7 +303,7 @@ class TopPane extends React.Component {
        elem(TabPanel, {},
          elem(XYPlotPane,
            {config: this.state.config,
-            classVals: this.state.classVals,
+            plotVals: this.state.plotVals,
            }
          ),
        ),

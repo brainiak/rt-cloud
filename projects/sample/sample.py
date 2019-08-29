@@ -50,7 +50,7 @@ def doRuns(cfg, fileInterface, webComm):
         for tr in range(startTR, endTR):
             val += 0.03
             print('Run {}, TR {}, val {}'.format(run, tr, val))
-            wcutils.sendClassicationResult(webComm, run, tr, val)
+            wcutils.sendResultToWeb(webComm, run, tr, val)
     logging.info('SAMPLE: LAST LOG MESSAGE')
     return
 
