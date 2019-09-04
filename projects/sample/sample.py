@@ -10,14 +10,14 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 from rtCommon.utils import loadConfigFile
 from rtCommon.fileClient import FileInterface
-import rtCommon.webClientUtils as wcutils
+import rtCommon.projectUtils as projUtils
 
 
 logLevel = logging.INFO
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
-def doRuns(cfg, fileInterface, webComm):
+def doRuns(cfg, fileInterface, projectComm):
     logging.info('SAMPLE: FIRST LOG MESSAGE')
     # put text files to remote server
     fileInterface.putTextFile('/tmp/samp1.txt', 'hello1')
@@ -50,7 +50,7 @@ def doRuns(cfg, fileInterface, webComm):
         for tr in range(startTR, endTR):
             val += 0.03
             print('Run {}, TR {}, val {}'.format(run, tr, val))
-            wcutils.sendResultToWeb(webComm, run, tr, val)
+            projUtils.sendResultToWeb(projectComm, run, tr, val)
     logging.info('SAMPLE: LAST LOG MESSAGE')
     return
 
@@ -66,9 +66,9 @@ def main(argv=None):
                            help='Comma separated list of run numbers')
     argParser.add_argument('--scans', '-s', default='', type=str,
                            help='Comma separated list of scan number')
-    # This parameter is used by webserver
-    argParser.add_argument('--webpipe', '-w', default=None, type=str,
-                           help='Named pipe to communicate with webServer')
+    # This parameter is used for projectInterface
+    argParser.add_argument('--commpipe', '-q', default=None, type=str,
+                           help='Named pipe to communicate with projectInterface')
     argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
                            help='retrieve dicom files from the remote server')
     args = argParser.parse_args(argv)
@@ -79,11 +79,11 @@ def main(argv=None):
         cfg.runNum = [int(x) for x in args.runs.split(',')]
         cfg.scanNum = [int(x) for x in args.scans.split(',')]
 
-    webComm = wcutils.initWebPipeConnection(args.webpipe, args.filesremote)
-    fileInterface = FileInterface(filesremote=args.filesremote, webpipes=webComm)
+    projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
+    fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
 
     # Do processing
-    doRuns(cfg, fileInterface, webComm)
+    doRuns(cfg, fileInterface, projectComm)
     return 0
 
 

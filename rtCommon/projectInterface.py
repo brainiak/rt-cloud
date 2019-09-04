@@ -15,8 +15,8 @@ import asyncio
 import threading
 import subprocess
 from pathlib import Path
-from rtCommon.webClientUtils import listFilesReqStruct, getFileReqStruct, decodeMessageData
-from rtCommon.webClientUtils import defaultWebPipeName, makeFifo, unpackDataMessage
+from rtCommon.projectUtils import listFilesReqStruct, getFileReqStruct, decodeMessageData
+from rtCommon.projectUtils import defaultPipeName, makeFifo, unpackDataMessage
 from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.certsUtils import getCertPath, getKeyPath
 from rtCommon.utils import DebugLevels, writeFile
@@ -31,9 +31,6 @@ maxDaysLoginCookieValid = 0.5
 
 moduleDir = os.path.dirname(os.path.realpath(__file__))
 rootDir = os.path.dirname(moduleDir)
-confDir = os.path.join(moduleDir, 'conf/')
-if not os.path.exists(confDir):
-    os.makedirs(confDir)
 
 # Note: User refers to the clinician running the experiment, so userWindow is the main
 #  browser window for running the experiment.
@@ -54,7 +51,8 @@ class Web():
     browserBiofeedCallback = None
     eventCallback = None
     # Main html page to load
-    webDir = moduleDir
+    webDir = os.path.join(rootDir, 'web/')
+    confDir = os.path.join(webDir, 'conf/')
     htmlDir = os.path.join(webDir, 'html')
     webIndexPage = 'index.html'
     webLoginPage = 'login.html'
@@ -96,6 +94,8 @@ class Web():
         Web.fmriPyScript = params.fmriPyScript
         Web.filesremote = params.filesremote
         Web.cfg = cfg
+        if not os.path.exists(Web.confDir):
+            os.makedirs(Web.confDir)
         src_root = os.path.join(Web.webDir, 'src')
         css_root = os.path.join(Web.webDir, 'css')
         img_root = os.path.join(Web.webDir, 'img')
@@ -132,8 +132,8 @@ class Web():
             asyncio.set_event_loop(asyncio.new_event_loop())
 
         # start thread listening for remote file requests on a default named pipe
-        webpipes = makeFifo(pipename=defaultWebPipeName)
-        fifoThread = threading.Thread(name='defaultWebpipeThread', target=repeatWebPipeRequestHandler, args=(webpipes,))
+        commPipes = makeFifo(pipename=defaultPipeName)
+        fifoThread = threading.Thread(name='defaultPipeThread', target=repeatPipeRequestHandler, args=(commPipes,))
         fifoThread.setDaemon(True)
         fifoThread.start()
 
@@ -208,7 +208,7 @@ class Web():
     @staticmethod
     def sendDataMsgFromThreadAsync(msg):
         if Web.wsDataConn is None:
-            raise StateError("WebServer: No Data Websocket Connection")
+            raise StateError("ProjectInterface: No Data Websocket Connection")
         callId = msg.get('callId')
         if not callId:
             callbackStruct = StructDict()
@@ -306,7 +306,7 @@ class Web():
         try:
             callbackStruct = Web.dataCallbacks.get(callId, None)
             if callbackStruct is None:
-                logging.error('WebServer: dataCallback callId {} not found, current callId {}'
+                logging.error('ProjectInterface: dataCallback callId {} not found, current callId {}'
                               .format(callId, Web.dataSequenceNum))
                 return
             if callbackStruct.callId != callId:
@@ -316,7 +316,7 @@ class Web():
             callbackStruct.numResponses += 1
             callbackStruct.semaphore.release()
         except Exception as err:
-            logging.error('WebServer: dataCallback error: {}'.format(err))
+            logging.error('ProjectInterface: dataCallback error: {}'.format(err))
             raise err
         finally:
             Web.callbackLock.release()
@@ -602,7 +602,7 @@ class Web():
                 if prevDataConn is not None:
                     prevDataConn.close()
             except Exception as err:
-                logging.error('WebServer: Open Data Socket error: {}'.format(err))
+                logging.error('ProjectInterface: Open Data Socket error: {}'.format(err))
             finally:
                 Web.wsConnLock.release()
             print('DataWebSocket: connected {}'.format(self.request.remote_ip))
@@ -745,7 +745,7 @@ def defaultEventCallback(client, message):
 
 def runSession(cfg, pyScript, filesremote=False):
     # write out config file for use by pyScript
-    configFileName = os.path.join(confDir, 'cfg_{}_day{}_run{}.toml'.
+    configFileName = os.path.join(Web.confDir, 'cfg_{}_day{}_run{}.toml'.
                                   format(cfg.subjectName,
                                          cfg.subjectDay,
                                          cfg.runNum[0]))
@@ -757,12 +757,12 @@ def runSession(cfg, pyScript, filesremote=False):
     # set option for remote file requests
     if filesremote is True:
         cmdStr += ' -x'
-    # Create a webpipe session even if using local files so we can send
+    # Create a project commPipe even if using local files so we can send
     #  classification results to the subject feedback window
-    webpipes = makeFifo()
-    cmdStr += ' --webpipe {}'.format(webpipes.fifoname)
+    commPipes = makeFifo()
+    cmdStr += ' --commpipe {}'.format(commPipes.fifoname)
     # start thread listening for remote file requests on fifo queue
-    fifoThread = threading.Thread(name='fifoThread', target=webPipeRequestHandler, args=(webpipes,))
+    fifoThread = threading.Thread(name='fifoThread', target=commPipeRequestHandler, args=(commPipes,))
     fifoThread.setDaemon(True)
     fifoThread.start()
     # print(cmdStr)
@@ -801,7 +801,7 @@ def runSession(cfg, pyScript, filesremote=False):
         print("OutputThread failed to exit")
     # make sure fifo thread has exited
     if fifoThread is not None:
-        signalFifoExit(fifoThread, webpipes)
+        signalFifoExit(fifoThread, commPipes)
     return
 
 
@@ -817,22 +817,22 @@ def procOutputReader(proc, lineQueue):
             break
 
 
-def repeatWebPipeRequestHandler(webpipes):
+def repeatPipeRequestHandler(commPipes):
     while True:
-        webPipeRequestHandler(webpipes)
+        commPipeRequestHandler(commPipes)
 
 
-def webPipeRequestHandler(webpipes):
+def commPipeRequestHandler(commPipes):
     '''A thread routine that listens for requests from a process through a pair of named pipes.
-    This allows another process to send web requests without directly integrating
-    the web server into the process.
+    This allows another process to send project requests without directly integrating
+    the projectInterface into the process.
     Listens on an fd_in pipe for requests and writes the results back on the fd_out pipe.
     '''
-    webpipes.fd_out = open(webpipes.name_out, mode='w', buffering=1)
-    webpipes.fd_in = open(webpipes.name_in, mode='r')
+    commPipes.fd_out = open(commPipes.name_out, mode='w', buffering=1)
+    commPipes.fd_in = open(commPipes.name_in, mode='r')
     try:
         while True:
-            msg = webpipes.fd_in.readline()
+            msg = commPipes.fd_in.readline()
             if len(msg) == 0:
                 # fifo closed
                 break
@@ -840,15 +840,15 @@ def webPipeRequestHandler(webpipes):
             cmd = json.loads(msg)
             response = processPyScriptRequest(cmd)
             try:
-                webpipes.fd_out.write(json.dumps(response) + os.linesep)
+                commPipes.fd_out.write(json.dumps(response) + os.linesep)
             except BrokenPipeError:
                 print('handleFifoRequests: pipe broken')
                 break
         # End while loop
     finally:
         logging.info('handleFifo thread exit')
-        webpipes.fd_in.close()
-        webpipes.fd_out.close()
+        commPipes.fd_in.close()
+        commPipes.fd_out.close()
 
 
 def processPyScriptRequest(request):
@@ -892,11 +892,11 @@ def processPyScriptRequest(request):
                 logging.error('handleFifo Excpetion: {}'.format(errStr))
                 raise err
         elif cmd == 'subjectDisplay':
-            logging.info('subjectDisplay webServerCallback')
+            logging.info('subjectDisplay projectInterface Callback')
     return response
 
 
-def signalFifoExit(fifoThread, webpipes):
+def signalFifoExit(fifoThread, commPipes):
     '''Under normal exit conditions the fifothread will exit when the fifo filehandles
     are closed. However if the fifo filehandles were never opened by both ends then
     the fifothread can be blocked waiting for them to open. To handle that case
@@ -907,11 +907,11 @@ def signalFifoExit(fifoThread, webpipes):
     if fifoThread is None:
         return
     try:
-        pipeout = os.open(webpipes.name_out, os.O_RDONLY | os.O_NONBLOCK)
+        pipeout = os.open(commPipes.name_out, os.O_RDONLY | os.O_NONBLOCK)
         os.close(pipeout)
         # trigger context swap to allow handleFifoRequests to open next pipe if needed
         time.sleep(0.1)
-        pipein = os.open(webpipes.name_in, os.O_WRONLY | os.O_NONBLOCK)
+        pipein = os.open(commPipes.name_in, os.O_WRONLY | os.O_NONBLOCK)
         os.close(pipein)
     except OSError as err:
         # No reader/writer listening on file so fifoThread already exited

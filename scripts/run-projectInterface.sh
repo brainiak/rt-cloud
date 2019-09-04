@@ -56,4 +56,4 @@ else
 fi
 
 
-python projects/$PROJECT/webMain.py $R_PARAM $CFG_PARAM $TEST_PARAM
+python projects/$PROJECT/projectMain.py $R_PARAM $CFG_PARAM $TEST_PARAM

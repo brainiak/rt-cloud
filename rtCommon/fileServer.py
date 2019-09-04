@@ -18,16 +18,17 @@ from rtCommon.errors import StateError, RTError
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.readDicom import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
 from rtCommon.utils import DebugLevels, findNewestFile, installLoggers
-from rtCommon.webClientUtils import login, certFile, checkSSLCertAltName, makeSSLCertFile
-from rtCommon.webClientUtils import generateDataParts, unpackDataMessage
+from rtCommon.projectUtils import login, certFile, checkSSLCertAltName, makeSSLCertFile
+from rtCommon.projectUtils import generateDataParts, unpackDataMessage
 
 defaultAllowedDirs = ['/tmp', '/data']
 defaultAllowedTypes = ['.dcm', '.mat']
 
 
-class WebSocketFileWatcher:
+class WsFileWatcher:
     ''' A server that watches for files on the scanner computer and replies to
-        cloud service requests with the file data.
+        cloud service requests with the file data. The communication connection
+        is made with webSockets (ws)
     '''
     fileWatcher = FileWatcher()
     allowedDirs = None
@@ -47,28 +48,28 @@ class WebSocketFileWatcher:
                        allowedTypes=defaultAllowedTypes,
                        username=None, password=None,
                        testMode=False):
-        WebSocketFileWatcher.serverAddr = serverAddr
-        WebSocketFileWatcher.allowedDirs = allowedDirs
+        WsFileWatcher.serverAddr = serverAddr
+        WsFileWatcher.allowedDirs = allowedDirs
         for i in range(len(allowedTypes)):
             if not allowedTypes[i].startswith('.'):
                 allowedTypes[i] = '.' + allowedTypes[i]
-        WebSocketFileWatcher.allowedTypes = allowedTypes
+        WsFileWatcher.allowedTypes = allowedTypes
         # go into loop trying to do webSocket connection periodically
-        WebSocketFileWatcher.shouldExit = False
-        while not WebSocketFileWatcher.shouldExit:
+        WsFileWatcher.shouldExit = False
+        while not WsFileWatcher.shouldExit:
             try:
-                if WebSocketFileWatcher.needLogin or WebSocketFileWatcher.sessionCookie is None:
-                    WebSocketFileWatcher.sessionCookie = login(serverAddr, username, password, testMode=testMode)
+                if WsFileWatcher.needLogin or WsFileWatcher.sessionCookie is None:
+                    WsFileWatcher.sessionCookie = login(serverAddr, username, password, testMode=testMode)
                 wsAddr = os.path.join('wss://', serverAddr, 'wsData')
                 if testMode:
                     print("Warning: using non-encrypted connection for test mode")
                     wsAddr = os.path.join('ws://', serverAddr, 'wsData')
                 logging.log(DebugLevels.L6, "Trying connection: %s", wsAddr)
                 ws = websocket.WebSocketApp(wsAddr,
-                                            on_message=WebSocketFileWatcher.on_message,
-                                            on_close=WebSocketFileWatcher.on_close,
-                                            on_error=WebSocketFileWatcher.on_error,
-                                            cookie="login="+WebSocketFileWatcher.sessionCookie)
+                                            on_message=WsFileWatcher.on_message,
+                                            on_close=WsFileWatcher.on_close,
+                                            on_error=WsFileWatcher.on_error,
+                                            cookie="login="+WsFileWatcher.sessionCookie)
                 logging.log(logging.INFO, "Connected to: %s", wsAddr)
                 print("Connected to: {}".format(wsAddr))
                 ws.run_forever(sslopt={"ca_certs": certFile})
@@ -79,11 +80,11 @@ class WebSocketFileWatcher:
 
     @staticmethod
     def stop():
-        WebSocketFileWatcher.shouldExit = True
+        WsFileWatcher.shouldExit = True
 
     @staticmethod
     def on_message(client, message):
-        fileWatcher = WebSocketFileWatcher.fileWatcher
+        fileWatcher = WsFileWatcher.fileWatcher
         response = {'status': 400, 'error': 'unhandled request'}
         try:
             request = json.loads(message)
@@ -111,7 +112,7 @@ class WebSocketFileWatcher:
                     dir = os.path.join(fileWatcher.watchDir, dir)
             if cmd in ('putTextFile', 'dataLog'):
                 textOnly = True
-            if WebSocketFileWatcher.validateRequestedFile(dir, filename, textFileTypeOnly=textOnly) is False:
+            if WsFileWatcher.validateRequestedFile(dir, filename, textFileTypeOnly=textOnly) is False:
                 errStr = '{}: Non-allowed dir or filetype {} {}'.format(cmd, dir, filename)
                 return send_error_response(client, response, errStr)
             if cmd in ('putTextFile', 'putBinaryFile', 'dataLog'):
@@ -127,20 +128,20 @@ class WebSocketFileWatcher:
                 if minFileSize is None:
                     errStr = "InitWatch: Missing minFileSize param"
                     return send_error_response(client, response, errStr)
-                WebSocketFileWatcher.fileWatchLock.acquire()
+                WsFileWatcher.fileWatchLock.acquire()
                 try:
                     fileWatcher.initFileNotifier(dir, filename, minFileSize, demoStep)
                 finally:
-                    WebSocketFileWatcher.fileWatchLock.release()
+                    WsFileWatcher.fileWatchLock.release()
                 response.update({'status': 200})
                 return send_response(client, response)
             elif cmd == 'watchFile':
-                WebSocketFileWatcher.fileWatchLock.acquire()
+                WsFileWatcher.fileWatchLock.acquire()
                 filename = os.path.join(dir, filename)
                 try:
                     retVal = fileWatcher.waitForFile(filename, timeout=timeout)
                 finally:
-                    WebSocketFileWatcher.fileWatchLock.release()
+                    WsFileWatcher.fileWatchLock.release()
                 if retVal is None:
                     errStr = "WatchFile: 408 Timeout {}s: {}".format(timeout, filename)
                     response.update({'status': 408, 'error': errStr})
@@ -212,8 +213,8 @@ class WebSocketFileWatcher:
                 errorCode = request.get('status', 400)
                 errorMsg = request.get('error', 'missing error msg')
                 if errorCode == 401:
-                    WebSocketFileWatcher.needLogin = True
-                    WebSocketFileWatcher.sessionCookie = None
+                    WsFileWatcher.needLogin = True
+                    WsFileWatcher.sessionCookie = None
                 errStr = 'Error {}: {}'.format(errorCode, errorMsg)
                 logging.log(logging.ERROR, errStr)
                 return
@@ -237,7 +238,7 @@ class WebSocketFileWatcher:
     @staticmethod
     def on_error(client, error):
         if type(error) is KeyboardInterrupt:
-            WebSocketFileWatcher.shouldExit = True
+            WsFileWatcher.shouldExit = True
         else:
             logging.log(logging.WARNING, "on_error: WSFileWatcher: {} {}".
                         format(type(error), str(error)))
@@ -245,44 +246,44 @@ class WebSocketFileWatcher:
     @staticmethod
     def validateRequestedFile(dir, file, textFileTypeOnly=False):
         # Restrict requests to certain directories and file types
-        WebSocketFileWatcher.validationError = None
-        if WebSocketFileWatcher.allowedDirs is None or WebSocketFileWatcher.allowedTypes is None:
+        WsFileWatcher.validationError = None
+        if WsFileWatcher.allowedDirs is None or WsFileWatcher.allowedTypes is None:
             raise StateError('Allowed Directories or File Types is not set')
         if file is not None and file != '':
             fileDir, filename = os.path.split(file)
             fileExtension = Path(filename).suffix
             if textFileTypeOnly:
                 if fileExtension != '.txt':
-                    WebSocketFileWatcher.validationError = 'Only .txt files allowed'
+                    WsFileWatcher.validationError = 'Only .txt files allowed'
                     return False
-            elif fileExtension not in WebSocketFileWatcher.allowedTypes:
-                WebSocketFileWatcher.validationError = 'Not an allowed file type'
+            elif fileExtension not in WsFileWatcher.allowedTypes:
+                WsFileWatcher.validationError = 'Not an allowed file type'
                 return False
             if fileDir is not None and fileDir != '':  # and os.path.isabs(fileDir):
                 dirMatch = False
-                for allowedDir in WebSocketFileWatcher.allowedDirs:
+                for allowedDir in WsFileWatcher.allowedDirs:
                     if fileDir.startswith(allowedDir):
                         dirMatch = True
                         break
                 if dirMatch is False:
-                    WebSocketFileWatcher.validationError = 'Not within an allowed directory'
+                    WsFileWatcher.validationError = 'Not within an allowed directory'
                     return False
         if dir is not None and dir != '':
-            for allowedDir in WebSocketFileWatcher.allowedDirs:
+            for allowedDir in WsFileWatcher.allowedDirs:
                 if dir.startswith(allowedDir):
                     return True
-            WebSocketFileWatcher.validationError = 'Not within an allowed directory'
+            WsFileWatcher.validationError = 'Not within an allowed directory'
             return False
         # default case
         return True
 
 
 def send_response(client, response):
-    WebSocketFileWatcher.clientLock.acquire()
+    WsFileWatcher.clientLock.acquire()
     try:
         client.send(json.dumps(response))
     finally:
-        WebSocketFileWatcher.clientLock.release()
+        WsFileWatcher.clientLock.release()
 
 
 def send_error_response(client, response, errStr):
@@ -360,7 +361,7 @@ if __name__ == "__main__":
     print("Allowed file types {}".format(args.allowedFileTypes))
     print("Allowed directories {}".format(args.allowedDirs))
 
-    WebSocketFileWatcher.runFileWatcher(args.server,
+    WsFileWatcher.runFileWatcher(args.server,
                                         retryInterval=args.interval,
                                         allowedDirs=args.allowedDirs,
                                         allowedTypes=args.allowedFileTypes,

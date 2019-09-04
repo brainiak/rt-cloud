@@ -1,9 +1,9 @@
-## Making your project web enabled
+## Making your project cloud enabled
 Make a new directory under rt-cloud/projects for your project.
-Use the sample project in rt-cloud/projects/sample as a template for making your python script web enabled. The sample.py script corresponds to the script for your experiment, and the webMain.py script can be copied to your project directory and edit one line 'scriptToRun' to point to your script.
+Use the sample project in rt-cloud/projects/sample as a template for making your python script cloud enabled. The sample.py script corresponds to the script for your experiment, and the projectMain.py script can be copied to your project directory and edit one line 'scriptToRun' to point to your script.
 
 ### Project Code
-You'll need to copy several blocks of code to your project to get it web enabled. These are:
+You'll need to copy several blocks of code to your project to get it cloud enabled. These are:
 
 Accept at least the following command line parameters in your project python file:
 
@@ -14,20 +14,20 @@ Accept at least the following command line parameters in your project python fil
                            help='Comma separated list of run numbers')
     argParser.add_argument('--scans', '-s', default='', type=str,
                            help='Comma separated list of scan number')
-    # This parameter is used by webserver
-    argParser.add_argument('--webpipe', '-w', default=None, type=str,
-                           help='Named pipe to communicate with webServer')
+    # This parameter is used by projectInterface
+    argParser.add_argument('--commpipe', '-q', default=None, type=str,
+                           help='Named pipe to communicate with projectInterface')
     argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
                            help='retrieve dicom files from the remote server')
     args = argParser.parse_args()
 
-Set up communication with the web server
+Set up communication with the projectInterface
 
-    webComm = wcutils.initWebPipeConnection(args.webpipe, args.filesremote)
+    projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
 
 Open a FileInterface object for reading and writing files
 
-    fileInterface = FileInterface(filesremote=args.filesremote, webpipes=webComm)
+    fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
 
 Then within your python script, use the FileInterface object to request remote files. For example to retrieve dicom images as they are created, init a watch on the appropriate directory and then watch for them.
 
@@ -62,8 +62,18 @@ Access configurations within the config structure
 
     print(cfg.subjectName, cfg.subjectDay)
 
-The following fields must be present in the config toml file for the web version to work:
-  - runNum ([] array)
-  - scanNum ([] array)
-  - subjectName
-  - subjectDay
+The following fields must be present in the config toml file for the projectInterface to work:
+  - runNum = [1]    # an array with one or more e.g. [1, 2, 3]
+  - scanNum = [11]  # an array with one or more e.g.  [11, 13, 15]
+  - subjectName = 'subject01'
+  - subjectDay = 1
+
+  Optional Parameters:
+  - title = 'Project Title'
+  - plotTitle = 'Plot Title'
+  - plotXLabel = 'Sample #'
+  - plotYLabel = 'Value'
+  - plotXRangeLow = 0
+  - plotXRangeHigh = 20
+  - plotYRangeLow = -1
+  - plotYRangeHigh = 1

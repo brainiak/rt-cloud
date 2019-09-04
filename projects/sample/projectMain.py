@@ -9,7 +9,7 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 from rtCommon.utils import loadConfigFile, installLoggers
 from rtCommon.structDict import StructDict
-from web.webServer import Web
+from rtCommon.projectInterface import Web
 
 # HERE: Set the path to the fMRI Python script to run here
 scriptToRun = 'projects/sample/sample.py'
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment file (.json or .toml)')
     argParser.add_argument('--test', '-t', default=False, action='store_true',
-                           help='start webserver in test mode, unsecure')
+                           help='start projectInterface in test mode, unsecure')
     args = argParser.parse_args()
 
     params = StructDict({'fmriPyScript': scriptToRun,

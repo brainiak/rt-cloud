@@ -18,23 +18,23 @@ from rtCommon.errors import RequestError, StateError, ValidationError
 from requests.packages.urllib3.contrib import pyopenssl
 
 certFile = 'certs/rtcloud.crt'
-defaultWebPipeName = 'rt_webpipe_default'
+defaultPipeName = 'rt_pipe_default'
 
 # Cache of multi-part data transfers in progress
 multiPartDataCache = {}
 dataPartSize = 10 * (2**20)
 
 
-def openWebServerConnection(pipeName):
+def openNamedPipe(pipeName):
     '''
-    Open a named pipe connection to the local webserver. Open the in and out named pipes.
+    Open a named pipe connection to the local projectInterface. Open the in and out named pipes.
     Pipe.Open() blocks until the other end opens it as well. Therefore open the reader first
-    here and the writer first within the webserver.
+    here and the writer first within the projectInterface.
     '''
-    webpipes = makeFifo(pipename=pipeName, isServer=False)
-    webpipes.fd_in = open(webpipes.name_in, mode='r')
-    webpipes.fd_out = open(webpipes.name_out, mode='w', buffering=1)
-    return webpipes
+    commPipes = makeFifo(pipename=pipeName, isServer=False)
+    commPipes.fd_in = open(commPipes.name_in, mode='r')
+    commPipes.fd_out = open(commPipes.name_out, mode='w', buffering=1)
+    return commPipes
 
 
 def watchForExit():
@@ -136,63 +136,63 @@ def resultStruct(runId, trId, value):
     return cmd
 
 
-def initWebPipeConnection(webPipeName, filesRemote):
-    webComm = None
-    if webPipeName:
-        # Process is being run from a webserver
+def initProjectComm(commPipeName, filesRemote):
+    projComm = None
+    if commPipeName:
+        # Process is being run from a projectInterface
         # Watch for parent process exiting and then exit when it does
         watchForExit()
-    # If filesremote is true, must create a webpipe connecton to the webserver to retrieve the files
-    # If filesremote is false, but runing from a webserver, still need a webpipe connection to return logging output
-    # Only when local files and not run from a webserver is no webpipe connection needed
+    # If filesremote is true, must create a projComm connecton to the projectInterface to retrieve the files
+    # If filesremote is false, but runing from a projectInterface, still need a projComm connection to return logging output
+    # Only when local files is specified and script is not run from a projectInterface is no projComm connection needed
     if filesRemote:
-        # Must have a webpipe for remote files
-        if webPipeName is None:
-            # No webpipe name specified, use default name
-            webPipeName = defaultWebPipeName
-    if webPipeName:
-        webComm = openWebServerConnection(webPipeName)
-    return webComm
+        # Must have a projComm for remote files
+        if commPipeName is None:
+            # No pipe name specified, use default name
+            commPipeName = defaultPipeName
+    if commPipeName:
+        projComm = openNamedPipe(commPipeName)
+    return projComm
 
 
-def sendResultToWeb(webpipes, runId, trId, value):
-    if webpipes is not None:
+def sendResultToWeb(commPipes, runId, trId, value):
+    if commPipes is not None:
         cmd = resultStruct(runId, trId, value)
-        clientWebpipeCmd(webpipes, cmd)
+        clientSendCmd(commPipes, cmd)
 
 
-def clientWebpipeCmd(webpipes, cmd):
-    '''Send a web request using named pipes to the web server for handling.
-    This allows a separate client process to make requests of the web server process.
+def clientSendCmd(commPipes, cmd):
+    '''Send a request using named pipes to the projectInterface for handling.
+    This allows a separate client process to make requests of the projectInterface process.
     It writes the request on fd_out and recieves the reply on fd_in.
     '''
     data = None
     savedError = None
     incomplete = True
     while incomplete:
-        webpipes.fd_out.write(json.dumps(cmd) + os.linesep)
-        msg = webpipes.fd_in.readline()
+        commPipes.fd_out.write(json.dumps(cmd) + os.linesep)
+        msg = commPipes.fd_in.readline()
         if len(msg) == 0:
             # fifo closed
-            raise StateError('WebPipe closed')
+            raise StateError('commPipe closed')
         response = json.loads(msg)
         status = response.get('status', -1)
         if status != 200:
-            raise RequestError('clientWebpipeCmd: Cmd: {} status {}: error {}'.
+            raise RequestError('clientSendCmd: Cmd: {} status {}: error {}'.
                                format(cmd.get('cmd'), status, response.get('error')))
         if 'data' in response:
             try:
                 data = unpackDataMessage(response)
             except Exception as err:
                 # The call may be incomplete, save the error and keep receiving as needed
-                logging.error('clientWebpipeCmd: {}'.format(err))
+                logging.error('clientSendCmd: {}'.format(err))
                 if savedError is None:
                     savedError = err
             cmd['callId'] = response.get('callId', -1)
         # Check if need to continue to get more parts
         incomplete = response.get('incomplete', False)
     if savedError:
-        raise RequestError('clientWebpipeCmd: {}'.format(savedError))
+        raise RequestError('clientSendCmd: {}'.format(savedError))
     retVals = StructDict()
     retVals.statusCode = response.get('status', -1)
     if 'filename' in response:
@@ -200,7 +200,7 @@ def clientWebpipeCmd(webpipes, cmd):
     if data:
         retVals.data = data
         if retVals.filename is None:
-            raise StateError('clientWebpipeCmd: filename field is None')
+            raise StateError('clientSendCmd: filename field is None')
     return retVals
 
 
@@ -407,25 +407,25 @@ def makeFifo(pipename=None, isServer=True):
         os.makedirs(fifodir)
     # create new pipe
     if pipename is None:
-        fifoname = os.path.join(fifodir, 'web_pipe_{}'.format(int(time.time())))
+        fifoname = os.path.join(fifodir, 'comm_pipe_{}'.format(int(time.time())))
         if isServer:
             # remove previous temporary named pipes
-            for p in Path(fifodir).glob("web_pipe_*"):
+            for p in Path(fifodir).glob("comm_pipe_*"):
                 p.unlink()
     else:
         fifoname = os.path.join(fifodir, pipename)
     # fifo stuct
-    webpipes = StructDict()
+    commPipes = StructDict()
     if isServer:
-        webpipes.name_out = fifoname + '.toclient'
-        webpipes.name_in = fifoname + '.fromclient'
+        commPipes.name_out = fifoname + '.toclient'
+        commPipes.name_in = fifoname + '.fromclient'
     else:
-        webpipes.name_out = fifoname + '.fromclient'
-        webpipes.name_in = fifoname + '.toclient'
+        commPipes.name_out = fifoname + '.fromclient'
+        commPipes.name_in = fifoname + '.toclient'
 
-    if not os.path.exists(webpipes.name_out):
-        os.mkfifo(webpipes.name_out)
-    if not os.path.exists(webpipes.name_in):
-        os.mkfifo(webpipes.name_in)
-    webpipes.fifoname = fifoname
-    return webpipes
+    if not os.path.exists(commPipes.name_out):
+        os.mkfifo(commPipes.name_out)
+    if not os.path.exists(commPipes.name_in):
+        os.mkfifo(commPipes.name_in)
+    commPipes.fifoname = fifoname
+    return commPipes
