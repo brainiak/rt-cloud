@@ -34,4 +34,10 @@ if [ ! -z $PASSWORD ]; then
   PASSWD_PARAM="-p $PASSWORD"
 fi
 
+# activate rtcloud conda env if needed
+if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "rtcloud" ]; then
+  source ~/.bashrc
+  conda activate rtcloud
+fi
+
 python rtCommon/addLogin.py $USER_PARAM $PASSWD_PARAM

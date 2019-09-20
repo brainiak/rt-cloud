@@ -44,16 +44,16 @@ pushd web
 npm run build
 popd
 
-# activate conda python env
-source ~/.bashrc
-conda deactivate
-conda activate rtcloud
-
 if [ -z $IP ]; then
   echo "Warning: no ip address supplied, credentials won't be updated"
 else
   bash scripts/make-sslcert.sh -ip $IP
 fi
 
+# activate rtcloud conda env if needed
+if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "rtcloud" ]; then
+  source ~/.bashrc
+  conda activate rtcloud
+fi
 
 python projects/$PROJECT/projectMain.py $R_PARAM $CFG_PARAM $TEST_PARAM
