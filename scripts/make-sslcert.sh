@@ -83,6 +83,11 @@ CN = "rtcloud.princeton.edu"
 
 EOF
 
+# Make the private key if needed
+if [ ! -f rtcloud_private.key ]; then
+  openssl genrsa -out rtcloud_private.key 2048
+fi
+
 # Note - we need to do this in two steps in order to be able to specify
 #  a starting and ending date. Using openssl req -x509 doesn't allow specifying
 #  a start date. So we must first create the signing request and then sign with

@@ -28,6 +28,7 @@ A fileServer is started on the scanner computer that can watch for files within 
 ## Other Links
 - [Wrapping Your Experiment Script with the RealTime Framework](docs/how-to-wrap-your-project.md)
 - [Running a Realtime Experiment](docs/how-to-run.md)
+- [Run Project in a Docker Container](docs/run-in-docker.md)
 
 
 ## Installation
@@ -109,7 +110,8 @@ For the sample we will run both the projectInterface and fileServer on the same 
 3. Create your own project python script and wrap it with the real-time framework. See [Wrapping Your Experiment Script with the RealTime Framework](docs/how-to-wrap-your-project.md)
 
 ## Further Reading
-[Details](docs/details.md) - coming soon
+- [Run Project in a Docker Container](docs/run-in-docker.md)
+- [Details](docs/details.md) - coming soon
 
 <details>
 <summary>Expand Item</summary>

@@ -1,0 +1,41 @@
+FROM grantwallace/rtbase:1.0
+
+SHELL ["/bin/bash", "-c"]
+
+RUN \
+echo "## Install NodeJs ##" && \
+yum install -y epel-release && \
+yum install -y nodejs && \
+echo "## Completed Installing NodeJs ##"
+
+RUN \
+mkdir /rt-cloud && \
+chown rtuser:rtuser /rt-cloud
+
+USER rtuser
+
+ENV PATH="~/miniconda3/bin:${PATH}"
+
+RUN \
+echo "## Install rt-cloud ##" && \
+git clone https://github.com/brainiak/rt-cloud.git /rt-cloud && \
+pushd /rt-cloud && \
+mkdir /rt-cloud/certs && \
+conda env create -f environment.yml && \
+cd web && \
+npm install && \
+popd && \
+echo "## Completed Installing rt-cloud ##"
+
+RUN \
+echo "## Install Brainiak ##" && \
+source /home/rtuser/miniconda3/etc/profile.d/conda.sh && \
+conda activate rtcloud && \
+conda install -y -c brainiak -c defaults -c conda-forge brainiak && \
+echo "## Completed Installing Brainiak ##"
+
+WORKDIR /rt-cloud
+
+EXPOSE 8888
+
+CMD /bin/bash

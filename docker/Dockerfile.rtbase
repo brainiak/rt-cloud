@@ -1,0 +1,90 @@
+FROM centos:7.5.1804
+
+# Create rtuser account
+RUN adduser -u 5454 -U rtuser
+
+# Make /opt owned to rtuser
+RUN chown -R rtuser:rtuser /opt
+
+# Yum install packages
+RUN \
+yum install -y git && \
+yum install -y wget && \
+# packages needed for FSL install
+yum -y install file which zip gzip bzip2 libpng12 libmng
+
+# Install Neuroscience Tools
+RUN mkdir ~/Downloads
+
+# Install FSL
+RUN \
+echo "## Install FSL ##"  && \
+pushd ~/Downloads && \
+# mkdir /opt/etc && \
+wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py && \
+/usr/bin/python2.7 fslinstaller.py -d /opt/fsl --quiet && \
+echo 'FSLDIR=/opt/fsl' >> ~/.bashrc && \
+echo '. ${FSLDIR}/etc/fslconf/fsl.sh' >> ~/.bashrc && \
+echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/.bashrc && \
+echo 'export FSLDIR PATH' >> ~/.bashrc && \
+popd && \
+echo "## FSL Install Complete ##"
+
+# Install ANTs
+RUN \
+echo "## Install ANTs ##"  && \
+pushd ~/Downloads && \
+wget https://sourceforge.net/projects/advants/files/ANTS/ANTS_Latest/ANTs-2.1.0-rc3-Linux.tar.gz/download -O ANTs-2.1.0-rc3-Linux.tar.gz && \
+tar xzvf ANTs-2.1.0-rc3-Linux.tar.gz && \
+mv ANTs-2.1.0-Linux /opt/ && \
+echo 'export PATH=${PATH}:/opt/ANTs-2.1.0-Linux/bin' >> ~/.bashrc && \
+rm ANTs-2.1.0-rc3-Linux.tar.gz && \
+popd && \
+echo "## ANTs Install Complete ##"
+
+# Install C3D tool
+RUN \
+echo "## Install C3D ##" && \
+pushd ~/Downloads && \
+wget https://sourceforge.net/projects/c3d/files/c3d/Nightly/c3d-nightly-Linux-gcc64.tar.gz/download -O c3d-nightly-Linux-gcc64.tar.gz && \
+tar xzvf c3d-nightly-Linux-gcc64.tar.gz && \
+mv c3d-1.1.0-Linux-gcc64 /opt/ && \
+echo 'export PATH=${PATH}:/opt/c3d-1.1.0-Linux-gcc64/bin' >> ~/.bashrc && \
+rm c3d-nightly-Linux-gcc64.tar.gz && \
+popd && \
+echo "## C3D Install Complete ##"
+
+# Switch to rtuser
+USER rtuser
+
+RUN mkdir ~/Downloads
+
+# Install Conda
+RUN \
+echo "## Install Miniconda ##" && \
+pushd ~/Downloads && \
+wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+bash Miniconda3-latest-Linux-x86_64.sh -b && \
+echo export PATH="$HOME/miniconda3/bin:\$PATH" >> ~/.bashrc && \
+echo ". $HOME/miniconda3/etc/profile.d/conda.sh" >> ~/.bashrc && \
+source ~/.bashrc && \
+conda update -y conda && \
+rm Miniconda3-latest-Linux-x86_64.sh && \
+popd && \
+echo "## Conda Install Complete ##"
+
+# Setup .bashrc
+RUN \
+echo 'export PATH=${PATH}:/opt/ANTs-2.1.0-Linux/bin' >> ~/.bashrc && \
+echo 'export PATH=${PATH}:/opt/c3d-1.1.0-Linux-gcc64/bin' >> ~/.bashrc && \
+echo 'FSLDIR=/opt/fsl' >> ~/.bashrc && \
+echo '. ${FSLDIR}/etc/fslconf/fsl.sh' >> ~/.bashrc && \
+echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/.bashrc && \
+echo 'export FSLDIR PATH' >> ~/.bashrc && \
+echo 'export LD_LIBRARY_PATH=${FSLDIR}/lib:${FSLDIR}/fslpython/lib:$LD_LIBRARY_PATH' >> ~/.bashrc && \
+echo "## Completed bashrc setup ##"
+
+# Switch back to root
+USER root
+
+CMD /bin/bash

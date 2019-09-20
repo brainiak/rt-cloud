@@ -37,7 +37,7 @@ Then within your python script, use the FileInterface object to request remote f
 Or use the readRetryDicom helper function which returns the Dicom image data
 
     fileInterface.initWatch('/tmp/dicoms', 'samp*.dcm', minFileSize)
-    dicomData = readRetryDicomFromFileInterface(fileInterface, samp3.dcm, timeout=10)
+    dicomData = readRetryDicomFromFileInterface(fileInterface, 'samp3.dcm', timeout=10)
 
 Write classification results back to the console computer using putTextFile
 
@@ -51,6 +51,9 @@ Or read the newest file matching a file pattern such as 'samp*.dcm'
 
     data = fileInterface.getNewestFile(fullpath_filepattern)
 
+Send data values to be graphed in the projectInterface web page
+
+    projUtils.sendResultToWeb(projectComm, run, tr, val)
 
 ### Project Configuration
 Use a TOML file for configuration settings. Use the loadConfigFile funtion to load your configurations into a structured object
@@ -63,8 +66,8 @@ Access configurations within the config structure
     print(cfg.subjectName, cfg.subjectDay)
 
 The following fields must be present in the config toml file for the projectInterface to work:
-  - runNum = [1]    # an array with one or more e.g. [1, 2, 3]
-  - scanNum = [11]  # an array with one or more e.g.  [11, 13, 15]
+  - runNum = [1]    # an array with one or more run numbers e.g. [1, 2, 3]
+  - scanNum = [11]  # an array with one or more scan numbers e.g.  [11, 13, 15]
   - subjectName = 'subject01'
   - subjectDay = 1
 
