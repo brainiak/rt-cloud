@@ -17,6 +17,17 @@ const logLineStyle = {
 // This will be updated based on the value in the config file
 var projectTitle = 'Real-Time Study';
 
+function arrayCompareXValue(a, b){
+  if (a['x'] > b['x']) return 1;
+  if (b['x'] > a['x']) return -1;
+  return 0;
+}
+
+function arrayFindIndexByX(arr, xval){
+    var idx = arr.findIndex(function(element){return element['x']==xval})
+    return idx
+}
+
 class TopPane extends React.Component {
   constructor(props) {
     super(props)
@@ -35,7 +46,7 @@ class TopPane extends React.Component {
       logLines: [],
       uploadedFileLog: [],
     }
-    this.resultVals = [[], []]
+    this.resultVals = [[], []] // mutable version of plotVals to accumulate changes
     this.webSocket = null
     this.setConfigFileName = this.setConfigFileName.bind(this);
     this.setConfig = this.setConfig.bind(this);
@@ -248,16 +259,23 @@ class TopPane extends React.Component {
           this.resultVals.push([])
         }
         // clear plots with runId greater than the current one
-        for (let i = runId; i < this.resultVals.length; i++) {
-          this.resultVals[i] = []
-        }
+        // for (let i = runId; i < this.resultVals.length; i++) {
+        //   this.resultVals[i] = []
+        // }
         // console.log(`resultValue: ${resultVal} ${vol} ${runId}`)
         if (typeof(vol) == 'number') {
           // ResultVals is zero-based and runId is 1-based, so resultVal index will be runId-1
-          // add new data point to resultVals for this runId
           var runResultVals = this.resultVals[runId-1]
-          var itemPos = runResultVals.length + 1
-          runResultVals.push({x: itemPos, y: resultVal})
+          // see if there is already a plot point for this vol (x-value)
+          var idx = arrayFindIndexByX(runResultVals, vol)
+          if (idx >= 0) {
+            // overwrite the existing point
+            runResultVals[idx] = {x: vol, y: resultVal}
+          } else {
+            // add new data point to resultVals for this runId
+            runResultVals.push({x: vol, y: resultVal})
+          }
+          runResultVals.sort(arrayCompareXValue)
         } else {
           // vol is not a number, clear the resultVals for this run
           this.resultVals[runId-1] = []

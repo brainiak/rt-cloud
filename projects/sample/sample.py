@@ -41,16 +41,21 @@ def doRuns(cfg, fileInterface, projectComm):
     print('runs: {}'.format(cfg.runNum))
     val = 0
     for idx in range(len(cfg.runNum)):
-        time.sleep(1)
         run = cfg.runNum[idx]
         scan = cfg.scanNum[idx]
         print('processing run {}, scan {}'.format(run, scan))
-        startTR = run*10
+        # clear and existing plot for this run
+        projUtils.sendResultToWeb(projectComm, run, None, None)
+        startTR = run+4
         endTR = startTR + 10
         for tr in range(startTR, endTR):
             val += 0.03
             print('Run {}, TR {}, val {}'.format(run, tr, val))
             projUtils.sendResultToWeb(projectComm, run, tr, val)
+            time.sleep(0.3)
+        projUtils.sendResultToWeb(projectComm, run, 1, -.5)
+        projUtils.sendResultToWeb(projectComm, run, 2.5, .4)
+        projUtils.sendResultToWeb(projectComm, run, 0, .1)
     logging.info('SAMPLE: LAST LOG MESSAGE')
     return
 
