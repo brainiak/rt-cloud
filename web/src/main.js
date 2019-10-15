@@ -6,6 +6,7 @@ const SettingsPane = require('./settingsPane.js')
 const StatusPane = require('./statusPane.js')
 const XYPlotPane = require('./xyplotPane.js')
 const UploadFilesPane = require('./uploadFilesPane.js')
+const SessionPane = require('./sessionPane.js')
 const { Tab, Tabs, TabList, TabPanel } = require('react-tabs')
 
 const elem = React.createElement;
@@ -45,6 +46,7 @@ class TopPane extends React.Component {
       plotVals: [[{x:0, y:0}], []], // results to plot
       logLines: [],
       uploadedFileLog: [],
+      sessionLog: [],
     }
     this.resultVals = [[], []] // mutable version of plotVals to accumulate changes
     this.webSocket = null
@@ -56,6 +58,7 @@ class TopPane extends React.Component {
     this.startRun = this.startRun.bind(this);
     this.stopRun = this.stopRun.bind(this);
     this.uploadFiles = this.uploadFiles.bind(this);
+    this.runSession = this.runSession.bind(this);
     this.createWebSocket = this.createWebSocket.bind(this)
     this.formatConfigValues = this.formatConfigValues.bind(this)
     this.clearRunStatus = this.clearRunStatus.bind(this)
@@ -126,6 +129,19 @@ class TopPane extends React.Component {
                   compress: compress,
                  }
     this.webSocket.send(JSON.stringify(cmdStr))
+  }
+
+  runSession(cmd) {
+    // clear previous log output
+    var firstLogMsg = '##### ' + cmd + ' #####'
+    this.setState({sessionLog: [firstLogMsg]})
+    this.setState({error: ''})
+
+    var cfg = this.formatConfigValues(this.state.config)
+    if (cfg == null) {
+        return
+    }
+    this.webSocket.send(JSON.stringify({cmd: cmd}))
   }
 
   formatConfigValues(cfg) {
@@ -237,6 +253,13 @@ class TopPane extends React.Component {
         // Need to use concat() to create a new logLines object or React won't know to re-render
         var logLines = this.state.logLines.concat([newLine])
         this.setState({logLines: logLines})
+      } else if (cmd == 'sessionLog') {
+        var logItem = request['value'].trim()
+        var itemPos = this.state.sessionLog.length + 1
+        var newLine = elem('pre', { style: logLineStyle,  key: itemPos }, logItem)
+        // Need to use concat() to create a new logLines object or React won't know to re-render
+        var sessionLog = this.state.sessionLog.concat([newLine])
+        this.setState({sessionLog: sessionLog})
       } else if (cmd == 'runStatus') {
         var status = request['status']
         if (status == undefined || status.length == 0) {
@@ -299,8 +322,9 @@ class TopPane extends React.Component {
        elem(TabList, {},
          elem(Tab, {}, 'Run'),
          elem(Tab, {}, 'Data Plots'),
+         elem(Tab, {}, 'Session'),
          elem(Tab, {}, 'Settings'),
-         elem(Tab, {}, 'Upload Files'),
+         // elem(Tab, {}, 'Upload Files'),
        ),
        elem(TabPanel, {},
          elem(StatusPane,
@@ -326,6 +350,17 @@ class TopPane extends React.Component {
          ),
        ),
        elem(TabPanel, {},
+         elem(SessionPane,
+           {runSession: this.runSession,
+            stopRun: this.stopRun,
+            sessionLog: this.state.sessionLog,
+            connected: this.state.connected,
+            runStatus: this.state.runStatus,
+            error: this.state.error,
+           }
+         ),
+       ),
+       elem(TabPanel, {},
          elem(SettingsPane,
            {config: this.state.config,
             configFileName: this.state.configFileName,
@@ -336,14 +371,14 @@ class TopPane extends React.Component {
            }
          ),
        ),
-       elem(TabPanel, {},
-         elem(UploadFilesPane,
-           {uploadFiles: this.uploadFiles,
-            uploadedFileLog: this.state.uploadedFileLog,
-            error: this.state.error,
-           }
-         ),
-       ),
+       // elem(TabPanel, {},
+       //   elem(UploadFilesPane,
+       //     {uploadFiles: this.uploadFiles,
+       //      uploadedFileLog: this.state.uploadedFileLog,
+       //      error: this.state.error,
+       //     }
+       //   ),
+       // ),
      )
     return tp
   }

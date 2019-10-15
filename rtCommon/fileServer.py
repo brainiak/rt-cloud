@@ -148,12 +148,14 @@ class WsFileWatcher:
                     logging.log(logging.WARNING, errStr)
                     return send_response(client, response)
                 else:
+                    response.update({'status': 200, 'filename': filename})
                     return send_data_response(client, response, compress)
             elif cmd == 'getFile':
                 filename = os.path.join(dir, filename)
                 if not os.path.exists(filename):
                     errStr = "GetFile: File not found {}".format(filename)
                     return send_error_response(client, response, errStr)
+                response.update({'status': 200, 'filename': filename})
                 return send_data_response(client, response, compress)
             elif cmd == 'getNewestFile':
                 resultFilename = findNewestFile(dir, filename)
@@ -168,7 +170,7 @@ class WsFileWatcher:
                     return send_error_response(client, response, errStr)
                 filePattern = os.path.join(dir, filename)
                 fileList = [x for x in glob.iglob(filePattern)]
-                response.update({'status': 200, 'filePattern': filePattern, 'data': fileList})
+                response.update({'status': 200, 'filePattern': filePattern, 'fileList': fileList})
                 return send_response(client, response)
             elif cmd == 'putTextFile':
                 text = request.get('text')
@@ -295,18 +297,18 @@ def send_error_response(client, response, errStr):
 def send_data_response(client, response, compress=False):
     filename = response.get('filename')
     try:
-        data = readFile(filename)
+        data = readFileData(filename)
         if len(data) == 0:
             raise RTError('Empty or zero length file')
     except Exception as err:
-        errStr = "readFile Exception: {}: {}".format(filename, err)
+        errStr = "readFileData Exception: {}: {}".format(filename, err)
         return send_error_response(client, response, errStr)
     for msgPart in generateDataParts(data, response, compress):
         send_response(client, msgPart)
     return
 
 
-def readFile(filename):
+def readFileData(filename):
     data = None
     fileExtension = Path(filename).suffix
     if fileExtension == '.dcm':

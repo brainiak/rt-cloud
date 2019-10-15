@@ -13,6 +13,8 @@ from rtCommon.projectInterface import Web
 
 # HERE: Set the path to the fMRI Python script to run here
 scriptToRun = 'projects/sample/sample.py'
+initScript = 'projects/sample/initialize.py'
+finalizeScript = 'projects/sample/finalize.py'
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
@@ -28,6 +30,8 @@ if __name__ == "__main__":
     args = argParser.parse_args()
 
     params = StructDict({'fmriPyScript': scriptToRun,
+                         'initScript': initScript,
+                         'finalizeScript': finalizeScript,
                          'filesremote': args.filesremote,
                          })
 

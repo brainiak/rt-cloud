@@ -4,6 +4,7 @@ import re
 import json
 import time
 import zlib
+import glob
 import hashlib
 import logging
 import getpass
@@ -53,7 +54,7 @@ def processShouldExitThread():
     stdin we can tell that the parent process exited when stdin is closed. When
     stdin is closed we can exit this process as well.
     '''
-    print('processShouldExitThread: starting', flush=True)
+    # print('processShouldExitThread: starting', flush=True)
     while True:
         # logging.info('process should exit loop')
         data = sys.stdin.read()
@@ -161,6 +162,29 @@ def sendResultToWeb(commPipes, runId, trId, value):
         clientSendCmd(commPipes, cmd)
 
 
+def uploadFilesToCloud(fileInterface, srcFilePattern, outputDir):
+    # get the list of files to upload
+    fileList = fileInterface.listFiles(srcFilePattern)
+    for file in fileList:
+        dir, filename = os.path.split(file)
+        data = fileInterface.getFile(file)
+        outputFilename = os.path.normpath(outputDir + '/' + filename)
+        logging.info('upload: {}/{} --> {}'.format(dir, filename, outputFilename))
+        utils.writeFile(outputFilename, data)
+
+
+def downloadFilesFromCloud(fileInterface, srcFilePattern, outputDir):
+    fileList = [x for x in glob.iglob(srcFilePattern)]
+    for file in fileList:
+        with open(file, 'rb') as fp:
+            data = fp.read()
+        dir, filename = os.path.split(file)
+        outputFilename = os.path.normpath(outputDir + '/' + filename)
+        logging.info('download: {} --> {}'.format(file, outputFilename))
+        fileInterface.putBinaryFile(outputFilename, data)
+    return
+
+
 def clientSendCmd(commPipes, cmd):
     '''Send a request using named pipes to the projectInterface for handling.
     This allows a separate client process to make requests of the projectInterface process.
@@ -197,6 +221,8 @@ def clientSendCmd(commPipes, cmd):
     retVals.statusCode = response.get('status', -1)
     if 'filename' in response:
         retVals.filename = response['filename']
+    if 'fileList' in response:
+        retVals.fileList = response['fileList']
     if data:
         retVals.data = data
         if retVals.filename is None:

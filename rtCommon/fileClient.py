@@ -1,8 +1,9 @@
 import os
+import glob
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.utils import findNewestFile
 import rtCommon.projectUtils as projUtils
-from rtCommon.errors import StateError
+from rtCommon.errors import StateError, RequestError
 
 
 class FileInterface:
@@ -111,5 +112,19 @@ class FileInterface:
                     putFileCmd['fileHash'] = fileHash
                     putFileCmd['status'] = 400
                     projUtils.clientSendCmd(self.commPipes, putFileCmd)
-
         return
+
+    def listFiles(self, filePattern):
+        if self.local:
+            if not os.path.isabs(filePattern):
+                errStr = "listFiles must have an absolute path: {}".format(filePattern)
+                raise RequestError(errStr)
+            fileList = [x for x in glob.iglob(filePattern)]
+        else:
+            listCmd = projUtils.listFilesReqStruct(filePattern)
+            retVals = projUtils.clientSendCmd(self.commPipes, listCmd)
+            fileList = retVals.get('fileList')
+            if type(fileList) is not list:
+                errStr = "Invalid fileList reponse type {}: expecting list".format(type(fileList))
+                raise StateError(errStr)
+        return fileList

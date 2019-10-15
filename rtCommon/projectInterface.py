@@ -67,6 +67,8 @@ class Web():
     ioLoopInst = None
     filesremote = False
     fmriPyScript = None
+    initScript = None
+    finalizeScript = None
     cfg = None
     testMode = False
     runInfo = StructDict({'threadId': None, 'stopRun': False})
@@ -92,6 +94,8 @@ class Web():
         if params.port:
             Web.httpPort = params.port
         Web.fmriPyScript = params.fmriPyScript
+        Web.initScript = params.initScript
+        Web.finalizeScript = params.finalizeScript
         Web.filesremote = params.filesremote
         Web.cfg = cfg
         if not os.path.exists(Web.confDir):
@@ -193,6 +197,11 @@ class Web():
     @staticmethod
     def userLog(logStr):
         cmd = {'cmd': 'userLog', 'value': logStr}
+        Web.sendUserMsgFromThread(json.dumps(cmd))
+
+    @staticmethod
+    def sessionLog(logStr):
+        cmd = {'cmd': 'sessionLog', 'value': logStr}
         Web.sendUserMsgFromThread(json.dumps(cmd))
 
     @staticmethod
@@ -695,7 +704,7 @@ def defaultBrowserMainCallback(client, message):
     if cmd == "getDefaultConfig":
         # TODO - may need to remove certain fields that can't be jsonified
         Web.sendUserConfig(Web.cfg, filesremote=Web.filesremote)
-    elif cmd == "run":
+    elif cmd == "run" or cmd == "initSession" or cmd == "finalizeSession":
         if Web.runInfo.threadId is not None:
             Web.runInfo.threadId.join(timeout=1)
             if Web.runInfo.threadId.is_alive():
@@ -703,8 +712,24 @@ def defaultBrowserMainCallback(client, message):
                 return
             Web.runInfo.threadId = None
         Web.runInfo.stopRun = False
-        Web.runInfo.threadId = threading.Thread(name='runSessionThread', target=runSession,
-                                                args=(Web.cfg, Web.fmriPyScript, Web.filesremote))
+        if cmd == 'run':
+            sessionScript = Web.fmriPyScript
+            tag = 'running'
+            logType = 'run'
+        elif cmd == 'initSession':
+            sessionScript = Web.initScript
+            tag = 'initializing'
+            logType = 'prep'
+        elif cmd == "finalizeSession":
+            sessionScript = Web.finalizeScript
+            tag = 'finalizing'
+            logType = 'prep'
+        if sessionScript is None or sessionScript == '':
+            Web.setUserError("{} script not set".format(cmd))
+            return
+        Web.runInfo.threadId = threading.Thread(name='sessionThread', target=runSession,
+                                                args=(Web.cfg, sessionScript,
+                                                      Web.filesremote, tag, logType))
         Web.runInfo.threadId.setDaemon(True)
         Web.runInfo.threadId.start()
     elif cmd == "stop":
@@ -743,12 +768,14 @@ def defaultEventCallback(client, message):
     print('Event Callback: {}'.format(cmd))
 
 
-def runSession(cfg, pyScript, filesremote=False):
+def runSession(cfg, pyScript, filesremote, tag, logType='run'):
     # write out config file for use by pyScript
-    configFileName = os.path.join(Web.confDir, 'cfg_{}_day{}_run{}.toml'.
-                                  format(cfg.subjectName,
-                                         cfg.subjectDay,
-                                         cfg.runNum[0]))
+    if logType == 'run':
+        configFileName = os.path.join(Web.confDir, 'cfg_sub{}_day{}_run{}.toml'.
+                                      format(cfg.subjectName, cfg.subjectDay, cfg.runNum[0]))
+    else:
+        configFileName = os.path.join(Web.confDir, 'cfg_sub{}_day{}_{}.toml'.
+                                      format(cfg.subjectName, cfg.subjectDay, tag))
     with open(configFileName, 'w+') as fd:
         toml.dump(cfg, fd)
 
@@ -770,7 +797,7 @@ def runSession(cfg, pyScript, filesremote=False):
     proc = subprocess.Popen(cmd, cwd=rootDir, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
     # send running status to user web page
-    response = {'cmd': 'runStatus', 'status': 'running'}
+    response = {'cmd': 'runStatus', 'status': tag}
     Web.sendUserMsgFromThread(json.dumps(response))
     # start a separate thread to read the process output
     lineQueue = queue.Queue()
@@ -788,10 +815,13 @@ def runSession(cfg, pyScript, filesremote=False):
         except queue.Empty:
             line = ''
         if line != '':
-            Web.userLog(line)
+            if logType == 'run':
+                Web.userLog(line)
+            else:
+                Web.sessionLog(line)
             logging.info(line.rstrip())
     # processing complete, set status
-    endStatus = 'complete \u2714'
+    endStatus = tag + ' complete \u2714'
     if Web.runInfo.stopRun is True:
         endStatus = 'stopped'
     response = {'cmd': 'runStatus', 'status': endStatus}
@@ -963,7 +993,7 @@ def uploadFiles(request):
         Web.setUserError("Error listing files {}: {}".
                          format(srcFile, response.get('error')))
         return
-    fileList = response.get('data')
+    fileList = response.get('fileList')
     if type(fileList) is not list:
         Web.setUserError("Invalid fileList reponse type {}: expecting list".
                          format(type(fileList)))

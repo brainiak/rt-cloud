@@ -2,11 +2,13 @@ import pytest
 import os
 import threading
 import time
+import glob
+import shutil
 import logging
 from base64 import b64decode
 import projects.sample.sample as sample
 from rtCommon.fileClient import FileInterface
-from rtCommon.utils import installLoggers
+import rtCommon.utils as utils
 from rtCommon.fileServer import WsFileWatcher
 from rtCommon.projectInterface import Web, handleDataRequest, CommonOutputDir
 import rtCommon.projectUtils as projUtils
@@ -40,7 +42,7 @@ class TestServers:
     pingCount = 0
 
     def setup_class(cls):
-        installLoggers(logging.DEBUG, logging.DEBUG, filename='logs/tests.log')
+        utils.installLoggers(logging.DEBUG, logging.DEBUG, filename='logs/tests.log')
         # Start a projectInterface thread running
         params = StructDict({'fmriPyScript': 'projects/sample/sample.py',
                              'filesremote': True,
@@ -288,3 +290,44 @@ class TestServers:
         with open(writtenPath, 'rb') as fp:
             writtenData = fp.read()
         assert writtenData == data
+
+        # test list files
+        filepattern = os.path.join(testDir, 'test_input', '*.dcm')
+        try:
+            filelist = fileInterface.listFiles(filepattern)
+        except Exception as err:
+            assert False, str(err)
+        # get list locally
+        filelist2 = [x for x in glob.iglob(filepattern)]
+        filelist.sort()
+        filelist2.sort()
+        assert filelist == filelist2
+
+        # test downloadFilesFromCloud and uploadFilesToCloud
+        # 0. remove any previous test directories
+        shutil.rmtree('/tmp/d2')
+        shutil.rmtree('/tmp/d3')
+        # 1. create a tmp sub-dir with some files in it
+        text1 = 'test file 1'
+        text2 = 'test file 2'
+        bindata1 = b'\xFE\xED\x01\x23'
+        bindata2 = b'\xAA\xBB\xCC\xDD'
+        utils.writeFile('/tmp/d1/test1.txt', text1, binary=False)
+        utils.writeFile('/tmp/d1/test2.txt', text2, binary=False)
+        utils.writeFile('/tmp/d1/test3.bin', bindata1)
+        utils.writeFile('/tmp/d1/test4.bin', bindata2)
+        # 2. download files from cloud
+        projUtils.downloadFilesFromCloud(fileInterface, '/tmp/d1/test*.txt', '/tmp/d2')
+        projUtils.downloadFilesFromCloud(fileInterface, '/tmp/d1/test*.bin', '/tmp/d2')
+        # 3. upload files to cloud
+        projUtils.uploadFilesToCloud(fileInterface, '/tmp/d2/test*.txt', '/tmp/d3')
+        projUtils.uploadFilesToCloud(fileInterface, '/tmp/d2/test*.bin', '/tmp/d3')
+        # check that all files in d1 are same as files in d3
+        d3text1 = utils.readFile('/tmp/d3/test1.txt', binary=False)
+        d3text2 = utils.readFile('/tmp/d3/test2.txt', binary=False)
+        d3bin1 = utils.readFile('/tmp/d3/test3.bin')
+        d3bin2 = utils.readFile('/tmp/d3/test4.bin')
+        assert d3text1 == text1
+        assert d3text2 == text2
+        assert d3bin1 == bindata1
+        assert d3bin2 == bindata2

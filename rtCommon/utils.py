@@ -138,11 +138,26 @@ def fileCount(dir, pattern):
     return count
 
 
-def writeFile(filename, data):
-    with open(filename, 'wb') as fh:
+def writeFile(filename, data, binary=True):
+    mode = 'wb'
+    if binary is False:
+        mode = 'w'
+    dirName = os.path.dirname(filename)
+    if not os.path.exists(dirName):
+        os.makedirs(dirName)
+    with open(filename, mode) as fh:
         bytesWritten = fh.write(data)
         if bytesWritten != len(data):
             raise InterruptedError("Write file %s wrote %d of %d bytes" % (filename, bytesWritten, len(data)))
+
+
+def readFile(filename, binary=True):
+    mode = 'rb'
+    if binary is False:
+        mode = 'r'
+    with open(filename, mode) as fp:
+        data = fp.read()
+    return data
 
 
 def runCmdCheckOutput(cmd, outputRegex):

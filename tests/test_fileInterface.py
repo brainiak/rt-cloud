@@ -2,6 +2,7 @@ import pytest
 import os
 from rtCommon.fileClient import FileInterface
 
+# Note these tests will test the local version of FileInterface (not remote)
 
 testDir = os.path.dirname(__file__)
 tmpDir = os.path.join(testDir, 'tmp/')
@@ -63,4 +64,8 @@ class TestFileInterface:
             data1 = fp.read()
         assert data1 == data, 'putBinaryFile assertion'
 
+        # Test list files
+        filePattern = os.path.join(tmpDir, 'test1*')
+        fileList = TestFileInterface.fileWatcher.listFiles(filePattern)
+        assert len(fileList) == 2
         return
