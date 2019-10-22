@@ -95,32 +95,31 @@ class WsFileWatcher:
             filename = request.get('filename')
             timeout = request.get('timeout', 0)
             compress = request.get('compress', False)
-            textOnly = False
             logging.log(logging.INFO, "{}: {} {}".format(cmd, dir, filename))
             # Do Validation Checks
-            if dir is None and filename is not None:
-                dir, filename = os.path.split(filename)
-            if filename is None:
-                errStr = "{}: Missing filename param".format(cmd)
-                return send_error_response(client, response, errStr)
-            if dir is None:
-                errStr = "{}: Missing dir param".format(cmd)
-                return send_error_response(client, response, errStr)
-            if cmd in ('watchFile', 'getFile', 'getNewestFile'):
-                if not os.path.isabs(dir):
-                    # make path relative to the watch dir
-                    dir = os.path.join(fileWatcher.watchDir, dir)
-            if cmd in ('putTextFile', 'dataLog'):
-                textOnly = True
-            if WsFileWatcher.validateRequestedFile(dir, filename, textFileTypeOnly=textOnly) is False:
-                errStr = '{}: Non-allowed dir or filetype {} {}'.format(cmd, dir, filename)
-                return send_error_response(client, response, errStr)
-            if cmd in ('putTextFile', 'putBinaryFile', 'dataLog'):
+            if cmd not in ['getAllowedFileTypes', 'ping', 'error']:
+                # All other commands must have a filename or directory parameter
+                if dir is None and filename is not None:
+                    dir, filename = os.path.split(filename)
+                if filename is None:
+                    errStr = "{}: Missing filename param".format(cmd)
+                    return send_error_response(client, response, errStr)
+                if dir is None:
+                    errStr = "{}: Missing dir param".format(cmd)
+                    return send_error_response(client, response, errStr)
+                if cmd in ('watchFile', 'getFile', 'getNewestFile'):
+                    if not os.path.isabs(dir):
+                        # make path relative to the watch dir
+                        dir = os.path.join(fileWatcher.watchDir, dir)
+                if WsFileWatcher.validateRequestedFile(dir, filename, cmd) is False:
+                    errStr = '{}: Non-allowed dir or filetype {} {}'.format(cmd, dir, filename)
+                    return send_error_response(client, response, errStr)
+                if cmd in ('putTextFile', 'putBinaryFile', 'dataLog'):
+                    if not os.path.exists(dir):
+                        os.makedirs(dir)
                 if not os.path.exists(dir):
-                    os.makedirs(dir)
-            if not os.path.exists(dir):
-                errStr = '{}: No such directory: {}'.format(cmd, dir)
-                return send_error_response(client, response, errStr)
+                    errStr = '{}: No such directory: {}'.format(cmd, dir)
+                    return send_error_response(client, response, errStr)
             # Now handle requests
             if cmd == 'initWatch':
                 minFileSize = request.get('minFileSize')
@@ -169,8 +168,12 @@ class WsFileWatcher:
                     errStr = "listFiles must have an absolute path: {}".format(dir)
                     return send_error_response(client, response, errStr)
                 filePattern = os.path.join(dir, filename)
-                fileList = [x for x in glob.iglob(filePattern)]
+                fileList = [x for x in glob.iglob(filePattern, recursive=True)]
+                fileList = WsFileWatcher.filterFileList(fileList)
                 response.update({'status': 200, 'filePattern': filePattern, 'fileList': fileList})
+                return send_response(client, response)
+            elif cmd == 'getAllowedFileTypes':
+                response.update({'status': 200, 'fileTypes': WsFileWatcher.allowedTypes})
                 return send_response(client, response)
             elif cmd == 'putTextFile':
                 text = request.get('text')
@@ -246,7 +249,13 @@ class WsFileWatcher:
                         format(type(error), str(error)))
 
     @staticmethod
-    def validateRequestedFile(dir, file, textFileTypeOnly=False):
+    def validateRequestedFile(dir, file, cmd):
+        textFileTypeOnly = False
+        wildcardAllowed = False
+        if cmd in ('putTextFile', 'dataLog'):
+            textFileTypeOnly = True
+        if cmd in ('listFiles'):
+            wildcardAllowed = True
         # Restrict requests to certain directories and file types
         WsFileWatcher.validationError = None
         if WsFileWatcher.allowedDirs is None or WsFileWatcher.allowedTypes is None:
@@ -258,6 +267,8 @@ class WsFileWatcher:
                 if fileExtension != '.txt':
                     WsFileWatcher.validationError = 'Only .txt files allowed'
                     return False
+            if wildcardAllowed:
+                pass  # wildcard searches will be filtered for filetype later
             elif fileExtension not in WsFileWatcher.allowedTypes:
                 WsFileWatcher.validationError = 'Not an allowed file type'
                 return False
@@ -278,6 +289,15 @@ class WsFileWatcher:
             return False
         # default case
         return True
+
+    @staticmethod
+    def filterFileList(fileList):
+        filteredList = []
+        for filename in fileList:
+            fileExtension = Path(filename).suffix
+            if fileExtension in WsFileWatcher.allowedTypes:
+                filteredList.append(filename)
+        return filteredList
 
 
 def send_response(client, response):

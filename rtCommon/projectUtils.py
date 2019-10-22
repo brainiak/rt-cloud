@@ -87,6 +87,11 @@ def listFilesReqStruct(filePattern):
     return cmd
 
 
+def allowedFileTypesReqStruct():
+    cmd = {'cmd': 'getAllowedFileTypes', 'route': 'dataserver'}
+    return cmd
+
+
 def watchFileReqStruct(filename, timeout=5, compress=False):
     cmd = {'cmd': 'watchFile',
            'route': 'dataserver',
@@ -162,24 +167,71 @@ def sendResultToWeb(commPipes, runId, trId, value):
         clientSendCmd(commPipes, cmd)
 
 
+def uploadFolderToCloud(fileInterface, srcDir, outputDir):
+    allowedFileTypes = fileInterface.allowedFileTypes()
+    logging.info('Uploading folder {} to cloud'.format(srcDir))
+    logging.info('UploadFolder limited to file types: {}'.format(allowedFileTypes))
+    dirPattern = os.path.join(srcDir, '**')  # ** wildcard means include sub-directories
+    fileList = fileInterface.listFiles(dirPattern)
+    # The src prefix is the part of the path to eliminate in the destination path
+    # This will be everything except the last subdirectory in srcDir
+    srcPrefix = os.path.dirname(srcDir)
+    uploadFilesFromList(fileInterface, fileList, outputDir, srcDirPrefix=srcPrefix)
+
+
 def uploadFilesToCloud(fileInterface, srcFilePattern, outputDir):
     # get the list of files to upload
     fileList = fileInterface.listFiles(srcFilePattern)
+    uploadFilesFromList(fileInterface, fileList, outputDir)
+
+
+def uploadFilesFromList(fileInterface, fileList, outputDir, srcDirPrefix=None):
     for file in fileList:
-        dir, filename = os.path.split(file)
+        fileDir, filename = os.path.split(file)
+        if srcDirPrefix is not None and fileDir.startswith(srcDirPrefix):
+            # Get just the part of fileDir after the srcDirPrefix
+            subDir = fileDir.replace(srcDirPrefix, '')
+        else:
+            subDir = ''
         data = fileInterface.getFile(file)
-        outputFilename = os.path.normpath(outputDir + '/' + filename)
-        logging.info('upload: {}/{} --> {}'.format(dir, filename, outputFilename))
+        outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
+        logging.info('upload: {} --> {}'.format(file, outputFilename))
         utils.writeFile(outputFilename, data)
+
+
+def downloadFolderFromCloud(fileInterface, srcDir, outputDir):
+    allowedFileTypes = fileInterface.allowedFileTypes()
+    logging.info('Downloading folder {} from the cloud'.format(srcDir))
+    logging.info('DownloadFolder limited to file types: {}'.format(allowedFileTypes))
+    dirPattern = os.path.join(srcDir, '**')
+    fileList = [x for x in glob.iglob(dirPattern, recursive=True)]
+    filteredList = []
+    for filename in fileList:
+        fileExtension = Path(filename).suffix
+        if fileExtension in allowedFileTypes:
+            filteredList.append(filename)
+    # The src prefix is the part of the path to eliminate in the destination path
+    # This will be everything except the last subdirectory in srcDir
+    srcPrefix = os.path.dirname(srcDir)
+    downloadFilesFromList(fileInterface, filteredList, outputDir, srcDirPrefix=srcPrefix)
 
 
 def downloadFilesFromCloud(fileInterface, srcFilePattern, outputDir):
     fileList = [x for x in glob.iglob(srcFilePattern)]
+    downloadFilesFromList(fileInterface, fileList, outputDir)
+
+
+def downloadFilesFromList(fileInterface, fileList, outputDir, srcDirPrefix=None):
     for file in fileList:
         with open(file, 'rb') as fp:
             data = fp.read()
-        dir, filename = os.path.split(file)
-        outputFilename = os.path.normpath(outputDir + '/' + filename)
+        fileDir, filename = os.path.split(file)
+        if srcDirPrefix is not None and fileDir.startswith(srcDirPrefix):
+            # Get just the part of fileDir after the srcDirPrefix
+            subDir = fileDir.replace(srcDirPrefix, '')
+        else:
+            subDir = ''
+        outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
         logging.info('download: {} --> {}'.format(file, outputFilename))
         fileInterface.putBinaryFile(outputFilename, data)
     return
@@ -223,6 +275,8 @@ def clientSendCmd(commPipes, cmd):
         retVals.filename = response['filename']
     if 'fileList' in response:
         retVals.fileList = response['fileList']
+    if 'fileTypes' in response:
+        retVals.fileTypes = response['fileTypes']
     if data:
         retVals.data = data
         if retVals.filename is None:

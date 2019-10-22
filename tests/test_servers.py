@@ -19,6 +19,7 @@ from rtCommon.readDicom import readDicomFromFile, anonymizeDicom, writeDicomToBu
 
 testDir = os.path.dirname(__file__)
 tmpDir = os.path.join(testDir, 'tmp/')
+fileTypeList = ['.dcm', '.mat', '.bin', '.txt']
 
 
 @pytest.fixture(scope="module")
@@ -66,7 +67,7 @@ class TestServers:
             kwargs={
                 'retryInterval': 0.1,
                 'allowedDirs': ['/tmp', testDir],
-                'allowedTypes': ['.dcm', '.mat', '.bin', '.txt'],
+                'allowedTypes': fileTypeList,
                 'username': 'test',
                 'password': 'test',
                 'testMode': True
@@ -88,32 +89,35 @@ class TestServers:
         # Send a ping request from projectInterface to fileWatcher
         assert Web.wsDataConn is not None
         cmd = {'cmd': 'ping'}
-        Web.sendDataMsgFromThread(cmd, timeout=2)
+        response = Web.sendDataMsgFromThread(cmd, timeout=2)
+        if response['status'] != 200:
+            print("Ping error: {}".format(response))
+        assert response['status'] == 200
 
     def test_validateRequestedFile(self):
         print("test_validateRequestedFile")
-        res = WsFileWatcher.validateRequestedFile('/tmp/data', None)
+        res = WsFileWatcher.validateRequestedFile('/tmp/data', None, 'test')
         assert res is True
 
-        res = WsFileWatcher.validateRequestedFile('/tmp/data', 'file.dcm')
+        res = WsFileWatcher.validateRequestedFile('/tmp/data', 'file.dcm', 'test')
         assert res is True
 
-        res = WsFileWatcher.validateRequestedFile('/tmp/data', 'file.not')
+        res = WsFileWatcher.validateRequestedFile('/tmp/data', 'file.not', 'test')
         assert res is False
 
-        res = WsFileWatcher.validateRequestedFile('/sys/data', 'file.dcm')
+        res = WsFileWatcher.validateRequestedFile('/sys/data', 'file.dcm', 'test')
         assert res is False
 
-        res = WsFileWatcher.validateRequestedFile(None, '/tmp/data/file.dcm')
+        res = WsFileWatcher.validateRequestedFile(None, '/tmp/data/file.dcm', 'test')
         assert res is True
 
-        res = WsFileWatcher.validateRequestedFile(None, '/sys/data/file.dcm')
+        res = WsFileWatcher.validateRequestedFile(None, '/sys/data/file.dcm', 'test')
         assert res is False
 
-        res = WsFileWatcher.validateRequestedFile(None, '/tmp/file.bin')
+        res = WsFileWatcher.validateRequestedFile(None, '/tmp/file.bin', 'test')
         assert res is True
 
-        res = WsFileWatcher.validateRequestedFile(None, '/tmp/file.txt')
+        res = WsFileWatcher.validateRequestedFile(None, '/tmp/file.txt', 'test')
         assert res is True
 
     def test_getFile(self, dicomTestFilename):
@@ -291,6 +295,10 @@ class TestServers:
             writtenData = fp.read()
         assert writtenData == data
 
+        # test get allowedFileTypes
+        allowedTypes = fileInterface.allowedFileTypes()
+        assert allowedTypes == fileTypeList
+
         # test list files
         filepattern = os.path.join(testDir, 'test_input', '*.dcm')
         try:
@@ -305,8 +313,8 @@ class TestServers:
 
         # test downloadFilesFromCloud and uploadFilesToCloud
         # 0. remove any previous test directories
-        shutil.rmtree('/tmp/d2')
-        shutil.rmtree('/tmp/d3')
+        shutil.rmtree('/tmp/d2', ignore_errors=True)
+        shutil.rmtree('/tmp/d3', ignore_errors=True)
         # 1. create a tmp sub-dir with some files in it
         text1 = 'test file 1'
         text2 = 'test file 2'

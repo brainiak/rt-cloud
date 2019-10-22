@@ -68,4 +68,8 @@ class TestFileInterface:
         filePattern = os.path.join(tmpDir, 'test1*')
         fileList = TestFileInterface.fileWatcher.listFiles(filePattern)
         assert len(fileList) == 2
+
+        # Test allowedFileTypes
+        allowedTypes = TestFileInterface.fileWatcher.allowedFileTypes()
+        assert allowedTypes == ['*']
         return

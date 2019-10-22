@@ -36,6 +36,10 @@ def initialize(cfg, fileInterface, projectComm):
     outputDir = '/tmp/on_cloud/'
     projUtils.uploadFilesToCloud(fileInterface, srcPattern, outputDir)
 
+    # list files
+    fileList = fileInterface.listFiles('/tmp/**')
+    # print(fileList)
+
     # To get a single file
     filedata = fileInterface.getFile(os.path.join(dirName, 'init_test1.mat'))
     utils.writeFile('/tmp/test1_uploaded.mat', filedata)

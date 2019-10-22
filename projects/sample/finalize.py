@@ -18,7 +18,6 @@ defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
 def finalize(cfg, fileInterface, projectComm):
-
     # Use cfg values to create directory and filenames
     # Make a set of files to download and upload
     dirName = os.path.join('/tmp/finalize', cfg.sessionId)
@@ -26,11 +25,21 @@ def finalize(cfg, fileInterface, projectComm):
         filename = os.path.join(dirName, 'fin_test{}.mat'.format(i))
         data = b'\xFF\xEE\xDD\xCC' + struct.pack("B", i)  # semi-random data
         utils.writeFile(filename, data, binary=True)
+    subDirName = os.path.join(dirName, 'subdir1')
+    for i in range(5):
+        filename = os.path.join(subDirName, 'sub_test{}.txt'.format(i))
+        text = 'test text {}'.format(i)
+        utils.writeFile(filename, text, binary=False)
 
-    # download the files from the cloud (here) to the console computer
-    srcPattern = os.path.join(dirName, '*.mat')
+    # download the finalize folder from the cloud (i.e. where this code is running)
+    # onto the console computer
     outputDir = '/tmp/on_console'
-    projUtils.downloadFilesFromCloud(fileInterface, srcPattern, outputDir)
+    projUtils.downloadFolderFromCloud(fileInterface, dirName, outputDir)
+
+    # upload the finalize folder from the console to the cloud
+    srcDir = os.path.join(outputDir, cfg.sessionId)
+    outputDir = '/tmp/on_cloud'
+    projUtils.uploadFolderToCloud(fileInterface, srcDir, outputDir)
 
     # do other processing
     print('finalize complete')

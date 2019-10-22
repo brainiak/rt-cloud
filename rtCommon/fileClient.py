@@ -119,7 +119,7 @@ class FileInterface:
             if not os.path.isabs(filePattern):
                 errStr = "listFiles must have an absolute path: {}".format(filePattern)
                 raise RequestError(errStr)
-            fileList = [x for x in glob.iglob(filePattern)]
+            fileList = [x for x in glob.iglob(filePattern, recursive=True)]
         else:
             listCmd = projUtils.listFilesReqStruct(filePattern)
             retVals = projUtils.clientSendCmd(self.commPipes, listCmd)
@@ -128,3 +128,15 @@ class FileInterface:
                 errStr = "Invalid fileList reponse type {}: expecting list".format(type(fileList))
                 raise StateError(errStr)
         return fileList
+
+    def allowedFileTypes(self):
+        if self.local:
+            return ['*']
+        else:
+            cmd = projUtils.allowedFileTypesReqStruct()
+            retVals = projUtils.clientSendCmd(self.commPipes, cmd)
+            fileTypes = retVals.get('fileTypes')
+            if type(fileTypes) is not list:
+                errStr = "Invalid fileTypes reponse type {}: expecting list".format(type(fileTypes))
+                raise StateError(errStr)
+        return fileTypes
