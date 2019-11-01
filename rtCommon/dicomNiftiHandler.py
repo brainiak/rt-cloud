@@ -103,13 +103,7 @@ def checkDicomNiftiConversion(cfg):
         PASSED = 0
     return PASSED
 
-cfg = StructDict()
-cfg.dataDir = os.getcwd() # or change to any directory where you want the tmp/convertedNiftis to go
-cfg.ref_BOLD = '/jukebox/norman/amennen/RT_prettymouth/data/intelData/sub-031/ses-01/registration/ref_image.nii.gz'
-cfg.dicomDir = '/jukebox/norman/amennen/RT_prettymouth/data/conquest/1022191_greenEyes-1022-1003/dcm'
-cfg.dicomNamePattern = '9-{}-1.dcm' # this is for the specific run that you're testing!!
-cfg.niftiFile = '/jukebox/norman/amennen/RT_prettymouth/data/bids/Norman/Mennen/5516_greenEyes/sub-031/ses-02/func/sub-031_ses-02_task-story_run-04_bold.nii.gz' # make sure this matches the run that you entered for the diccoms!!
-PASSFAIL = checkDicomNiftiConversion(cfg)
+
 
 
 def main():
@@ -137,6 +131,14 @@ def main():
     # d_2 = obj_2.get_fdata()
 
     # np.argwhere(d_1!=d_2)
+
+    cfg = StructDict()
+    # cfg.dataDir = os.getcwd() # or change to any directory where you want the tmp/convertedNiftis to go
+    # cfg.ref_BOLD = # YOUR REFERNECE IMAGE
+    # cfg.dicomDir = # YOUR DICOM DIRECTORY
+    # cfg.dicomNamePattern = # DICOM PATTERN FOR THE SPECIFIC SERIES/RUN OF THE SCANNER (e.g, 9) THAT YOU'RE TESTING '9-{}-1.dcm' 
+    # cfg.niftiFile =  # FULL NIFTI PATH AND FILENAME FOR THE CORRESPONDING NIFTI FILE CREATED FROM THE SAME RUN
+    #PASSFAIL = checkDicomNiftiConversion(cfg)
 
 
 if __name__ == "__main__":
