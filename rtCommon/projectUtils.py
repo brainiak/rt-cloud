@@ -193,7 +193,12 @@ def uploadFilesFromList(fileInterface, fileList, outputDir, srcDirPrefix=None):
             subDir = fileDir.replace(srcDirPrefix, '')
         else:
             subDir = ''
-        data = fileInterface.getFile(file)
+        try:
+            data = fileInterface.getFile(file)
+        except Exception as err:
+            if type(err) is IsADirectoryError or 'IsADirectoryError' in str(err):
+                continue
+            raise(err)
         outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
         logging.info('upload: {} --> {}'.format(file, outputFilename))
         utils.writeFile(outputFilename, data)
@@ -208,7 +213,7 @@ def downloadFolderFromCloud(fileInterface, srcDir, outputDir):
     filteredList = []
     for filename in fileList:
         fileExtension = Path(filename).suffix
-        if fileExtension in allowedFileTypes:
+        if fileExtension in allowedFileTypes or '*' in allowedFileTypes:
             filteredList.append(filename)
     # The src prefix is the part of the path to eliminate in the destination path
     # This will be everything except the last subdirectory in srcDir
@@ -223,6 +228,8 @@ def downloadFilesFromCloud(fileInterface, srcFilePattern, outputDir):
 
 def downloadFilesFromList(fileInterface, fileList, outputDir, srcDirPrefix=None):
     for file in fileList:
+        if os.path.isdir(file):
+            continue
         with open(file, 'rb') as fp:
             data = fp.read()
         fileDir, filename = os.path.split(file)

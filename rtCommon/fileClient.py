@@ -119,7 +119,11 @@ class FileInterface:
             if not os.path.isabs(filePattern):
                 errStr = "listFiles must have an absolute path: {}".format(filePattern)
                 raise RequestError(errStr)
-            fileList = [x for x in glob.iglob(filePattern, recursive=True)]
+            fileList = []
+            for filename in glob.iglob(filePattern, recursive=True):
+                if os.path.isdir(filename):
+                    continue
+                fileList.append(filename)
         else:
             listCmd = projUtils.listFilesReqStruct(filePattern)
             retVals = projUtils.clientSendCmd(self.commPipes, listCmd)

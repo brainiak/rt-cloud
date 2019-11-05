@@ -112,7 +112,7 @@ class WsFileWatcher:
                         # make path relative to the watch dir
                         dir = os.path.join(fileWatcher.watchDir, dir)
                 if WsFileWatcher.validateRequestedFile(dir, filename, cmd) is False:
-                    errStr = '{}: Non-allowed dir or filetype {} {}'.format(cmd, dir, filename)
+                    errStr = '{}: {}'.format(cmd, WsFileWatcher.validationError)
                     return send_error_response(client, response, errStr)
                 if cmd in ('putTextFile', 'putBinaryFile', 'dataLog'):
                     if not os.path.exists(dir):
@@ -259,18 +259,22 @@ class WsFileWatcher:
         # Restrict requests to certain directories and file types
         WsFileWatcher.validationError = None
         if WsFileWatcher.allowedDirs is None or WsFileWatcher.allowedTypes is None:
-            raise StateError('Allowed Directories or File Types is not set')
+            raise StateError('FileServer: Allowed Directories or File Types is not set')
         if file is not None and file != '':
             fileDir, filename = os.path.split(file)
             fileExtension = Path(filename).suffix
             if textFileTypeOnly:
                 if fileExtension != '.txt':
-                    WsFileWatcher.validationError = 'Only .txt files allowed'
+                    WsFileWatcher.validationError = \
+                        'Only .txt files allowed with command putTextFile() or dataLog()'
                     return False
             if wildcardAllowed:
                 pass  # wildcard searches will be filtered for filetype later
             elif fileExtension not in WsFileWatcher.allowedTypes:
-                WsFileWatcher.validationError = 'Not an allowed file type'
+                WsFileWatcher.validationError = \
+                    "File type {} not in list of allowed file types {}. " \
+                    "Specify allowed filetypes with FileServer -f parameter.". \
+                    format(fileExtension, WsFileWatcher.allowedTypes)
                 return False
             if fileDir is not None and fileDir != '':  # and os.path.isabs(fileDir):
                 dirMatch = False
@@ -279,13 +283,21 @@ class WsFileWatcher:
                         dirMatch = True
                         break
                 if dirMatch is False:
-                    WsFileWatcher.validationError = 'Not within an allowed directory'
+                    WsFileWatcher.validationError = \
+                        "Path {} not within list of allowed directories {}. " \
+                        "Make sure you specified a full (absolute) path. " \
+                        "Specify allowed directories with FileServer -d parameter.". \
+                        format(fileDir, WsFileWatcher.allowedDirs)
                     return False
         if dir is not None and dir != '':
             for allowedDir in WsFileWatcher.allowedDirs:
                 if dir.startswith(allowedDir):
                     return True
-            WsFileWatcher.validationError = 'Not within an allowed directory'
+            WsFileWatcher.validationError = \
+                "Path {} not within list of allowed directories {}. " \
+                "Make sure you specified a full (absolute) path. " \
+                "Specify allowed directories with FileServer -d parameter.". \
+                format(dir, WsFileWatcher.allowedDirs)
             return False
         # default case
         return True
@@ -294,6 +306,8 @@ class WsFileWatcher:
     def filterFileList(fileList):
         filteredList = []
         for filename in fileList:
+            if os.path.isdir(filename):
+                continue
             fileExtension = Path(filename).suffix
             if fileExtension in WsFileWatcher.allowedTypes:
                 filteredList.append(filename)
@@ -321,7 +335,7 @@ def send_data_response(client, response, compress=False):
         if len(data) == 0:
             raise RTError('Empty or zero length file')
     except Exception as err:
-        errStr = "readFileData Exception: {}: {}".format(filename, err)
+        errStr = "readFileData Exception: {}: {}: {}".format(filename, type(err), err)
         return send_error_response(client, response, errStr)
     for msgPart in generateDataParts(data, response, compress):
         send_response(client, msgPart)
@@ -384,9 +398,9 @@ if __name__ == "__main__":
     print("Allowed directories {}".format(args.allowedDirs))
 
     WsFileWatcher.runFileWatcher(args.server,
-                                        retryInterval=args.interval,
-                                        allowedDirs=args.allowedDirs,
-                                        allowedTypes=args.allowedFileTypes,
-                                        username=args.username,
-                                        password=args.password,
-                                        testMode=args.test)
+                                 retryInterval=args.interval,
+                                 allowedDirs=args.allowedDirs,
+                                 allowedTypes=args.allowedFileTypes,
+                                 username=args.username,
+                                 password=args.password,
+                                 testMode=args.test)

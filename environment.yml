@@ -20,6 +20,8 @@ dependencies:
   - openssl
   - nibabel
   - wsaccel
+  - scikit-learn
+  - nilearn
   - pip:
     - watchdog
     - inotify
