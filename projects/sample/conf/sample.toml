@@ -14,3 +14,5 @@ plotXRangeLow = 0
 plotXRangeHigh = 20
 plotYRangeLow = -1
 plotYRangeHigh = 1
+plotAutoRangeX = false
+plotAutoRangeY = true

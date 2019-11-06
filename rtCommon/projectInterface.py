@@ -221,7 +221,7 @@ class Web():
     @staticmethod
     def sendDataMsgFromThreadAsync(msg):
         if Web.wsDataConn is None:
-            raise StateError("ProjectInterface: No Data Websocket Connection")
+            raise StateError("ProjectInterface: FileServer not connected. Please run the fileServer.")
         callId = msg.get('callId')
         if not callId:
             callbackStruct = StructDict()

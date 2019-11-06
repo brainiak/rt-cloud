@@ -13,10 +13,41 @@ class XYPlotPane extends React.Component {
   renderRunGraph(runPlotVals, runId) {
     var xLabel = this.props.config['plotXLabel']
     var yLabel = this.props.config['plotYLabel']
+    var autoRangeX = this.props.config['plotAutoRangeX']
+    var autoRangeY = this.props.config['plotAutoRangeY']
     var xRangeLow = this.props.config['plotXRangeLow'] || 0;
     var xRangeHigh = this.props.config['plotXRangeHigh'] || 0;
     var yRangeLow = this.props.config['plotYRangeLow'] || 0;
     var yRangeHigh = this.props.config['plotYRangeHigh'] || 0;
+    if (autoRangeX || autoRangeY) {
+        var minY, minX, maxY, maxX
+        minY = minX = Number.MAX_VALUE
+        maxY = maxX = Number.MIN_VALUE
+        for (let i = 0; i < runPlotVals.length; i++) {
+          var xval = runPlotVals[i]['x']
+          var yval = runPlotVals[i]['y']
+          if (xval > maxX) {
+              maxX = xval
+          }
+          if (xval < minX) {
+              minX = xval
+          }
+          if (yval > maxY) {
+              maxY = yval
+          }
+          if (yval < minY) {
+              minY = yval
+          }
+        }
+    }
+    if (autoRangeX) {
+        xRangeLow = minX
+        xRangeHigh = maxX
+    }
+    if (autoRangeY) {
+        yRangeLow = minY
+        yRangeHigh = maxY
+    }
     var xRange = [xRangeLow, xRangeHigh]
     var yRange = [yRangeLow, yRangeHigh]
     var uniqueKey = runId.toString() // + '.' + numPoints.toString()
@@ -50,7 +81,11 @@ class XYPlotPane extends React.Component {
             includeMargin={false}
             xPercent={0.48}
             yPercent={1.35}
-            style={{fill: plotColor, fontSize: 'large'}}
+            style={{
+                textAnchor: 'middle',
+                fill: plotColor,
+                fontSize: 'large'
+            }}
           />
           <YAxis style={axesStyle} tickPadding={5}/>
           <ChartLabel
@@ -61,7 +96,7 @@ class XYPlotPane extends React.Component {
             yPercent={0.01}
             style={{
               transform: 'rotate(-90)',
-              textAnchor: 'end',
+              textAnchor: 'middle',
               fill: plotColor,
               fontSize: 'large'
             }}
