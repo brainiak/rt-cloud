@@ -33,7 +33,7 @@ class SettingsPane extends React.Component {
         <fieldset>
           <legend>Select Toml Configuration File:</legend>
           <p>Current Config: {this.props.configFileName}</p>
-          <input type='file' className='inputfile' title='My Title'
+          <input type='file' className='inputfile'
             onChange={(event) => {
               this.props.setConfigFileName(event.target.files[0].name)
               let reader = new FileReader()
@@ -41,6 +41,11 @@ class SettingsPane extends React.Component {
               reader.readAsText(event.target.files[0])
             }}
           />
+          <br />
+          <button className="smallButton"
+            onClick={this.props.requestDefaultConfig}>
+            Reload Default Config
+          </button>
           <p>{this.state.tomlErrorMsg}</p>
         </fieldset>
       );

@@ -35,7 +35,5 @@ if __name__ == "__main__":
                          'filesremote': args.filesremote,
                          })
 
-    cfg = loadConfigFile(args.config)
-
     web = Web()
-    web.start(params, cfg, testMode=args.test)
+    web.start(params, args.config, testMode=args.test)

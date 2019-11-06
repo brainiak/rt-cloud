@@ -245,7 +245,9 @@ class TopPane extends React.Component {
       var cmd = request['cmd']
       if (cmd == 'config') {
         var config = request['value']
+        var filename = request['filename']
         this.setConfig(config)
+        this.setConfigFileName(filename)
       } else if (cmd == 'userLog') {
         var logItem = request['value'].trim()
         var itemPos = this.state.logLines.length + 1
@@ -368,6 +370,7 @@ class TopPane extends React.Component {
             getConfigItem: this.getConfigItem,
             setConfigItem: this.setConfigItem,
             setConfigFileName: this.setConfigFileName,
+            requestDefaultConfig: this.requestDefaultConfig,
            }
          ),
        ),

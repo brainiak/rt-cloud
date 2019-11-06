@@ -19,7 +19,7 @@ from rtCommon.projectUtils import listFilesReqStruct, getFileReqStruct, decodeMe
 from rtCommon.projectUtils import defaultPipeName, makeFifo, unpackDataMessage
 from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.certsUtils import getCertPath, getKeyPath
-from rtCommon.utils import DebugLevels, writeFile
+from rtCommon.utils import DebugLevels, writeFile, loadConfigFile
 from rtCommon.errors import StateError, RequestError, RTError
 
 certsDir = 'certs'
@@ -69,6 +69,7 @@ class Web():
     fmriPyScript = None
     initScript = None
     finalizeScript = None
+    configFilename = None
     cfg = None
     testMode = False
     runInfo = StructDict({'threadId': None, 'stopRun': False})
@@ -97,6 +98,9 @@ class Web():
         Web.initScript = params.initScript
         Web.finalizeScript = params.finalizeScript
         Web.filesremote = params.filesremote
+        if type(cfg) is str:
+            Web.configFilename = cfg
+            cfg = loadConfigFile(Web.configFilename)
         Web.cfg = cfg
         if not os.path.exists(Web.confDir):
             os.makedirs(Web.confDir)
@@ -210,8 +214,8 @@ class Web():
         Web.sendUserMsgFromThread(json.dumps(response))
 
     @staticmethod
-    def sendUserConfig(config, filesremote=True):
-        response = {'cmd': 'config', 'value': config, 'filesremote': filesremote}
+    def sendUserConfig(config, filename=''):
+        response = {'cmd': 'config', 'value': config, 'filename': filename}
         Web.sendUserMsgFromThread(json.dumps(response))
 
     @staticmethod
@@ -703,7 +707,11 @@ def defaultBrowserMainCallback(client, message):
     logging.log(DebugLevels.L3, "WEB USER CMD: %s", cmd)
     if cmd == "getDefaultConfig":
         # TODO - may need to remove certain fields that can't be jsonified
-        Web.sendUserConfig(Web.cfg, filesremote=Web.filesremote)
+        if Web.configFilename is not None and Web.configFilename != '':
+            cfg = loadConfigFile(Web.configFilename)
+        else:
+            cfg = Web.cfg
+        Web.sendUserConfig(cfg, filename=Web.configFilename)
     elif cmd == "run" or cmd == "initSession" or cmd == "finalizeSession":
         if Web.runInfo.threadId is not None:
             Web.runInfo.threadId.join(timeout=1)

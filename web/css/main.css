@@ -68,6 +68,13 @@ button {
   color: transparent;
   margin: 2px 8px 4px 4px;
 }
+.smallButton {
+    font-size: 0.70em;
+    background-color: #FFFFFF;
+    border-radius: 4px;
+    border: 1px solid Black;
+    margin: 4px 8px 4px 4px;
+}
 #screen {
   flex: 1; /* fill remaining space */
   overflow: hidden;
