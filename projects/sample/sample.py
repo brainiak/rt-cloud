@@ -1,6 +1,6 @@
 """-----------------------------------------------------------------------------
 
-sample.py (Last Updated: 11/11/2019)
+sample.py (Last Updated: 11/19/2019)
 
 The purpose of this type script is to actually run the sample project. 
 Specifically, it will initiate a file watcher that searches for incoming dicom 
@@ -54,14 +54,9 @@ import rtCommon.dicomNiftiHandler as dnh
 print('\
     |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||')
 
-# **** CHANGE! What should be the comment here? <<<--------------------
-logLevel = logging.INFO
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
-# toml_filename = fileInterface.getNewestFile(currPath,'conf/sample*.toml')
-# ##NameError: name 'fileInterface' is not defined
-# print(toml_filename)
 
 def getDicomFileName(cfg, scanNum, fileNum):
     """
@@ -140,7 +135,7 @@ def doRuns(cfg, fileInterface, projectComm):
 
     INPUT:
         [1] cfg (configuration file with important variables)
-        [2] fileInterface (this will allow you to call useful variables)
+        [2] fileInterface (this will allow you to call useful functions)
         [3] projectComm (communication pipe to talk with projectInterface)
     OUTPUT:
         None.
@@ -330,14 +325,8 @@ def main(argv=None):
     the toml configuration file), initiate the class fileInterface, and then
     call the function 'doRuns' to actually start doing the experiment.
     """
-    
-    # **** CHANGE! What should be the comment here? <<<--------------------
-    logger = logging.getLogger()
-    logger.setLevel(logLevel)
-    logging.info('SAMPLE: FIRST LOG MESSAGE')
 
-    # set up things to later be able to make a struct dict for config variables
-    # **** CHANGE! What should be the comment here? to make this better? <<<-----
+    # define the parameters that will be recognized later on to set up fileIterface
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment config file (.json or .toml)')
@@ -359,12 +348,12 @@ def main(argv=None):
     cfg.imgDir = os.path.join(currPath, 'dicomDir')
     cfg.codeDir = currPath
     
-    # **** CHANGE! What should be the comment here? <<<--------------------
-    if args.runs != '' and args.scans != '':
-        cfg.runNum = [int(x) for x in args.runs.split(',')]
-        cfg.scanNum = [int(x) for x in args.scans.split(',')]
-        print(cfg.runNum)
-        print(cfg.scanNum)
+    # # DELETE THIS SECTION
+    # if args.runs != '' and args.scans != '':
+    #     cfg.runNum = [int(x) for x in args.runs.split(',')]
+    #     cfg.scanNum = [int(x) for x in args.scans.split(',')]
+    #     print(cfg.runNum)
+    #     print(cfg.scanNum)
 
     # open up the communication pipe using 'projectInterface'
     projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
@@ -389,53 +378,9 @@ def main(argv=None):
 
 if __name__ == "__main__":
     """
-    # **** CHANGE! What should be the comment here? <<<--------------------
+    If 'sample.py' is called from the terminal or the equivalent, then actually go
+    through all of the portions of this script. This statement is not satisfied if
+    functions are called from another script using "from sample.py import FUNCTION"
     """
     main()
     sys.exit(0)
-
-##################################### SCRAP WORK #####################################
-# print("\
-    # -----------------------------------------------------------------------------\
-    # \nNext, we will use the function 'getFile' from 'fileClient.py' to retrieve\
-    # \nthe dicom files. Note that this function doesn't have all of the bells and\
-    # \nwhistles (e.g. waiting for the file) as in 'readRetryDicomFromFileInterface'.\
-    # \nEverything else will be the same. \
-    # \n-----------------------------------------------------------------------------")
-
-    # ex1_num_TRs = 5 # number of TRs to use for example 1
-    # for this_TR in np.arange(1,track_TRs+ex1_num_TRs):
-    #     # declare variable that is needed to use 'getFile'
-    #     fileName = getDicomFileName(cfg, scanNum, this_TR) # use 'getDicomFileName'
-
-    #     # use 'getFile' in 'fileClient.py' to read in the dicom file
-    #     #   INPUT:
-    #     #       [1] filename (for the dicom file we want to load)
-    #     #   OUTPUT:
-    #     #       [1] dicomData (with class 'bytes')
-    #     print("• use 'getFile' to read dicom file for TR %d " %this_TR)
-    #     dicomData = fileInterface.getFile(fileName)
-    #     print(type(dicomData))
-
-    #     # convert the dicom file to nifti using 'convertToNifti'
-    #     print("| convert the dicom to nifti")
-    #     nifti_filename = convertToNifti(this_TR, scanNum, cfg, dicomData, 
-    #         suppressMessage=1)
-
-    #     # load the nifti data using nibabel
-    #     print("| load nifti file using nibabel")
-    #     niftiData = nib.load(nifti_filename)
-    #     niftiData=niftiData.get_fdata()
-
-    #     # take the average of all the activation values
-    #     avg_niftiData = np.mean(niftiData)
-    #     avg_niftiData = np.round(avg_niftiData,decimals=2)
-    #     print("| average activation value for TR %d is %d" %(this_TR,avg_niftiData))
-
-    #     # use 'sendResultToWeb' from 'projectUtils.py' to send the result to the
-    #     #   web browser to be plotted in the --Data Plots-- tab.
-    #     print("| send result to the web, plotted in the 'Data Plots' tab")
-    #     projUtils.sendResultToWeb(projectComm, runNum, int(this_TR), int(avg_niftiData))
-
-    #     # keeping track of the TRs we've already sampled
-    #     track_TRs += 1
