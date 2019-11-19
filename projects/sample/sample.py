@@ -168,11 +168,7 @@ def doRuns(cfg, fileInterface, projectComm):
     # obtain the path for the directory where the subject's dicoms live
     subj_imgDir = "{}.{}.{}".format(cfg.datestr, cfg.subjectName, cfg.subjectName)
     cfg.dicomDir = os.path.join(cfg.imgDir, subj_imgDir)
-    
-   # print("Location of the subject's dicoms: {1:20f}".format(cfg.dicomDir))
-
-    print("Location of the subject's dicoms: \n%s\n" %cfg.dicomDir[:69],
-    "%s\n" %cfg.dicomDir[69:128],
+    print("Location of the subject's dicoms: \n%s\n" %cfg.dicomDir,
     "-----------------------------------------------------------------------------")
 
     # initialize a watch for the entire dicom folder (it doesn't look for a 
