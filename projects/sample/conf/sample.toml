@@ -1,12 +1,14 @@
 # Config file for sample.py project
 title = 'Sample Project'
 sessionId = "20180310T123000"
-subjectName = "0301181_sample"
-subjectNum = 1
+subjectName = "0219191_faceMatching"
+# subjectName = "0301181_sample"
+datestr = "20190219"
+subjectNum = 101
 subjectDay = 1
 sessionNum = 1
 runNum = [1]
-scanNum = [11]
+scanNum = [13]
 plotTitle = 'Realtime Plot'
 plotXLabel = 'Sample #'
 plotYLabel = 'Value'
@@ -16,3 +18,7 @@ plotYRangeLow = -1
 plotYRangeHigh = 1
 plotAutoRangeX = false
 plotAutoRangeY = true
+
+## important variables about the dicom files
+dicomNamePattern = "001_0000{}_000{}.dcm"
+minExpectedDicomSize = 300000
