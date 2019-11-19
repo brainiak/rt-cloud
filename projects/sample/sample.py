@@ -17,14 +17,14 @@ Finally, this script is called from 'projectMain.py', which is called from
 -----------------------------------------------------------------------------"""
 
 # print a short introduction on the internet window
-print("\
-    -----------------------------------------------------------------------------\
-    \nThe purpose of this sample project is to demonstrate different ways you can\
-    \nimplement functions, structures, etc. that we have developed for your use.\
-    \nYou will find some comments printed on this html file. However, if you want\
-    \nmore information about how things work please talk a look at ‘sample.py’.\
-    \nGood luck!\n\
-    -----------------------------------------------------------------------------")
+print(""
+    "-----------------------------------------------------------------------------\n"
+    "The purpose of this sample project is to demonstrate different ways you can\n"
+    "implement functions, structures, etc. that we have developed for your use.\n"
+    "You will find some comments printed on this html file. However, if you want\n"
+    "more information about how things work please talk a look at ‘sample.py’.\n"
+    "Good luck!\n"
+    "-----------------------------------------------------------------------------")
 
 # import important modules
 import os
@@ -159,19 +159,21 @@ def doRuns(cfg, fileInterface, projectComm):
     #       [1] allowedFileTypes (list of allowed file types)
     
     allowedFileTypes = fileInterface.allowedFileTypes()
-    print("\
-    -----------------------------------------------------------------------------\
-    \nBefore continuing, we need to make sure that dicoms are allowed. To verify\
-    \nthis, use the 'allowedFileTypes'.\
-    \nAllowed file types: %s" %allowedFileTypes)
+    print(""
+    "-----------------------------------------------------------------------------\n"
+    "Before continuing, we need to make sure that dicoms are allowed. To verify\n"
+    "this, use the 'allowedFileTypes'.\n"
+    "Allowed file types: %s" %allowedFileTypes)
 
     # obtain the path for the directory where the subject's dicoms live
     subj_imgDir = "{}.{}.{}".format(cfg.datestr, cfg.subjectName, cfg.subjectName)
     cfg.dicomDir = os.path.join(cfg.imgDir, subj_imgDir)
-    print("Location of the subject's dicoms: \n%s" %cfg.dicomDir[:69],
-    "\n%s" %cfg.dicomDir[69:128],
-    "\n-----------------------------------------------------------------------------",
-    )
+    
+   # print("Location of the subject's dicoms: {1:20f}".format(cfg.dicomDir))
+
+    print("Location of the subject's dicoms: \n%s\n" %cfg.dicomDir[:69],
+    "%s\n" %cfg.dicomDir[69:128],
+    "-----------------------------------------------------------------------------")
 
     # initialize a watch for the entire dicom folder (it doesn't look for a 
     #   specific dicom) using the function 'initWatch' in 'fileClient.py'
@@ -198,18 +200,19 @@ def doRuns(cfg, fileInterface, projectComm):
     print("• clear any pre-existing plot using 'sendResultToWeb'")
     projUtils.sendResultToWeb(projectComm, runNum, None, None)
 
-    print("\
-    -----------------------------------------------------------------------------\
-    \nIn this sample project, we will retrieve the dicom file, convert it into\
-    \na nifti file, and then obtain the average activation value. To do this, we \
-    \nwill first use the function 'readRetryDicomFromFileInterface' to retrieve \
-    \nspecific dicom files from the subject's dicom folder. This function uses \
-    \n'fileInterface.watchFile' to look for the next dicom files. Since this \
-    \nsample project uses previously collected data, this functionality isn't \
-    \nparticularly important but it is useful when running real-time experiments.\
-    \nIn this sample project, we will retrieve the dicom file, convert it into\
-    \na nifti file, and then obtain the average activation value.\
-    \n-----------------------------------------------------------------------------")
+    print(""
+    "-----------------------------------------------------------------------------\n"
+    "In this sample project, we will retrieve the dicom file, convert it into\n"
+    "na nifti file, and then obtain the average activation value. To do this, we\n"
+    "will first use the function 'readRetryDicomFromFileInterface' to retrieve\n"
+    "specific dicom files from the subject's dicom folder. This function uses\n"
+    "'fileInterface.watchFile' to look for the next dicom files. Since this\n"
+    "sample project uses previously collected data, this functionality isn't\n"
+    "particularly important but it is useful when running real-time experiments.\n"
+    "In this sample project, we will retrieve the dicom file, convert it into\n"
+    "a nifti file, and then obtain the average activation value.\n"
+    "-----------------------------------------------------------------------------")
+
     track_TRs = 0
     ex1_num_TRs = 6 # number of TRs to use for example 1
     all_avg_activations = np.zeros((20,1)) # this is hardcoded for 20 dicoms total
@@ -281,22 +284,23 @@ def doRuns(cfg, fileInterface, projectComm):
     checking_fileList = fileInterface.listFiles(checking_filePattern)
     
     # print the list of activation files
-    print("\
-        -----------------------------------------------------------------------------\
-        \nList of average activation files:")
+    print(""
+        "-----------------------------------------------------------------------------\n"
+        "List of average activation files:")
     for i in np.arange(1,ex1_num_TRs)-1:
         print('• %s'%checking_fileList[i][73:95])
 
-    print("\
-        .......................................................................\
-        \nAs we can see, this is all redundant so we only want to save the LAST\
-        \nbinary file for our purposes. Doing this, however, means that we save\
-        \nthe activation values as the experiment progresses so that we have the\
-        \nvalues even if the experiment suddenly stops partway through.\
-        \n.......................................................................")
+    print(""
+        ".......................................................................\n"
+        "As we can see, this is all redundant so we only want to save the LAST\n"
+        "binary file for our purposes. Doing this, however, means that we save\n"
+        "the activation values as the experiment progresses so that we have the\n"
+        "values even if the experiment suddenly stops partway through.\n"
+        ".......................................................................")
 
-    print("Save the final vector of activations as a binary file in 'tmp' folder\
-        \n-----------------------------------------------------------------------------")
+    print("Save the final vector of activations as a binary file in 'tmp' folder\n"
+        "-----------------------------------------------------------------------------")
+
     # get the newest activation file
     newest_activationFile = fileInterface.getNewestFile(os.path.join(currPath,
         'tmp/avg_activations_*.mat'))
@@ -312,8 +316,8 @@ def doRuns(cfg, fileInterface, projectComm):
     #       [2] data (you want to write into the filename)
     output_textFilename = os.path.join(currPath,'tmp/experiment_notes.txt')
     fileInterface.putTextFile(output_textFilename,'experiment ended!')
-    print("Save message as a text file in 'tmp' folder\
-        \n-----------------------------------------------------------------------------")
+    print("Save message as a text file in 'tmp' folder\n"
+        "-----------------------------------------------------------------------------")
 
     return
 
@@ -348,12 +352,12 @@ def main(argv=None):
     cfg.imgDir = os.path.join(currPath, 'dicomDir')
     cfg.codeDir = currPath
     
-    # # DELETE THIS SECTION
-    # if args.runs != '' and args.scans != '':
-    #     cfg.runNum = [int(x) for x in args.runs.split(',')]
-    #     cfg.scanNum = [int(x) for x in args.scans.split(',')]
-    #     print(cfg.runNum)
-    #     print(cfg.scanNum)
+    ####### # DELETE THIS SECTION
+    ####### if args.runs != '' and args.scans != '':
+    #######     cfg.runNum = [int(x) for x in args.runs.split(',')]
+    #######     cfg.scanNum = [int(x) for x in args.scans.split(',')]
+    #######     print(cfg.runNum)
+    #######     print(cfg.scanNum)
 
     # open up the communication pipe using 'projectInterface'
     projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
