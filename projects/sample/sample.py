@@ -34,6 +34,7 @@ import logging
 import argparse
 import numpy as np
 import nibabel as nib
+from nibabel.nicom import dicomreaders
 
 # obtain full path for current directory: '.../rt-cloud/projects/sample'
 currPath = os.path.dirname(os.path.realpath(__file__))
@@ -48,11 +49,6 @@ from rtCommon.utils import loadConfigFile
 from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.readDicom import readRetryDicomFromFileInterface
-print('\
-    |||||||||||||||||||||||||||| IGNORE THIS WARNING ||||||||||||||||||||||||||||')
-import rtCommon.dicomNiftiHandler as dnh
-print('\
-    |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||')
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
@@ -84,47 +80,6 @@ def getDicomFileName(cfg, scanNum, fileNum):
     fullFileName = os.path.join(cfg.dicomDir, fileName)
     
     return fullFileName
-
-def convertToNifti(TRnum, scanNum, cfg, dicomData, suppressMessage=1):
-    """
-    INPUT:
-        [1] TRnum (the TR of interest)
-        [2] scanNum (scan number)
-        [3] cfg (config file)
-        [4] dicomData (dicom data that was retrieved)
-        [5] suppressMessage (don't print message that nifti already exists)
-    """
-    scanNumStr = str(scanNum).zfill(2)
-    fileNumStr = str(TRnum).zfill(3)
-    expected_dicom_name = cfg.dicomNamePattern.format(scanNumStr, fileNumStr)
-    cfg.dataDir = cfg.codeDir + '/data'
-    tempNiftiDir = os.path.join(cfg.dataDir, 'tmp/convertedNiftis/')
-    nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
-    fullNiftiFilename = os.path.join(tempNiftiDir, nameToSaveNifti)
-
-    # only convert if haven't done so yet (check if doesn't exist)
-    if not os.path.isfile(fullNiftiFilename):
-        # REGISTRATION THINGS -- from Anne's code!
-        cfg.bids_id = 'sub-{0:03d}'.format(cfg.subjectNum)
-        cfg.ses_id = 'ses-{0:02d}'.format(cfg.subjectDay)
-        cfg.wf_dir = '{0}/{1}/ses-{2:02d}/registration/'.format(cfg.dataDir, cfg.bids_id, 1)
-        cfg.BOLD_to_T1= cfg.wf_dir + 'affine.txt'
-        cfg.T1_to_MNI= cfg.wf_dir + 'ants_t1_to_mniComposite.h5'
-        cfg.ref_BOLD=cfg.wf_dir + 'ref_image.nii.gz'
-        # get conversion for how to flip the matrices
-        cfg.axesTransform = getTransform()
-        fullNiftiFilename = dnh.saveAsNiftiImage(dicomData, expected_dicom_name, cfg)
-    else:
-        if suppressMessage == 0:
-            print('SKIPPING CONVERSION FOR EXISTING NIFTI {}'.format(fullNiftiFilename))
-    return fullNiftiFilename
-
-def getTransform():
-    # This function transforms the dicom files into the target orientation
-    target_orientation = nib.orientations.axcodes2ornt(('L', 'A', 'S')) # from example ROI
-    dicom_orientation = nib.orientations.axcodes2ornt(('P', 'L', 'S'))
-    transform = nib.orientations.ornt_transform(dicom_orientation, target_orientation)
-    return transform
 
 def doRuns(cfg, fileInterface, projectComm):
     """
@@ -160,7 +115,6 @@ def doRuns(cfg, fileInterface, projectComm):
     
     allowedFileTypes = fileInterface.allowedFileTypes()
     print(""
-    "-----------------------------------------------------------------------------\n"
     "Before continuing, we need to make sure that dicoms are allowed. To verify\n"
     "this, use the 'allowedFileTypes'.\n"
     "Allowed file types: %s" %allowedFileTypes)
@@ -198,16 +152,23 @@ def doRuns(cfg, fileInterface, projectComm):
 
     print(""
     "-----------------------------------------------------------------------------\n"
-    "In this sample project, we will retrieve the dicom file, convert it into\n"
-    "na nifti file, and then obtain the average activation value. To do this, we\n"
-    "will first use the function 'readRetryDicomFromFileInterface' to retrieve\n"
-    "specific dicom files from the subject's dicom folder. This function uses\n"
-    "'fileInterface.watchFile' to look for the next dicom files. Since this\n"
-    "sample project uses previously collected data, this functionality isn't\n"
-    "particularly important but it is useful when running real-time experiments.\n"
-    "In this sample project, we will retrieve the dicom file, convert it into\n"
-    "a nifti file, and then obtain the average activation value.\n"
-    "-----------------------------------------------------------------------------")
+    "In this sample project, we will retrieve the dicom file for a given TR and\n"
+    "then convert the dicom file to a nifti object. **IMPORTANT: In this sample\n"
+    "we won't care about the exact location of voxel data (we're only going to\n"
+    "indiscriminately get the average activation value for all voxels). This\n"
+    "actually isn't something you want to actually do but we'll go through the\n"
+    "to get the data in the appropriate nifti format in the 'advanced sample\n"
+    "project.** We are doing things in this way because it is the simplest way\n"
+    "we can highlight the functionality of rt-cloud, which is the purpose of\n"
+    "this sample project."
+    ".............................................................................\n"
+    "NOTE: We will use the function 'readRetryDicomFromFileInterface' to retrieve\n"
+    "specific dicom files from the subject's dicom folder. This function calls\n"
+    "'fileInterface.watchFile' to look for the next dicom from the scanner.\n"
+    "Since we're using previously collected dicom data, this is functionality is\n"
+    "not particularly relevant for this sample project but it is very important\n"
+    "when running real-time experiments.\n"
+    "-----------------------------------------------------------------------------\n")
 
     track_TRs = 0
     ex1_num_TRs = 6 # number of TRs to use for example 1
@@ -231,18 +192,15 @@ def doRuns(cfg, fileInterface, projectComm):
         dicomData = readRetryDicomFromFileInterface(fileInterface, fileName, 
             timeout_file)
 
-        # convert the dicom file to nifti using 'convertToNifti'
-        print("| convert the dicom to nifti")
-        nifti_filename = convertToNifti(this_TR, scanNum, cfg, dicomData, 
-            suppressMessage=1)
-
-        # load the nifti data using nibabel
-        print("| load nifti file using nibabel")
-        niftiData = nib.load(nifti_filename)
-        niftiData=niftiData.get_fdata()
-
+        # use 'dicomreaders.mosaic_to_nii' to convert the dicom data into a nifti
+        #   object. additional steps need to be taken to get the nifti object in 
+        #   the correct orientation, but we will ignore those steps here. refer to
+        #   the 'advanced sample project' for more info about that
+        print("| convert dicom data into a nifti object")
+        niftiObject = dicomreaders.mosaic_to_nii(dicomData)
+        
         # take the average of all the activation values
-        avg_niftiData = np.mean(niftiData)
+        avg_niftiData = np.mean(niftiObject.get_data())
         avg_niftiData = np.round(avg_niftiData,decimals=2)
         print("| average activation value for TR %d is %d" %(this_TR,avg_niftiData))
 
@@ -284,7 +242,7 @@ def doRuns(cfg, fileInterface, projectComm):
         "-----------------------------------------------------------------------------\n"
         "List of average activation files:")
     for i in np.arange(1,ex1_num_TRs)-1:
-        print('• %s'%checking_fileList[i][73:95])
+        print('• %s'%checking_fileList[i])
 
     print(""
         ".......................................................................\n"
@@ -347,13 +305,6 @@ def main(argv=None):
     # obtain paths for important directories (e.g. location of dicom files)
     cfg.imgDir = os.path.join(currPath, 'dicomDir')
     cfg.codeDir = currPath
-    
-    ####### # DELETE THIS SECTION
-    ####### if args.runs != '' and args.scans != '':
-    #######     cfg.runNum = [int(x) for x in args.runs.split(',')]
-    #######     cfg.scanNum = [int(x) for x in args.scans.split(',')]
-    #######     print(cfg.runNum)
-    #######     print(cfg.scanNum)
 
     # open up the communication pipe using 'projectInterface'
     projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
