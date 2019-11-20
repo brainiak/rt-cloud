@@ -140,7 +140,11 @@ def main(argv=None):
     initialize(cfg, fileInterface, projectComm)
     return 0
 
-
 if __name__ == "__main__":
+    """
+    If 'initalize.py' is called from the terminal or the equivalent, then actually go
+    through all of the portions of this script. This statement is not satisfied if
+    functions are called from another script using "from initalize.py import FUNCTION"
+    """
     main()
     sys.exit(0)
