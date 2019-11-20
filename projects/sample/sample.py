@@ -34,6 +34,7 @@ import logging
 import argparse
 import numpy as np
 import nibabel as nib
+import scipy.io as sio
 from nibabel.nicom import dicomreaders
 
 # obtain full path for current directory: '.../rt-cloud/projects/sample'
@@ -213,65 +214,87 @@ def doRuns(cfg, fileInterface, projectComm):
         all_avg_activations[this_TR] = avg_niftiData
         track_TRs += 1
 
-        # create the full path filename of where we want to save vector of activations
+        # create the full path filename of where we want to save the activation
+        #   here, we'll save things as .txt files (which are fast and easy to ready, 
+        #   which might come in use when running real-time experiments) and as .mat files
         if this_TR < 10:
-            output_binaryFilename = os.path.join(currPath,
+            output_matFilename = os.path.join(currPath,
                 'tmp/avg_activations_0%d.mat' %this_TR)
+            output_textFilename = os.path.join(currPath,
+                'tmp/avg_activations_0%d.txt' %this_TR)
         else:
-            output_binaryFilename = os.path.join(currPath,
+            output_matFilename = os.path.join(currPath,
                 'tmp/avg_activations_%d.mat' %this_TR)
+            output_textFilename = os.path.join(currPath,
+                'tmp/avg_activations_%d.txt' %this_TR)
 
-        # save the activation values vector into a binary file, such as a numpy file,
-        #   using 'putBinaryFile' in 'fileClient.py'
+        # first, save the average activation value as a text file using 'putTextFile'
+        #   from 'fileClient.py'... you might want to do this if you quickly need to 
+        #   send the activation value to your stimulus script on the local computer
         #   INPUT:
         #       [1] filename (full path!)
         #       [2] data (you want to write into the filename)
-        print("| save vector of activation values as a binary file in 'tmp' folder")
-        fileInterface.putBinaryFile(output_binaryFilename,all_avg_activations)
+        print("| save activation value as a text file to tmp folder")
+        fileInterface.putTextFile(output_textFilename,str(avg_niftiData))
 
-    # above, we saved the activation values vector after every TR... we can verify
-    #   this by taking a look at all of the files in the tmp folder using the
-    #   the function 'listFiles' in 'fileClient.py'
-    #   INPUT:
-    #       [1] file pattern (which includes relative path)
-    checking_filePattern = os.path.join(currPath,'tmp/avg_activations_*.mat')
-    checking_fileList = fileInterface.listFiles(checking_filePattern)
+        # second, we're going to save the average activation value as a matlab file
+        #   using sio.savemat()
+        print("| save activation value as a matlab file to tmp folder")
+        sio.savemat(output_matFilename,{'value':avg_niftiData})
+
+        
+
+        # # save the activation values vector into a binary file, such as a numpy file,
+        # #   using 'putBinaryFile' in 'fileClient.py'
+        # #   INPUT:
+        # #       [1] filename (full path!)
+        # #       [2] data (you want to write into the filename)
+        # print("| save vector of activation values as a binary file in 'tmp' folder")
+        # fileInterface.putBinaryFile(output_binaryFilename,all_avg_activations)
+
+    # # above, we saved the activation values vector after every TR... we can verify
+    # #   this by taking a look at all of the files in the tmp folder using the
+    # #   the function 'listFiles' in 'fileClient.py'
+    # #   INPUT:
+    # #       [1] file pattern (which includes relative path)
+    # checking_filePattern = os.path.join(currPath,'tmp/avg_activations_*.mat')
+    # checking_fileList = fileInterface.listFiles(checking_filePattern)
     
-    # print the list of activation files
-    print(""
-        "-----------------------------------------------------------------------------\n"
-        "List of average activation files:")
-    for i in np.arange(1,ex1_num_TRs)-1:
-        print('• %s'%checking_fileList[i])
+    # # print the list of activation files
+    # print(""
+    #     "-----------------------------------------------------------------------------\n"
+    #     "List of average activation files:")
+    # for i in np.arange(1,ex1_num_TRs)-1:
+    #     print('• %s'%checking_fileList[i])
 
-    print(""
-        ".......................................................................\n"
-        "As we can see, this is all redundant so we only want to save the LAST\n"
-        "binary file for our purposes. Doing this, however, means that we save\n"
-        "the activation values as the experiment progresses so that we have the\n"
-        "values even if the experiment suddenly stops partway through.\n"
-        ".......................................................................")
+    # print(""
+    #     ".......................................................................\n"
+    #     "As we can see, this is all redundant so we only want to save the LAST\n"
+    #     "binary file for our purposes. Doing this, however, means that we save\n"
+    #     "the activation values as the experiment progresses so that we have the\n"
+    #     "values even if the experiment suddenly stops partway through.\n"
+    #     ".......................................................................")
 
-    print("Save the final vector of activations as a binary file in 'tmp' folder\n"
-        "-----------------------------------------------------------------------------")
+    # print("Save the final vector of activations as a binary file in 'tmp' folder\n"
+    #     "-----------------------------------------------------------------------------")
 
-    # get the newest activation file
-    newest_activationFile = fileInterface.getNewestFile(os.path.join(currPath,
-        'tmp/avg_activations_*.mat'))
-    finalOutput_binaryFilename = os.path.join(currPath,'tmp/avg_activations_ALLDATA.mat')
-    fileInterface.putBinaryFile(finalOutput_binaryFilename,newest_activationFile)
+    # # get the newest activation file
+    # newest_activationFile = fileInterface.getNewestFile(os.path.join(currPath,
+    #     'tmp/avg_activations_*.mat'))
+    # finalOutput_binaryFilename = os.path.join(currPath,'tmp/avg_activations_ALLDATA.mat')
+    # fileInterface.putBinaryFile(finalOutput_binaryFilename,newest_activationFile)
 
-    # you can use the module 'logger' to keep track of events during the experiment
-    # however, let's say that you don't want to use this module but want to know that
-    #   the experiment ended... you can do this by sending a text file to the 'tmp
-    #   folder using the function 'putTextFile'
-    #   INPUT:
-    #       [1] filename (full path!)
-    #       [2] data (you want to write into the filename)
-    output_textFilename = os.path.join(currPath,'tmp/experiment_notes.txt')
-    fileInterface.putTextFile(output_textFilename,'experiment ended!')
-    print("Save message as a text file in 'tmp' folder\n"
-        "-----------------------------------------------------------------------------")
+    # # you can use the module 'logger' to keep track of events during the experiment
+    # # however, let's say that you don't want to use this module but want to know that
+    # #   the experiment ended... you can do this by sending a text file to the 'tmp
+    # #   folder using the function 'putTextFile'
+    # #   INPUT:
+    # #       [1] filename (full path!)
+    # #       [2] data (you want to write into the filename)
+    # output_textFilename = os.path.join(currPath,'tmp/experiment_notes.txt')
+    # fileInterface.putTextFile(output_textFilename,'experiment ended!')
+    # print("Save message as a text file in 'tmp' folder\n"
+    #     "-----------------------------------------------------------------------------")
 
     return
 
