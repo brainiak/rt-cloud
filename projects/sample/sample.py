@@ -326,7 +326,6 @@ def main(argv=None):
     
     return 0
 
-
 if __name__ == "__main__":
     """
     If 'sample.py' is called from the terminal or the equivalent, then actually go
