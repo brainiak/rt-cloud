@@ -24,7 +24,6 @@ import argparse
 
 # obtain full path for current directory: '.../rt-cloud/projects/sample'
 currPath = os.path.dirname(os.path.realpath(__file__))
-print(currPath)
 # obtain full path for root directory: '.../rt-cloud'
 rootPath = os.path.dirname(os.path.dirname(currPath))
 
@@ -36,9 +35,7 @@ import rtCommon.utils as utils
 import rtCommon.projectUtils as projUtils
 from rtCommon.fileClient import FileInterface
 
-logLevel = logging.INFO
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
-
 
 def initialize(cfg, fileInterface, projectComm):
     """
@@ -66,17 +63,42 @@ def initialize(cfg, fileInterface, projectComm):
     #   and where files are on the cloud ('tmp/cloud_directory')
     consoleDir = os.path.join(currPath,'tmp/console_directory/**')
     cloudDir = os.path.join(currPath,'tmp/cloud_directory')
+    print("Location of console directory: \n%s\n" %consoleDir)
+    print("Location of cloud directory: \n%s\n" %cloudDir)
+
+    # before we get ahead of ourselves, we need to make sure that the necessary file
+    #   types are allowed (meaning, we are able to read them in)... in this example,
+    #   at the very least we need to have access to dicom and txt file types.
+    # use the function 'allowedFileTypes' in 'fileClient.py' to check this!
+    
+
+    # before we continue, we should clarify the types of file types that are allowed
+    #   using the function 'allowedFileTypes' in 'fileClient.py' ...ONLY the file
+    #   types that are reflected here can be uploaded to the cloud
+    #   INPUT: None
+    #   OUTPUT:
+    #       [1] allowedFileTypes (list of allowed file types)
+    
+    allowedFileTypes = fileInterface.allowedFileTypes()
+    print(""
+    "-----------------------------------------------------------------------------\n"
+    "Before continuing, we should check to see the file types that are allowed.\n"
+    "To verify, we will use 'allowedFileTypes'. Only these files will be uploaded\n"
+    "to the cloud in the next step!!\n"
+    "Allowed file types: %s" %allowedFileTypes)
 
     # we want to upload files from the 'console computer' to the cloud
     # to do this, we will use 'uploadFilesToCloud' from 'projectUtils'
     #   INPUT: 
     #       [1] fileInterface (this allows us to use useful functions)
     #       [2] srcDir (the source directory for the files to be moved)
+    #               NOTE: you need to use ** in order to grab the files
     #       [3] outputDir (the directory where you want the files to go)
     projUtils.uploadFilesToCloud(fileInterface,consoleDir,cloudDir)
 
-    print('initialization complete')
-
+    print(""
+    "-----------------------------------------------------------------------------\n"
+    "INITIALIZATION COMPLETE!")
 
 def main(argv=None):
     """
@@ -85,9 +107,6 @@ def main(argv=None):
     the toml configuration file), initiate the class fileInterface, and set
     up some directories and other important things through 'initialize()'
     """
-
-    logger = logging.getLogger()
-    logger.setLevel(logLevel)
 
     # define the parameters that will be recognized later on to set up fileIterface
     argParser = argparse.ArgumentParser()
