@@ -11,11 +11,9 @@ file) and upload any necessary files to the cloud.
 # print a short introduction on the internet window
 print(""
     "-----------------------------------------------------------------------------\n"
-    "The purpose of this sample project is to demonstrate different ways you can\n"
-    "implement functions, structures, etc. that we have developed for your use.\n"
-    "You will find some comments printed on this html file. However, if you want\n"
-    "more information about how things work please talk a look at initialize.py’.\n"
-    "Good luck!\n"
+    "The purpose of this script is to show you the ways in which you can utilize\n"
+    "an initialization function. You will notice some comments printed on the\n"
+    "html browser, but if you want more details please look at initalize.py."
     "-----------------------------------------------------------------------------")
 
 import os
