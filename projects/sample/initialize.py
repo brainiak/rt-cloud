@@ -14,7 +14,7 @@ print(""
     "The purpose of this script is to show you the ways in which you can utilize\n"
     "an initialization function. You will notice some comments printed on the\n"
     "html browser, but if you want more details please look at initalize.py."
-    "-----------------------------------------------------------------------------")
+    "-----------------------------------------------------------------------------\n")
 
 import os
 import sys
