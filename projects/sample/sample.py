@@ -1,8 +1,8 @@
 """-----------------------------------------------------------------------------
 
-sample.py (Last Updated: 11/19/2019)
+sample.py (Last Updated: 11/20/2019)
 
-The purpose of this type script is to actually run the sample project. 
+The purpose of this script is to actually to run the sample project. 
 Specifically, it will initiate a file watcher that searches for incoming dicom 
 files, do some sort of analysis based on the dicom file that's been received, 
 and then output the answer.
@@ -21,7 +21,7 @@ print(""
     "-----------------------------------------------------------------------------\n"
     "The purpose of this sample project is to demonstrate different ways you can\n"
     "implement functions, structures, etc. that we have developed for your use.\n"
-    "You will find some comments printed on this html file. However, if you want\n"
+    "You will find some comments printed on this html browser. However, if you want\n"
     "more information about how things work please talk a look at ‘sample.py’.\n"
     "Good luck!\n"
     "-----------------------------------------------------------------------------")
@@ -35,7 +35,11 @@ import argparse
 import numpy as np
 import nibabel as nib
 import scipy.io as sio
+print(''
+    '|||||||||||||||||||||||||||| IGNORE THIS WARNING ||||||||||||||||||||||||||||')
 from nibabel.nicom import dicomreaders
+print(''
+    '|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||')
 
 # obtain full path for current directory: '.../rt-cloud/projects/sample'
 currPath = os.path.dirname(os.path.realpath(__file__))
@@ -116,6 +120,7 @@ def doRuns(cfg, fileInterface, projectComm):
     
     allowedFileTypes = fileInterface.allowedFileTypes()
     print(""
+    "-----------------------------------------------------------------------------\n"
     "Before continuing, we need to make sure that dicoms are allowed. To verify\n"
     "this, use the 'allowedFileTypes'.\n"
     "Allowed file types: %s" %allowedFileTypes)
@@ -219,14 +224,14 @@ def doRuns(cfg, fileInterface, projectComm):
         #   which might come in use when running real-time experiments) and as .mat files
         if this_TR < 10:
             output_matFilename = os.path.join(currPath,
-                'tmp/avg_activations_0%d.mat' %this_TR)
+                'tmp/cloud_directory/avg_activations_0%d.mat' %this_TR)
             output_textFilename = os.path.join(currPath,
-                'tmp/avg_activations_0%d.txt' %this_TR)
+                'tmp/cloud_directory/avg_activations_0%d.txt' %this_TR)
         else:
             output_matFilename = os.path.join(currPath,
-                'tmp/avg_activations_%d.mat' %this_TR)
+                'tmp/cloud_directory/avg_activations_%d.mat' %this_TR)
             output_textFilename = os.path.join(currPath,
-                'tmp/avg_activations_%d.txt' %this_TR)
+                'tmp/cloud_directory/avg_activations_%d.txt' %this_TR)
 
         # first, save the average activation value as a text file using 'putTextFile'
         #   from 'fileClient.py'... you might want to do this if you quickly need to 
