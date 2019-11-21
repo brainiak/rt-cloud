@@ -35,11 +35,12 @@ import rtCommon.utils as utils
 import rtCommon.projectUtils as projUtils
 from rtCommon.fileClient import FileInterface
 
+# obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 def initialize(cfg, fileInterface, projectComm):
     """
-    This funciton is called by 'main()' below. Here, we will do a demo of the
+    This function is called by 'main()' below. Here, we will do a demo of the
     types of things you can do in this 'initialize.py' script. For instance,
     let's say that you need to upload mask files that you are planning to
     use during your real-time experiment or a registration file that is integral
@@ -61,7 +62,7 @@ def initialize(cfg, fileInterface, projectComm):
 
     # define directories where files are on the console ('tmp/console_directory/')
     #   and where files are on the cloud ('tmp/cloud_directory')
-    consoleDir = os.path.join(currPath,'tmp/console_directory/**')
+    consoleDir = os.path.join(currPath,'tmp/console_directory/')
     cloudDir = os.path.join(currPath,'tmp/cloud_directory')
     print("Location of console directory: \n%s\n" %consoleDir)
     print("Location of cloud directory: \n%s\n" %cloudDir)
@@ -69,12 +70,6 @@ def initialize(cfg, fileInterface, projectComm):
     # before we get ahead of ourselves, we need to make sure that the necessary file
     #   types are allowed (meaning, we are able to read them in)... in this example,
     #   at the very least we need to have access to dicom and txt file types.
-    # use the function 'allowedFileTypes' in 'fileClient.py' to check this!
-    
-
-    # before we continue, we should clarify the types of file types that are allowed
-    #   using the function 'allowedFileTypes' in 'fileClient.py' ...ONLY the file
-    #   types that are reflected here can be uploaded to the cloud
     #   INPUT: None
     #   OUTPUT:
     #       [1] allowedFileTypes (list of allowed file types)
@@ -91,14 +86,14 @@ def initialize(cfg, fileInterface, projectComm):
     # to do this, we will use 'uploadFilesToCloud' from 'projectUtils'
     #   INPUT: 
     #       [1] fileInterface (this allows us to use useful functions)
-    #       [2] srcDir (the source directory for the files to be moved)
-    #               NOTE: you need to use ** in order to grab the files
+    #       [2] srcPattern (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
-    projUtils.uploadFilesToCloud(fileInterface,consoleDir,cloudDir)
+    srcPattern = os.path.join(consoleDir,'**')
+    projUtils.uploadFilesToCloud(fileInterface,srcPattern,cloudDir)
 
     print(""
     "-----------------------------------------------------------------------------\n"
-    "INITIALIZATION COMPLETE!")
+    "INITIALIZATION COMPLETE!\n")
 
 def main(argv=None):
     """
@@ -122,10 +117,6 @@ def main(argv=None):
     # load the experiment configuration file
     cfg = utils.loadConfigFile(args.config)
 
-    # obtain paths for important directories (e.g. location of dicom files)
-    cfg.imgDir = os.path.join(currPath, 'dicomDir')
-    cfg.codeDir = currPath
-
     # open up the communication pipe using 'projectInterface'
     projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
     
@@ -136,7 +127,12 @@ def main(argv=None):
     #       [2] projectComm (communication pipe that is set up above)
     fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
 
-    # Do processing
+    # now that we have the necessary variables, call the function 'initialize' in
+    #   order to actually start reading dicoms and doing your analyses of interest!
+    #   INPUT:
+    #       [1] cfg (configuration file with important variables)
+    #       [2] fileInterface (this will allow you to call useful variables)
+    #       [3] projectComm (communication pipe to talk with projectInterface)
     initialize(cfg, fileInterface, projectComm)
     return 0
 
