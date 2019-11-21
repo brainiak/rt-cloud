@@ -166,7 +166,7 @@ def doRuns(cfg, fileInterface, projectComm):
     "to get the data in the appropriate nifti format in the 'advanced sample\n"
     "project.** We are doing things in this way because it is the simplest way\n"
     "we can highlight the functionality of rt-cloud, which is the purpose of\n"
-    "this sample project."
+    "this sample project.\n"
     ".............................................................................\n"
     "NOTE: We will use the function 'readRetryDicomFromFileInterface' to retrieve\n"
     "specific dicom files from the subject's dicom folder. This function calls\n"
@@ -177,12 +177,12 @@ def doRuns(cfg, fileInterface, projectComm):
     "-----------------------------------------------------------------------------\n")
 
     track_TRs = 0
-    ex1_num_TRs = 6 # number of TRs to use for example 1
-    all_avg_activations = np.zeros((20,1)) # this is hardcoded for 20 dicoms total
-    for this_TR in np.arange(1,ex1_num_TRs):
+    num_total_TRs = 10 # number of TRs to use for example 1
+    all_avg_activations = np.zeros((num_total_TRs,1))
+    for this_TR in np.arange(num_total_TRs):
         # declare variables that are needed to use 'readRetryDicomFromFileInterface'
         timeout_file = 5 # small number because of demo, can increase for real-time
-        fileName = getDicomFileName(cfg, scanNum, this_TR) # use 'getDicomFileName'
+        fileName = getDicomFileName(cfg, scanNum, this_TR+1) # use 'getDicomFileName'
 
         # use 'readRetryDicomFromFileInterface' in 'readDicom.py' to wait for dicom
         #   files to come in (by using 'watchFile' in 'fileClient.py') and then
@@ -194,7 +194,7 @@ def doRuns(cfg, fileInterface, projectComm):
         #   OUTPUT:
         #       [1] dicomData (with class 'pydicom.dataset.FileDataset')
         print("• use 'readRetryDicomFromFileInterface' to read dicom file for",
-            "TR %d " %this_TR)
+            "TR %d " %(this_TR+1))
         dicomData = readRetryDicomFromFileInterface(fileInterface, fileName, 
             timeout_file)
 
@@ -208,7 +208,7 @@ def doRuns(cfg, fileInterface, projectComm):
         # take the average of all the activation values
         avg_niftiData = np.mean(niftiObject.get_data())
         avg_niftiData = np.round(avg_niftiData,decimals=2)
-        print("| average activation value for TR %d is %d" %(this_TR,avg_niftiData))
+        print("| average activation value for TR %d is %d" %(this_TR+1,avg_niftiData))
 
         # use 'sendResultToWeb' from 'projectUtils.py' to send the result to the
         #   web browser to be plotted in the --Data Plots-- tab.
@@ -219,87 +219,37 @@ def doRuns(cfg, fileInterface, projectComm):
         all_avg_activations[this_TR] = avg_niftiData
         track_TRs += 1
 
-        # create the full path filename of where we want to save the activation
+        # create the full path filename of where we want to save the activation vectors
         #   here, we'll save things as .txt files (which are fast and easy to ready, 
         #   which might come in use when running real-time experiments) and as .mat files
-        if this_TR < 10:
+        if this_TR+1 < 10:
             output_matFilename = os.path.join(currPath,
-                'tmp/cloud_directory/avg_activations_0%d.mat' %this_TR)
+                'tmp/cloud_directory/tmp/avg_activations_0%d.mat' %(this_TR+1))
             output_textFilename = os.path.join(currPath,
-                'tmp/cloud_directory/avg_activations_0%d.txt' %this_TR)
+                'tmp/cloud_directory/tmp/avg_activations_0%d.txt' %(this_TR+1))
         else:
             output_matFilename = os.path.join(currPath,
-                'tmp/cloud_directory/avg_activations_%d.mat' %this_TR)
+                'tmp/cloud_directory/tmp/avg_activations_%d.mat' %(this_TR+1))
             output_textFilename = os.path.join(currPath,
-                'tmp/cloud_directory/avg_activations_%d.txt' %this_TR)
+                'tmp/cloud_directory/tmp/avg_activations_%d.txt' %(this_TR+1))
 
-        # first, save the average activation value as a text file using 'putTextFile'
+        # first, save the average activation vector as a text file using 'putTextFile'
         #   from 'fileClient.py'... you might want to do this if you quickly need to 
         #   send the activation value to your stimulus script on the local computer
         #   INPUT:
         #       [1] filename (full path!)
         #       [2] data (you want to write into the filename)
         print("| save activation value as a text file to tmp folder")
-        fileInterface.putTextFile(output_textFilename,str(avg_niftiData))
+        fileInterface.putTextFile(output_textFilename,str(all_avg_activations))
 
-        # second, we're going to save the average activation value as a matlab file
+        # second, we're going to save the average activation vector as a matlab file
         #   using sio.savemat()
         print("| save activation value as a matlab file to tmp folder")
-        sio.savemat(output_matFilename,{'value':avg_niftiData})
+        sio.savemat(output_matFilename,{'value':all_avg_activations})
 
-        
-
-        # # save the activation values vector into a binary file, such as a numpy file,
-        # #   using 'putBinaryFile' in 'fileClient.py'
-        # #   INPUT:
-        # #       [1] filename (full path!)
-        # #       [2] data (you want to write into the filename)
-        # print("| save vector of activation values as a binary file in 'tmp' folder")
-        # fileInterface.putBinaryFile(output_binaryFilename,all_avg_activations)
-
-    # # above, we saved the activation values vector after every TR... we can verify
-    # #   this by taking a look at all of the files in the tmp folder using the
-    # #   the function 'listFiles' in 'fileClient.py'
-    # #   INPUT:
-    # #       [1] file pattern (which includes relative path)
-    # checking_filePattern = os.path.join(currPath,'tmp/avg_activations_*.mat')
-    # checking_fileList = fileInterface.listFiles(checking_filePattern)
-    
-    # # print the list of activation files
-    # print(""
-    #     "-----------------------------------------------------------------------------\n"
-    #     "List of average activation files:")
-    # for i in np.arange(1,ex1_num_TRs)-1:
-    #     print('• %s'%checking_fileList[i])
-
-    # print(""
-    #     ".......................................................................\n"
-    #     "As we can see, this is all redundant so we only want to save the LAST\n"
-    #     "binary file for our purposes. Doing this, however, means that we save\n"
-    #     "the activation values as the experiment progresses so that we have the\n"
-    #     "values even if the experiment suddenly stops partway through.\n"
-    #     ".......................................................................")
-
-    # print("Save the final vector of activations as a binary file in 'tmp' folder\n"
-    #     "-----------------------------------------------------------------------------")
-
-    # # get the newest activation file
-    # newest_activationFile = fileInterface.getNewestFile(os.path.join(currPath,
-    #     'tmp/avg_activations_*.mat'))
-    # finalOutput_binaryFilename = os.path.join(currPath,'tmp/avg_activations_ALLDATA.mat')
-    # fileInterface.putBinaryFile(finalOutput_binaryFilename,newest_activationFile)
-
-    # # you can use the module 'logger' to keep track of events during the experiment
-    # # however, let's say that you don't want to use this module but want to know that
-    # #   the experiment ended... you can do this by sending a text file to the 'tmp
-    # #   folder using the function 'putTextFile'
-    # #   INPUT:
-    # #       [1] filename (full path!)
-    # #       [2] data (you want to write into the filename)
-    # output_textFilename = os.path.join(currPath,'tmp/experiment_notes.txt')
-    # fileInterface.putTextFile(output_textFilename,'experiment ended!')
-    # print("Save message as a text file in 'tmp' folder\n"
-    #     "-----------------------------------------------------------------------------")
+    print(""
+    "-----------------------------------------------------------------------------\n"
+    "REAL-TIME EXPERIMENT COMPLETE!")
 
     return
 

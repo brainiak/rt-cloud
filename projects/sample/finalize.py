@@ -72,77 +72,40 @@ def finalize(cfg, fileInterface, projectComm):
     print("Location of console directory: \n%s\n" %consoleDir)
     print("Location of cloud directory: \n%s\n" %cloudDir)
 
-    # We first want to read in all of the .mat files that were temporarily stored
-    #   on the cloud and put all of the values into a single matrix, where the
-    #   first column is the TR number and the second column the activation value
-    
-    # However, first, we need to know the number of TRs that were sampled in order
-    #   to set up the empty matrix that will store everything that we need
-    #   ...we will do this by using 'listFiles' in 'fileClient.py'
+    # we will use 'listFiles' from the 'fileClient.py' to show all of the files in the
+    #   temporary cloud directory
     #   INPUT:
     #       [1] file pattern (which includes relative path)
-    checking_filePattern = os.path.join(cloudDir,'*.mat')
+    checking_filePattern = os.path.join(cloudDir,'tmp/*.mat')
     checking_fileList = fileInterface.listFiles(checking_filePattern)
     print(""
         "-----------------------------------------------------------------------------\n"
-        "List of average activation files:")
+        "List of .mat files:")
+    for i in np.arange(np.shape(checking_fileList)[0]):
+        print('• %s'%checking_fileList[i])
+    checking_filePattern = os.path.join(cloudDir,'tmp/*.txt')
+    checking_fileList = fileInterface.listFiles(checking_filePattern)
+    print("List of .txt files:")
     for i in np.arange(np.shape(checking_fileList)[0]):
         print('• %s'%checking_fileList[i])
 
-    # Now we will read in the various activations from each of the .mat files and
-    #   save it all into one matrix, where we also keep track of TR
-    all_activations = np.zeros((np.shape(checking_fileList)[0],2))
-    for i in np.arange(np.shape(checking_fileList)[0]):
-        this_activation = sio.loadmat(checking_fileList[i])['value']
-        all_activations[i,0] = i + 1
-        all_activations[i,1] = this_activation[0][0]
+    # let's say that you want to download al of the .txt and .mat intermediary
+    #   files from the cloud directory to the console computer ...to do this,
+    #   use 'downloadFolderFromCloud' from 'projectUtils'
+    #   INPUT: 
+    #       [1] fileInterface (this allows us to use useful functions)
+    #       [2] srcDir (the file pattern for the source directory)
+    #       [3] outputDir (the directory where you want the files to go)
+    srcDir = os.path.join(cloudDir,'tmp/')
+    outputDir = os.path.join(consoleDir,'tmp_files/')
+    projUtils.downloadFolderFromCloud(fileInterface, srcDir, outputDir)
 
-    # Next, we will save the matrix into a single .mat file
-    output_matFilename = os.path.join(cloudDir,'all_avg_activations.mat')
-    sio.savemat(output_matFilename,{'TR':all_activations[:,0],
-        'value':all_activations[:,1]})
+    # at this point, we can delete the intermediary files from the cloud directory
+    ### ASK ANNE AND GRANT ABOUT THE FUNCTION TO DO THIS!
+
     print(""
-        "-----------------------------------------------------------------------------\n"
-        "Save all of the variables (from different .mat files) into one .mat file")
-
-    # we now want to get the newest .mat file (the one we just saved above) and download
-    #   that file to the console computer ...to do this we will use the  
-    print(cloudDir)
-    newest_activationFile = fileInterface.getNewestFile(os.path.join(cloudDir,
-        'avg_activations_*.mat'))
-    
-    newest_activationFile = fileInterface.getNewestFile(os.path.join(currPath,
-        'tmp/cloud_directory/avg_activations_*.mat'))
-    print(type(newest_activationFile))
-
-    print("Location of the newest activation file: \n%s\n" % newest_activationFile) 
-
-
-    # # Use cfg values to create directory and filenames
-    # # Make a set of files to download and upload
-    # dirName = os.path.join('/tmp/finalize', cfg.sessionId)
-    # for i in range(5):
-    #     filename = os.path.join(dirName, 'fin_test{}.mat'.format(i))
-    #     data = b'\xFF\xEE\xDD\xCC' + struct.pack("B", i)  # semi-random data
-    #     utils.writeFile(filename, data, binary=True)
-    # subDirName = os.path.join(dirName, 'subdir1')
-    # for i in range(5):
-    #     filename = os.path.join(subDirName, 'sub_test{}.txt'.format(i))
-    #     text = 'test text {}'.format(i)
-    #     utils.writeFile(filename, text, binary=False)
-
-    # # download the finalize folder from the cloud (i.e. where this code is running)
-    # # onto the console computer
-    # outputDir = '/tmp/on_console'
-    # projUtils.downloadFolderFromCloud(fileInterface, dirName, outputDir)
-
-    # # upload the finalize folder from the console to the cloud
-    # srcDir = os.path.join(outputDir, cfg.sessionId)
-    # outputDir = '/tmp/on_cloud'
-    # projUtils.uploadFolderToCloud(fileInterface, srcDir, outputDir)
-
-    # # do other processing
-    # print('finalize complete')
+    "-----------------------------------------------------------------------------\n"
+    "FINALIZATION COMPLETE!")
 
 
 def main(argv=None):

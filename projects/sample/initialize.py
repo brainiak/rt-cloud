@@ -93,7 +93,7 @@ def initialize(cfg, fileInterface, projectComm):
 
     print(""
     "-----------------------------------------------------------------------------\n"
-    "INITIALIZATION COMPLETE!\n")
+    "INITIALIZATION COMPLETE!")
 
 def main(argv=None):
     """
