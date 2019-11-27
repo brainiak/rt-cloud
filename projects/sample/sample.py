@@ -56,6 +56,7 @@ def doRuns(cfg, fileInterface, projectComm):
         projUtils.sendResultToWeb(projectComm, run, 1, -.5)
         projUtils.sendResultToWeb(projectComm, run, 2.5, .4)
         projUtils.sendResultToWeb(projectComm, run, 0, .1)
+        projUtils.sendResultToWeb(projectComm, run, 1, .5)
     logging.info('SAMPLE: LAST LOG MESSAGE')
     return
 

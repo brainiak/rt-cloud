@@ -339,3 +339,21 @@ class TestServers:
         assert d3text2 == text2
         assert d3bin1 == bindata1
         assert d3bin2 == bindata2
+
+    def test_delete(self):
+        fileList = ['/tmp/d1/test1.txt', '/tmp/d1/d2/test2.txt',
+                    '/tmp/d1/d2/d3/test3.txt', '/tmp/d1/d2/d3/test4.txt']
+        for file in fileList:
+            utils.writeFile(file, 'hello', binary=False)
+
+        # test delete files from list
+        assert os.path.exists(fileList[-1])
+        projUtils.deleteFilesFromList(fileList)
+        assert not os.path.exists(fileList[-1])
+        assert os.path.isdir('/tmp/d1/d2/d3')
+
+        # test delete folder
+        for file in fileList:
+            utils.writeFile(file, 'hello', binary=False)
+        projUtils.deleteFolder('/tmp/d1')
+        assert not os.path.isdir('/tmp/d1')
