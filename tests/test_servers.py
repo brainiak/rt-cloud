@@ -357,3 +357,9 @@ class TestServers:
             utils.writeFile(file, 'hello', binary=False)
         projUtils.deleteFolder('/tmp/d1')
         assert not os.path.isdir('/tmp/d1')
+
+        # test delete files recursively in folders, but leave folders in place
+        for file in fileList:
+            utils.writeFile(file, 'hello', binary=False)
+        projUtils.deleteFolderFiles('/tmp/d1')
+        assert os.path.isdir('/tmp/d1/d2/d3')

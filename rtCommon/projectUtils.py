@@ -258,10 +258,15 @@ def deleteFolder(dir):
     shutil.rmtree(dir)
 
 
-# def deleteFolderFiles(dir, recursive=True):
-#     dirPattern = os.path.join(dir, '**')
-#     fileList = [x for x in glob.iglob(dirPattern, recursive=recursive)]
-#     deleteFilesFromList(fileList)
+# Function to delete all files but leave the directory structure intact
+def deleteFolderFiles(dir, recursive=True):
+    dirPattern = os.path.join(dir, '**')
+    fileList = [x for x in glob.iglob(dirPattern, recursive=recursive)]
+    filteredList = []
+    for filename in fileList:
+        if not os.path.isdir(filename):
+            filteredList.append(filename)
+    deleteFilesFromList(filteredList)
 
 
 def clientSendCmd(commPipes, cmd):
