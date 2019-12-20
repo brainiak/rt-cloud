@@ -105,13 +105,14 @@ class FileInterface:
                 for putFilePart in projUtils.generateDataParts(data, putFileCmd, compress):
                     fileHash = putFilePart.get('fileHash')
                     projUtils.clientSendCmd(self.commPipes, putFilePart)
-            except Exception:
+            except Exception as err:
                 # Send error notice to clear any partially cached data on the server side
                 # Add fileHash to message and send status=400 to notify
                 if fileHash:
                     putFileCmd['fileHash'] = fileHash
                     putFileCmd['status'] = 400
                     projUtils.clientSendCmd(self.commPipes, putFileCmd)
+                raise err
         return
 
     def listFiles(self, filePattern):

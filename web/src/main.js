@@ -55,6 +55,7 @@ class TopPane extends React.Component {
     this.getConfigItem = this.getConfigItem.bind(this);
     this.setConfigItem = this.setConfigItem.bind(this);
     this.requestDefaultConfig = this.requestDefaultConfig.bind(this)
+    this.requestDataPoints = this.requestDataPoints.bind(this)
     this.startRun = this.startRun.bind(this);
     this.stopRun = this.stopRun.bind(this);
     this.uploadFiles = this.uploadFiles.bind(this);
@@ -62,6 +63,7 @@ class TopPane extends React.Component {
     this.createWebSocket = this.createWebSocket.bind(this)
     this.formatConfigValues = this.formatConfigValues.bind(this)
     this.clearRunStatus = this.clearRunStatus.bind(this)
+    this.clearPlots = this.clearPlots.bind(this)
     this.createWebSocket()
   }
 
@@ -104,6 +106,26 @@ class TopPane extends React.Component {
     var cmd = {cmd: 'getDefaultConfig'}
     var cmdStr = JSON.stringify(cmd)
     this.webSocket.send(cmdStr)
+  }
+
+  requestDataPoints() {
+    var cmd = {cmd: 'getDataPoints'}
+    var cmdStr = JSON.stringify(cmd)
+    this.webSocket.send(cmdStr)
+  }
+
+  clearPlots() {
+    // clear plots remote data
+    var cmd = {cmd: 'clearDataPoints'}
+    var cmdStr = JSON.stringify(cmd)
+    this.webSocket.send(cmdStr)
+    // clear plots local data
+    for (let i = 0; i < this.resultVals.length; i++) {
+      this.resultVals[i] = []
+    }
+    // Set a zero value so and empty plot appears
+    this.resultVals[0] = [{x:0, y:0}]
+    this.setState({plotVals: this.resultVals})
   }
 
   startRun() {
@@ -228,6 +250,7 @@ class TopPane extends React.Component {
       this.setState({connected: true})
       console.log("WebSocket OPEN: ");
       this.requestDefaultConfig();
+      this.requestDataPoints();
     };
     webSocket.onclose = (closeEvent) => {
       this.setState({connected: false})
@@ -306,6 +329,17 @@ class TopPane extends React.Component {
           this.resultVals[runId-1] = []
         }
         this.setState({plotVals: this.resultVals})
+      } else if (cmd == 'dataPoints') {
+        var dataPoints = request['value']
+        if (Array.isArray(dataPoints)) {
+          this.resultVals = []
+          for (let i = 0; i < dataPoints.length; i++) {
+              var runVals = dataPoints[i]
+              runVals.sort(arrayCompareXValue)
+              this.resultVals.push(runVals)
+          }
+          this.setState({plotVals: this.resultVals})
+        }
       } else if (cmd == 'error') {
         console.log("## Got Error: " + request['error'])
         this.setState({error: request['error']})
@@ -348,6 +382,7 @@ class TopPane extends React.Component {
          elem(XYPlotPane,
            {config: this.state.config,
             plotVals: this.state.plotVals,
+            clearPlots: this.clearPlots,
            }
          ),
        ),

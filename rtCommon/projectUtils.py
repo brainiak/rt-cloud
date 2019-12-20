@@ -5,6 +5,7 @@ import json
 import time
 import zlib
 import glob
+import shutil
 import hashlib
 import logging
 import getpass
@@ -204,7 +205,7 @@ def uploadFilesFromList(fileInterface, fileList, outputDir, srcDirPrefix=None):
         utils.writeFile(outputFilename, data)
 
 
-def downloadFolderFromCloud(fileInterface, srcDir, outputDir):
+def downloadFolderFromCloud(fileInterface, srcDir, outputDir, deleteAfter=False):
     allowedFileTypes = fileInterface.allowedFileTypes()
     logging.info('Downloading folder {} from the cloud'.format(srcDir))
     logging.info('DownloadFolder limited to file types: {}'.format(allowedFileTypes))
@@ -219,11 +220,15 @@ def downloadFolderFromCloud(fileInterface, srcDir, outputDir):
     # This will be everything except the last subdirectory in srcDir
     srcPrefix = os.path.dirname(srcDir)
     downloadFilesFromList(fileInterface, filteredList, outputDir, srcDirPrefix=srcPrefix)
+    if deleteAfter:
+        deleteFilesFromList(filteredList)
 
 
-def downloadFilesFromCloud(fileInterface, srcFilePattern, outputDir):
+def downloadFilesFromCloud(fileInterface, srcFilePattern, outputDir, deleteAfter=False):
     fileList = [x for x in glob.iglob(srcFilePattern)]
     downloadFilesFromList(fileInterface, fileList, outputDir)
+    if deleteAfter:
+        deleteFilesFromList(fileList)
 
 
 def downloadFilesFromList(fileInterface, fileList, outputDir, srcDirPrefix=None):
@@ -242,6 +247,26 @@ def downloadFilesFromList(fileInterface, fileList, outputDir, srcDirPrefix=None)
         logging.info('download: {} --> {}'.format(file, outputFilename))
         fileInterface.putBinaryFile(outputFilename, data)
     return
+
+
+def deleteFilesFromList(fileList):
+    for filename in fileList:
+        os.remove(filename)
+
+
+def deleteFolder(dir):
+    shutil.rmtree(dir)
+
+
+# Function to delete all files but leave the directory structure intact
+def deleteFolderFiles(dir, recursive=True):
+    dirPattern = os.path.join(dir, '**')
+    fileList = [x for x in glob.iglob(dirPattern, recursive=recursive)]
+    filteredList = []
+    for filename in fileList:
+        if not os.path.isdir(filename):
+            filteredList.append(filename)
+    deleteFilesFromList(filteredList)
 
 
 def clientSendCmd(commPipes, cmd):

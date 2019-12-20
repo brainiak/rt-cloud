@@ -11,6 +11,7 @@ import toml
 import shlex
 import uuid
 import bcrypt
+import numbers
 import asyncio
 import threading
 import subprocess
@@ -73,6 +74,7 @@ class Web():
     cfg = None
     testMode = False
     runInfo = StructDict({'threadId': None, 'stopRun': False})
+    resultVals = [[{'x': 0, 'y': 0}]]
 
     @staticmethod
     def start(params, cfg, testMode=False):
@@ -216,6 +218,11 @@ class Web():
     @staticmethod
     def sendUserConfig(config, filename=''):
         response = {'cmd': 'config', 'value': config, 'filename': filename}
+        Web.sendUserMsgFromThread(json.dumps(response))
+
+    @staticmethod
+    def sendUserDataVals(dataPoints):
+        response = {'cmd': 'dataPoints', 'value': dataPoints}
         Web.sendUserMsgFromThread(json.dumps(response))
 
     @staticmethod
@@ -389,6 +396,33 @@ class Web():
                 client.write_message(msg)
         finally:
             Web.wsConnLock.release()
+
+    @staticmethod
+    def addResultValue(request):
+        cmd = request.get('cmd')
+        if cmd != 'resultValue':
+            logging.warn('addResultValue: wrong cmd type {}'.format(cmd))
+            return
+        runId = request.get('runId')
+        x = request.get('trId')
+        y = request.get('value')
+        if not isinstance(runId, numbers.Number) or runId <= 0:
+            logging.warn('addResultValue: runId wrong val {}'.format(cmd))
+            return
+        # Make sure resultVals has at least as many arrays as runIds
+        for i in range(len(Web.resultVals), runId):
+            Web.resultVals.append([])
+        if not isinstance(x, numbers.Number):
+            # clear plot for this runId
+            Web.resultVals[runId-1] = []
+            return
+        # logging.info("Add resultVal {}, {}".format(x, y))
+        runVals = Web.resultVals[runId-1]
+        for i, val in enumerate(runVals):
+            if val['x'] == x:
+                runVals[i] = {'x': x, 'y': y}
+                return
+        runVals.append({'x': x, 'y': y})
 
     class UserHttp(tornado.web.RequestHandler):
         def get_current_user(self):
@@ -712,6 +746,10 @@ def defaultBrowserMainCallback(client, message):
         else:
             cfg = Web.cfg
         Web.sendUserConfig(cfg, filename=Web.configFilename)
+    elif cmd == "getDataPoints":
+        Web.sendUserDataVals(Web.resultVals)
+    elif cmd == "clearDataPoints":
+        Web.resultVals = [[{'x': 0, 'y': 0}]]
     elif cmd == "run" or cmd == "initSession" or cmd == "finalizeSession":
         if Web.runInfo.threadId is not None:
             Web.runInfo.threadId.join(timeout=1)
@@ -923,6 +961,8 @@ def processPyScriptRequest(request):
                 Web.sendBiofeedbackMsgFromThread(json.dumps(request))
                 # forward to main browser window
                 Web.sendUserMsgFromThread(json.dumps(request))
+                # Accumulate results locally to resend to browser as needed
+                Web.addResultValue(request)
             except Exception as err:
                 errStr = 'SendClassification Exception type {}: error {}:'.format(type(err), str(err))
                 response = {'status': 400, 'error': errStr}
