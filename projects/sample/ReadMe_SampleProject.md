@@ -37,7 +37,7 @@ There are six main components to the sample project:
         - allowed file extensions --> for the sample project, you'll want to use `.dcm`, `.txt`, and `.mat`
 
 3. When you navigate your web browser to the URL [http://localhost:8888/](http://localhost:8888/), you will see the following page:
-![](ReadMe_Images/rtCloud_login.png)
+![](ReadMe_Images/rtCloudWeb_login.png)
 Log in using the username and password you set up during the initial installation.
 
 4. 
