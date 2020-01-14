@@ -38,6 +38,7 @@ from rtCommon.fileClient import FileInterface
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
+
 def initialize(cfg, fileInterface, projectComm):
     """
     This function is called by 'main()' below. Here, we will do a demo of the
@@ -95,6 +96,7 @@ def initialize(cfg, fileInterface, projectComm):
     "-----------------------------------------------------------------------------\n"
     "INITIALIZATION COMPLETE!")
 
+
 def main(argv=None):
     """
     This is the main function that is called when you run 'intialize.py'.
@@ -135,6 +137,7 @@ def main(argv=None):
     #       [3] projectComm (communication pipe to talk with projectInterface)
     initialize(cfg, fileInterface, projectComm)
     return 0
+
 
 if __name__ == "__main__":
     """

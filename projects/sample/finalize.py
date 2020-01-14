@@ -68,24 +68,25 @@ def finalize(cfg, fileInterface, projectComm):
     # define directories where files are on the console ('tmp/console_directory/')
     #   and where files are on the cloud ('tmp/cloud_directory')
     consoleDir = os.path.join(currPath,'tmp/console_directory/')
-    cloudDir = os.path.join(currPath,'tmp/cloud_directory')
+    cloudDir = os.path.join(currPath,'tmp/cloud_directory/')
     print("Location of console directory: \n%s\n" %consoleDir)
     print("Location of cloud directory: \n%s\n" %cloudDir)
 
+    print(""
+        "-----------------------------------------------------------------------------\n"
+        "List of .mat files:")
     # we will use 'listFiles' from the 'fileClient.py' to show all of the files in the
     #   temporary cloud directory
     #   INPUT:
     #       [1] file pattern (which includes relative path)
-    checking_filePattern = os.path.join(cloudDir,'tmp/*.mat')
+    checking_filePattern = os.path.join(cloudDir,'*.mat')
     checking_fileList = fileInterface.listFiles(checking_filePattern)
-    print(""
-        "-----------------------------------------------------------------------------\n"
-        "List of .mat files:")
     for i in np.arange(np.shape(checking_fileList)[0]):
         print('• %s'%checking_fileList[i])
-    checking_filePattern = os.path.join(cloudDir,'tmp/*.txt')
-    checking_fileList = fileInterface.listFiles(checking_filePattern)
+
     print("List of .txt files:")
+    checking_filePattern = os.path.join(cloudDir,'*.txt')
+    checking_fileList = fileInterface.listFiles(checking_filePattern)
     for i in np.arange(np.shape(checking_fileList)[0]):
         print('• %s'%checking_fileList[i])
 
@@ -96,12 +97,11 @@ def finalize(cfg, fileInterface, projectComm):
     #       [1] fileInterface (this allows us to use useful functions)
     #       [2] srcDir (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
+    #       [4] deleteAfter (do you want to delete the files after copying?
+    #               note that te default is False)
     srcDir = os.path.join(cloudDir,'tmp/')
     outputDir = os.path.join(consoleDir,'tmp_files/')
-    projUtils.downloadFolderFromCloud(fileInterface, srcDir, outputDir)
-
-    # at this point, we can delete the intermediary files from the cloud directory
-    ### ASK ANNE AND GRANT ABOUT THE FUNCTION TO DO THIS!
+    projUtils.downloadFolderFromCloud(fileInterface, srcDir, outputDir, deleteAfter=True)
 
     print(""
     "-----------------------------------------------------------------------------\n"

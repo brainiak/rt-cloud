@@ -1,6 +1,6 @@
 """-----------------------------------------------------------------------------
 
-sample.py (Last Updated: 11/20/2019)
+sample.py (Last Updated: 01/14/2020)
 
 The purpose of this script is to actually to run the sample project. 
 Specifically, it will initiate a file watcher that searches for incoming dicom 
@@ -53,38 +53,11 @@ sys.path.append(rootPath)
 from rtCommon.utils import loadConfigFile
 from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
-from rtCommon.readDicom import readRetryDicomFromFileInterface
+from rtCommon.readDicom import readRetryDicomFromFileInterface, getDicomFileName
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
-
-def getDicomFileName(cfg, scanNum, fileNum):
-    """
-    This function produces the filename of the dicom of interest, which is useful
-    considering how complicated these filenames can be!
-    INPUT:  
-        [1] cfg (config parameters)
-        [2] scanNum (scan number)
-        [3] fileNum (TR number, which will reference the correct file)
-    OUTPUT: 
-        [1] fullFileName (the filename of the dicom that should be grabbed)
-    """
-
-    if scanNum < 0:
-        raise ValidationError("ScanNumber not supplied of invalid {}".format(scanNum))
-    
-    # converting important info to strings
-    scanNumStr = str(scanNum).zfill(2)
-    fileNumStr = str(fileNum).zfill(3)
-    
-    # the naming pattern is provided in the toml file
-    if cfg.dicomNamePattern is None:
-        raise InvocationError("Missing config settings dicomNamePattern")
-    fileName = cfg.dicomNamePattern.format(scanNumStr, fileNumStr)
-    fullFileName = os.path.join(cfg.dicomDir, fileName)
-    
-    return fullFileName
 
 def doRuns(cfg, fileInterface, projectComm):
     """
@@ -150,7 +123,7 @@ def doRuns(cfg, fileInterface, projectComm):
     #       [2] runNum (not to be confused with the scan number)
     #       [3] this_TR (timepoint of interest)
     #       [4] value (value you want to send over to the web browser)
-    #       ** the inputs MUST be integers; it won't work if they're numpy datatypes
+    #       ** the inputs MUST be python integers; it won't work if it's a numpy int
     #
     # here, we are clearing an already existing plot
     print("• clear any pre-existing plot using 'sendResultToWeb'")
@@ -176,13 +149,22 @@ def doRuns(cfg, fileInterface, projectComm):
     "when running real-time experiments.\n"
     "-----------------------------------------------------------------------------\n")
 
-    track_TRs = 0
     num_total_TRs = 10 # number of TRs to use for example 1
     all_avg_activations = np.zeros((num_total_TRs,1))
     for this_TR in np.arange(num_total_TRs):
         # declare variables that are needed to use 'readRetryDicomFromFileInterface'
         timeout_file = 5 # small number because of demo, can increase for real-time
-        fileName = getDicomFileName(cfg, scanNum, this_TR+1) # use 'getDicomFileName'
+        
+        # use 'getDicomFileName' from 'readDicom.py' to obtain the filename structure
+        #   of the dicom data you want to get... which is useful considering how 
+        #   complicated these filenames can be!
+        #   INPUT:
+        #       [1] cfg (config parameters)
+        #       [2] scanNum (scan number)
+        #       [3] fileNum (TR number, which will reference the correct file)
+        #   OUTPUT: 
+        #       [1] fullFileName (the filename of the dicom that should be grabbed) 
+        fileName = getDicomFileName(cfg, scanNum, this_TR+1) 
 
         # use 'readRetryDicomFromFileInterface' in 'readDicom.py' to wait for dicom
         #   files to come in (by using 'watchFile' in 'fileClient.py') and then
@@ -213,39 +195,28 @@ def doRuns(cfg, fileInterface, projectComm):
         # use 'sendResultToWeb' from 'projectUtils.py' to send the result to the
         #   web browser to be plotted in the --Data Plots-- tab.
         print("| send result to the web, plotted in the 'Data Plots' tab")
-        projUtils.sendResultToWeb(projectComm, runNum, int(this_TR), int(avg_niftiData))
+        projUtils.sendResultToWeb(projectComm, runNum, float(this_TR), float(avg_niftiData))
 
-        # keeping track of the TRs we've already sampled
+        # save the activations value info into a vector that can be saved later
         all_avg_activations[this_TR] = avg_niftiData
-        track_TRs += 1
 
-        # create the full path filename of where we want to save the activation vectors
-        #   here, we'll save things as .txt files (which are fast and easy to ready, 
-        #   which might come in use when running real-time experiments) and as .mat files
-        if this_TR+1 < 10:
-            output_matFilename = os.path.join(currPath,
-                'tmp/cloud_directory/tmp/avg_activations_0%d.mat' %(this_TR+1))
-            output_textFilename = os.path.join(currPath,
-                'tmp/cloud_directory/tmp/avg_activations_0%d.txt' %(this_TR+1))
-        else:
-            output_matFilename = os.path.join(currPath,
-                'tmp/cloud_directory/tmp/avg_activations_%d.mat' %(this_TR+1))
-            output_textFilename = os.path.join(currPath,
-                'tmp/cloud_directory/tmp/avg_activations_%d.txt' %(this_TR+1))
+    # create the full path filename of where we want to save the activation values vector
+    #   we're going to save things as .txt and .mat files
+    output_textFilename = os.path.join(currPath, 'tmp/cloud_directory/avg_activations.txt')
+    output_matFilename = os.path.join(currPath, 'tmp/cloud_directory/avg_activations.mat')
 
-        # first, save the average activation vector as a text file using 'putTextFile'
-        #   from 'fileClient.py'... you might want to do this if you quickly need to 
-        #   send the activation value to your stimulus script on the local computer
-        #   INPUT:
-        #       [1] filename (full path!)
-        #       [2] data (you want to write into the filename)
-        print("| save activation value as a text file to tmp folder")
-        fileInterface.putTextFile(output_textFilename,str(all_avg_activations))
+    # use 'putTextFile' from 'fileClient.py' to save the .txt file
+    #   INPUT:
+    #       [1] filename (full path!)
+    #       [2] data (that you want to write into the file)
+    print(""
+    "-----------------------------------------------------------------------------\n"
+    "• save activation value as a text file to tmp folder")
+    fileInterface.putTextFile(output_textFilename,str(all_avg_activations))
 
-        # second, we're going to save the average activation vector as a matlab file
-        #   using sio.savemat()
-        print("| save activation value as a matlab file to tmp folder")
-        sio.savemat(output_matFilename,{'value':all_avg_activations})
+    # use sio.save mat from scipy to save the matlab file
+    print("• save activation value as a matlab file to tmp folder")
+    sio.savemat(output_matFilename,{'value':all_avg_activations})
 
     print(""
     "-----------------------------------------------------------------------------\n"
@@ -303,6 +274,7 @@ def main(argv=None):
     doRuns(cfg, fileInterface, projectComm)
     
     return 0
+
 
 if __name__ == "__main__":
     """
