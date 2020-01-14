@@ -80,6 +80,7 @@ def finalize(cfg, fileInterface, projectComm):
     #   INPUT:
     #       [1] file pattern (which includes relative path)
     checking_filePattern = os.path.join(cloudDir,'*.mat')
+    print(checking_filePattern)
     checking_fileList = fileInterface.listFiles(checking_filePattern)
     for i in np.arange(np.shape(checking_fileList)[0]):
         print('• %s'%checking_fileList[i])

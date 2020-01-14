@@ -202,8 +202,10 @@ def doRuns(cfg, fileInterface, projectComm):
 
     # create the full path filename of where we want to save the activation values vector
     #   we're going to save things as .txt and .mat files
-    output_textFilename = os.path.join(currPath, 'tmp/cloud_directory/avg_activations.txt')
-    output_matFilename = os.path.join(currPath, 'tmp/cloud_directory/avg_activations.mat')
+    output_textFilename = os.path.join(currPath, 
+        'tmp/cloud_directory/tmp/avg_activations.txt')
+    output_matFilename = os.path.join(currPath, 
+        'tmp/cloud_directory/tmp/avg_activations.mat')
 
     # use 'putTextFile' from 'fileClient.py' to save the .txt file
     #   INPUT:

@@ -64,7 +64,15 @@ def initialize(cfg, fileInterface, projectComm):
     # define directories where files are on the console ('tmp/console_directory/')
     #   and where files are on the cloud ('tmp/cloud_directory')
     consoleDir = os.path.join(currPath,'tmp/console_directory/')
-    cloudDir = os.path.join(currPath,'tmp/cloud_directory')
+    cloudDir = os.path.join(currPath,'tmp/cloud_directory/tmp/')
+    # here, we will actually make the directories!
+    try:
+        os.makedirs(consoleDir)
+        os.makedirs(cloudDir)
+        print("Just made new directories")
+    except FileExistsError:
+        print("Directories already exist")
+    
     print("Location of console directory: \n%s\n" %consoleDir)
     print("Location of cloud directory: \n%s\n" %cloudDir)
 
