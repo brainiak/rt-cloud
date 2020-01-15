@@ -50,12 +50,13 @@ def finalize(cfg, fileInterface, projectComm):
     This function is called my 'main()' below. Here, we will do a demo of the
     types of things that you can do in this 'finalize.py' script. For instance,
     you can download an activation concatenate all of the activation values
-    and then dowload only one file. You can also delete intermediate files
+    and then download only one file. You can also delete intermediate files
     you don't want to keep in the cloud for privacy reasons.
 
+
     In this demo, things are in the cloud directory and we want to move them
-    to the cloud computer. Here, everything is on the same computer but this 
-    doesn't have to be the case when you run your own experiment!
+    to the local (non-cloud) console computer. Here, everything is on the same 
+    computer but this doesn't have to be the case when you run your own experiment!
 
     INPUT:
         [1] cfg (configuration file with important variables)
@@ -91,7 +92,7 @@ def finalize(cfg, fileInterface, projectComm):
     for i in np.arange(np.shape(checking_fileList)[0]):
         print('• %s'%checking_fileList[i])
 
-    # let's say that you want to download al of the .txt and .mat intermediary
+    # let's say that you want to download all of the .txt and .mat intermediary
     #   files from the cloud directory to the console computer ...to do this,
     #   use 'downloadFolderFromCloud' from 'projectUtils'
     #   INPUT: 
