@@ -88,11 +88,13 @@ def initialize(cfg, fileInterface, projectComm):
     "-----------------------------------------------------------------------------\n"
     "Before continuing, we should check to see the file types that are allowed.\n"
     "To verify, we will use 'allowedFileTypes'. Only these files will be uploaded\n"
-    "to the cloud in the next step!!\n"
+    "to the cloud in the next step!! If you need to add a file type that is missing\n"
+    "here, you will have to stop and restart the fileServer on the console computer\n"
+    "specifying the necessary file types in the command line parameters.\n"
     "Allowed file types: %s" %allowedFileTypes)
 
-    # we want to upload files from the 'console computer' to the cloud
-    # to do this, we will use 'uploadFilesToCloud' from 'projectUtils'
+    # Use 'uploadFilesToCloud' from 'projectUtils' to allow you to access files on the
+    #   console computer from the scripts running on the cloud.
     #   INPUT: 
     #       [1] fileInterface (this allows us to use useful functions)
     #       [2] srcPattern (the file pattern for the source directory)
@@ -108,9 +110,9 @@ def initialize(cfg, fileInterface, projectComm):
 def main(argv=None):
     """
     This is the main function that is called when you run 'intialize.py'.
-    Here, you will set up an important argument parser (mostly provided by 
-    the toml configuration file), initiate the class fileInterface, and set
-    up some directories and other important things through 'initialize()'
+    Here, you will load the configuration settings specified in the toml configuration 
+    file, initiate the class fileInterface, and set up some directories and other 
+    important things through 'initialize()'
     """
 
     # define the parameters that will be recognized later on to set up fileIterface
@@ -149,9 +151,9 @@ def main(argv=None):
 
 if __name__ == "__main__":
     """
-    If 'initalize.py' is called from the terminal or the equivalent, then actually go
-    through all of the portions of this script. This statement is not satisfied if
-    functions are called from another script using "from initalize.py import FUNCTION"
+    If 'initalize.py' is invoked as a program, then actually go through all of the 
+    portions of this script. This statement is not satisfied if functions are called 
+    from another script using "from initalize.py import FUNCTION"
     """
     main()
     sys.exit(0)
