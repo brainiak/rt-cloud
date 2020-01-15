@@ -11,7 +11,7 @@ The purpose of this sample project is to familiarize you with the tools that are
 - Finalize the real-time session
 
 ## What's inside the sample project?
-There are six main components to the sample project:
+There are six main components to the sample project, which are delineated below. The python scripts are used by the webServer interface to run the project from the web browser, instead of running the project directly from the command line. However, please note that there is an option to run the python scripts from the command line and be able to retrieve remote files afterwards (see [Testing the Sample Project, alternate step 3](https://github.com/paulapbrooks/rt-cloud/tree/sample_dev#testing-the-sample-project)):
 - **`conf` folder**
     - This includes a configuration *toml* file that includes defaults to important variables. For instance, the default for the variable `subjectNum` is 101. Here, we also have the naming pattern used for the dicoms (`001_0000{}_000{}.dcm`). For your experiment, you will have to change the contents of this file to fit your needs.
         - NOTE: Usually, a specific *toml* file is set up for each participant. This is the configuration file that is used across all of the runs. 
@@ -20,7 +20,7 @@ There are six main components to the sample project:
     - <sup>\*</sup>We have special permission from the Princeton Institutional Review Board to publicly post the dicoms on this Github repository. 
         - **IMPORTANT:** DO NOT post the raw dicoms for your experiment on Github!!
 - **`projectMain` script**
-    - This script is called when you ...... THIS IS UNCLEAR TO ME!!!
+    - This script starts the project, including the webServer.
 - **`initialize` script**
     - The purpose of this script is to run certain commands *before* you start your experiment. In this sample project, a temporary `tmp` folder is craeted with sub-directories `console_directory` and `cloud_directory` to illustrate the interaction between the console computer and the cloud. 
 - **`sample.py` script**
@@ -31,10 +31,13 @@ There are six main components to the sample project:
 ## How do I make the sample project work?
 1. Follow the [installation instructions](https://github.com/brainiak/rt-cloud#installation) for the realtime fMRI cloud framework
 
-2. Follow the [testing the sample project instructions](https://github.com/brainiak/rt-cloud#testing-the-sample-project) on the main repo page
-    NOTE: When you start the fileServer, you need to include a couple more things (refer to documentation about [Running ProjectInterface in the Cloud, section 2](https://github.com/brainiak/rt-cloud/blob/master/docs/how-to-run.md#running-projectinterface-in-the-cloud)) for more details):
-        - allowed directories --> you'll have to include the full path to the `sample` directory
-        - allowed file extensions --> for the sample project, you'll want to use `.dcm`, `.txt`, and `.mat`
+2. Follow the [testing the sample project instructions](https://github.com/brainiak/rt-cloud#testing-the-sample-project) on the main repo page.
+    
+    - Before you start the fileServer, you have to be mindful to set up the commands so that it can run the sample project appropriately (refer to documentation about [Running ProjectInterface in the Cloud, section 2](https://github.com/brainiak/rt-cloud/blob/master/docs/how-to-run.md#running-projectinterface-in-the-cloud) for more details). Specifically, you will want to include the following information:
+        - *allowed directories* → The full path of the directories the fileserver will return files from. For security, the fileserver will restrict directories not explicitly noted here.
+            - In this example, you will need to use the full path to the `sample` directory.
+        - *allowed file extensions* → The list of extensions for the file types that will be allowed. Again for security, the fileserver will otherwise restrict which file types it will return.
+            - In this example, you will need to allow the following extensions: `.dcm`, `.txt`, and `.mat`
 
 3. When you navigate your web browser to the URL [http://localhost:8888/](http://localhost:8888/), you will see the following page:
 ![](ReadMe_Images/rtCloudWeb_login.png)
@@ -52,7 +55,7 @@ Log in using the username and password you set up during the initial installatio
 In conjunction to the steps above, we highly encourage you to open the relevant scripts in a code text editor. The scripts are well documented and will hopefully help you understand how things work!
 
 ### Where can I find different things?
-All of the functions we use within the real-time fMRI cloud framework live in the **rtCommon** folder. There are BLANK scripts that are especially relevant in the sample project:
+All of the functions we use within the real-time fMRI cloud framework live in the **rtCommon** folder. There are three scripts that are especially relevant in the sample project:
 
 - **`fileClient` script**
     - The functions enable you to interact with files, from starting a lookout (or watch) for a specific type of file to displaying all of the allowed file types.
