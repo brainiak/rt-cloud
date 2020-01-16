@@ -28,6 +28,7 @@ There are six main components to the sample project, which are delineated below.
     - This script is called when you run the projectInterface. This starts the project on the cloud and the webServer on your browser.
 - **`initialize` script**
     - The purpose of this script is to run certain commands *before* you start your experiment. In this sample project, a temporary `tmp` folder is created with sub-directories `console_directory` and `cloud_directory` to illustrate the interaction between the console computer and the cloud. 
+        - NOTE: Under normal circumstances, all of the python scripts here will be running cloud. This means that the `cloud_directory` would be a local directory on the cloud whereas the `console_directory` would be a remote directory.  
 - **`sample.py` script**
     - This is the script that actually runs the experiment! All of these scripts are well-documented, especially this one. Take a look at the comments to gain a better understanding of how we do what we do here.
 - **`finalize` script**
