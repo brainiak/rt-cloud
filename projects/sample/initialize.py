@@ -1,6 +1,6 @@
 """-----------------------------------------------------------------------------
 
-initialize.py (Last Updated: 11/20/2019)
+initialize.py (Last Updated: 01/16/2020)
 
 The purpose of this script is to initialize the rt-cloud session. Specifically,
 it will initiate any variables that need to be initiated (e.g., configuration
@@ -55,7 +55,8 @@ def initialize(cfg, fileInterface, projectComm):
 
     INPUT:
         [1] cfg (configuration file with important variables)
-        [2] fileInterface (this will allow you to call useful functions)
+        [2] fileInterface (this will allow a script from the cloud to access files 
+                   from the console computer)
         [3] projectComm (communication pipe to talk with projectInterface)
     OUTPUT:
         None.
@@ -96,7 +97,8 @@ def initialize(cfg, fileInterface, projectComm):
     # Use 'uploadFilesToCloud' from 'projectUtils' to allow you to access files on the
     #   console computer from the scripts running on the cloud.
     #   INPUT: 
-    #       [1] fileInterface (this allows us to use useful functions)
+    #       [1] fileInterface (this will allow a script from the cloud to access files 
+    #               from the console computer)
     #       [2] srcPattern (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
     srcPattern = os.path.join(consoleDir,'**')
@@ -110,6 +112,7 @@ def initialize(cfg, fileInterface, projectComm):
 def main(argv=None):
     """
     This is the main function that is called when you run 'intialize.py'.
+    
     Here, you will load the configuration settings specified in the toml configuration 
     file, initiate the class fileInterface, and set up some directories and other 
     important things through 'initialize()'
@@ -143,7 +146,8 @@ def main(argv=None):
     #   order to actually start reading dicoms and doing your analyses of interest!
     #   INPUT:
     #       [1] cfg (configuration file with important variables)
-    #       [2] fileInterface (this will allow you to call useful variables)
+    #       [2] fileInterface (this will allow a script from the cloud to access files 
+    #               from the console computer)
     #       [3] projectComm (communication pipe to talk with projectInterface)
     initialize(cfg, fileInterface, projectComm)
     return 0

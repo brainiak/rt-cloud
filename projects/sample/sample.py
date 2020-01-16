@@ -1,6 +1,6 @@
 """-----------------------------------------------------------------------------
 
-sample.py (Last Updated: 01/14/2020)
+sample.py (Last Updated: 01/16/2020)
 
 The purpose of this script is to actually to run the sample project. 
 Specifically, it will initiate a file watcher that searches for incoming dicom 
@@ -68,7 +68,8 @@ def doRuns(cfg, fileInterface, projectComm):
 
     INPUT:
         [1] cfg (configuration file with important variables)
-        [2] fileInterface (this will allow you to call useful functions)
+        [2] fileInterface (this will allow a script from the cloud to access files 
+                   from the console computer)
         [3] projectComm (communication pipe to talk with projectInterface)
     OUTPUT:
         None.
@@ -170,7 +171,8 @@ def doRuns(cfg, fileInterface, projectComm):
         #   files to come in (by using 'watchFile' in 'fileClient.py') and then
         #   reading the dicom file once it receives it detected having received it
         #   INPUT:
-        #       [1] fileInterface (important class that helps us do lots of stuff)
+        #       [1] fileInterface (this will allow a script from the cloud to access files 
+        #               from the console computer)
         #       [2] filename (for the dicom file we're watching for and want to load)
         #       [3] timeout (time spent waiting for a file before timing out)
         #   OUTPUT:
@@ -230,9 +232,10 @@ def doRuns(cfg, fileInterface, projectComm):
 def main(argv=None):
     """
     This is the main function that is called when you run 'sample.py'.
-    Here, you will set up an important argument parser (mostly provided by 
-    the toml configuration file), initiate the class fileInterface, and then
-    call the function 'doRuns' to actually start doing the experiment.
+    
+    Here, you will load the configuration settings specified in the toml configuration 
+    file, initiate the class fileInterface, and then call the function 'doRuns' to 
+    actually start doing the experiment.
     """
 
     # define the parameters that will be recognized later on to set up fileIterface
@@ -271,7 +274,8 @@ def main(argv=None):
     #   to actually start reading dicoms and doing your analyses of interest!
     #   INPUT:
     #       [1] cfg (configuration file with important variables)
-    #       [2] fileInterface (this will allow you to call useful variables)
+    #       [2] fileInterface (this will allow a script from the cloud to access files 
+    #               from the console computer)
     #       [3] projectComm (communication pipe to talk with projectInterface)
     doRuns(cfg, fileInterface, projectComm)
     
@@ -280,9 +284,9 @@ def main(argv=None):
 
 if __name__ == "__main__":
     """
-    If 'sample.py' is called from the terminal or the equivalent, then actually go
-    through all of the portions of this script. This statement is not satisfied if
-    functions are called from another script using "from sample.py import FUNCTION"
+    If 'sample.py' is invoked as a program, then actually go through all of the portions 
+    of this script. This statement is not satisfied if functions are called from another 
+    script using "from sample.py import FUNCTION"
     """
     main()
     sys.exit(0)

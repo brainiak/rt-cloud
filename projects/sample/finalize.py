@@ -1,6 +1,6 @@
 """-----------------------------------------------------------------------------
 
-initialize.py (Last Updated: 11/20/2019)
+initialize.py (Last Updated: 01/16/2020)
 
 The purpose of this script is to finalize the rt-cloud session. Specifically,
 here we want to dowload any important files from the cloud back to the console
@@ -49,7 +49,7 @@ def finalize(cfg, fileInterface, projectComm):
     """
     This function is called my 'main()' below. Here, we will do a demo of the
     types of things that you can do in this 'finalize.py' script. For instance,
-    you can download an activation concatenate all of the activation values
+    you can download an activation, concatenate all of the activation values
     and then download only one file. You can also delete intermediate files
     you don't want to keep in the cloud for privacy reasons.
 
@@ -60,7 +60,8 @@ def finalize(cfg, fileInterface, projectComm):
 
     INPUT:
         [1] cfg (configuration file with important variables)
-        [2] fileInterface (this will allow you to call useful functions)
+        [2] fileInterface (this will allow a script from the cloud to access files 
+                   from the console computer)
         [3] projectComm (communication pipe to talk with projectInterface)
     OUTPUT:
         None.
@@ -96,7 +97,8 @@ def finalize(cfg, fileInterface, projectComm):
     #   files from the cloud directory to the console computer ...to do this,
     #   use 'downloadFolderFromCloud' from 'projectUtils'
     #   INPUT: 
-    #       [1] fileInterface (this allows us to use useful functions)
+    #       [1] fileInterface (this will allow a script from the cloud to access files 
+    #               from the console computer)
     #       [2] srcDir (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
     #       [4] deleteAfter (do you want to delete the files after copying?
@@ -113,9 +115,10 @@ def finalize(cfg, fileInterface, projectComm):
 def main(argv=None):
     """
     This is the main function that is called when you run 'finalize.py'.
-    Here, you will set up an important argument parser (mostly provided by 
-    the toml configuration file), initiate the class fileInterface, and set
-    up some directories and other important things through 'finalize()'
+    
+    Here, you will load the configuration settings specified in the toml configuration 
+    file, initiate the class fileInterface, and set up some directories and other 
+    important things through 'finalize()'
     """
 
     # define the parameters that will be recognized later on to set up fileIterface
@@ -146,7 +149,8 @@ def main(argv=None):
     #   order to actually start reading dicoms and doing your analyses of interest!
     #   INPUT:
     #       [1] cfg (configuration file with important variables)
-    #       [2] fileInterface (this will allow you to call useful variables)
+    #       [2] fileInterface (this will allow a script from the cloud to access files 
+    #               from the console computer)
     #       [3] projectComm (communication pipe to talk with projectInterface)
     finalize(cfg, fileInterface, projectComm)
     return 0
@@ -154,9 +158,9 @@ def main(argv=None):
 
 if __name__ == "__main__":
     """
-    If 'finalize.py' is called from the terminal or the equivalent, then actually go
-    through all of the portions of this script. This statement is not satisfied if
-    functions are called from another script using "from finalize.py import FUNCTION"
+    If 'finalize.py' is invoked as a program, then actually go through all of the 
+    portions of this script. This statement is not satisfied if functions are called 
+    from another script using "from finalize.py import FUNCTION"
     """
     main()
     sys.exit(0)
