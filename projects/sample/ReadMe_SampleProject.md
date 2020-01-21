@@ -25,7 +25,7 @@ There are six main components to the sample project, which are delineated below.
     - <sup>\*</sup>We have special permission from the Princeton Institutional Review Board to publicly post the dicoms on this Github repository. 
         - **IMPORTANT:** DO NOT post the raw dicoms for your experiment on Github!!
 - **`projectMain` script**
-    - This script is called when you run the projectInterface. This script is called when you run the projectInterface. The projectInterface starts the web server in the cloud and initializes communication with the file server. From a browser window pointed to the web server URL you will have controls to start and stop your project scripts.
+    - This script is called when you run the projectInterface. The projectInterface starts the web server in the cloud and initializes communication with the file server. From a browser window pointed to the web server URL you will have controls to start and stop your project scripts.
 - **`initialize` script**
     - The purpose of this script is to run certain commands *before* you start your experiment. In this sample project, a temporary `tmp` folder is created with sub-directories `console_directory` and `cloud_directory` to illustrate the interaction between the console computer and the cloud. 
         - NOTE: Under normal circumstances, all of the python scripts here will be running in the cloud. This means that, from your scripts' perspective, the `cloud_directory` would be a local directory whereas the `console_directory` would be a remote directory.  
