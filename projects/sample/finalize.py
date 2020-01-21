@@ -49,10 +49,9 @@ def finalize(cfg, fileInterface, projectComm):
     """
     This function is called my 'main()' below. Here, we will do a demo of the
     types of things that you can do in this 'finalize.py' script. For instance,
-    you can download an activation, concatenate all of the activation values
-    and then download only one file. You can also delete intermediate files
-    you don't want to keep in the cloud for privacy reasons.
-
+    you can move intermediate files and result files from the cloud directory
+    to the console computer. You can also delete intermediate files at the end of
+    the session, which is necessary to protect the privacy of your participants.
 
     In this demo, things are in the cloud directory and we want to move them
     to the local (non-cloud) console computer. Here, everything is on the same 

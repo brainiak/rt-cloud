@@ -48,9 +48,10 @@ def initialize(cfg, fileInterface, projectComm):
     for the analysis of your task. The point of this script is to upload files
     to the cloud that you will need for your entire scanning session.
 
-    In this demo, things are in the cloud directory and we want to move them
-    to the local (non-cloud) console computer. Here, everything is on the same 
-    computer but this doesn't have to be the case when you run your own experiment!
+    In this demo, we will show how you can move files (e.g., such as those 
+    needed for registration) from the local (non-cloud) console computer to the 
+    cloud directory. Here, everything will be on the same computer but in different 
+    folders to show how this will happen when you run your own experiment!
 
     INPUT:
         [1] cfg (configuration file with important variables)
