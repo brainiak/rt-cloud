@@ -18,6 +18,8 @@ from rtCommon.readDicom import readDicomFromFile, anonymizeDicom, writeDicomToBu
 
 
 testDir = os.path.dirname(__file__)
+rootPath = os.path.dirname(testDir)
+samplePath = os.path.join(rootPath,'projects/sample')
 tmpDir = os.path.join(testDir, 'tmp/')
 fileTypeList = ['.dcm', '.mat', '.bin', '.txt']
 
@@ -66,7 +68,7 @@ class TestServers:
             args=('localhost:8921',),
             kwargs={
                 'retryInterval': 0.1,
-                'allowedDirs': ['/tmp', testDir],
+                'allowedDirs': ['/tmp', testDir, samplePath],
                 'allowedTypes': fileTypeList,
                 'username': 'test',
                 'password': 'test',

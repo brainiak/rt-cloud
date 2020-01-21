@@ -98,10 +98,25 @@ def anonymizeDicom(dicomImg):
     del dicomImg.PerformedProcedureStepStartTime
     return dicomImg
 
-
 def writeDicomToBuffer(dicomImg):
     dataBytesIO = dicom.filebase.DicomBytesIO()
     dicom.filewriter.write_file(dataBytesIO, dicomImg)
     dataBytesIO.seek(0)
     data = dataBytesIO.read()
     return data
+
+def getDicomFileName(cfg, scanNum, fileNum):
+    if scanNum < 0:
+        raise ValidationError("ScanNumber not supplied of invalid {}".format(scanNum))
+    
+    # converting important info to strings
+    scanNumStr = str(scanNum).zfill(2)
+    fileNumStr = str(fileNum).zfill(3)
+    
+    # the naming pattern is provided in the toml file
+    if cfg.dicomNamePattern is None:
+        raise InvocationError("Missing config settings dicomNamePattern")
+    fileName = cfg.dicomNamePattern.format(scanNumStr, fileNumStr)
+    fullFileName = os.path.join(cfg.dicomDir, fileName)
+    
+    return fullFileName
