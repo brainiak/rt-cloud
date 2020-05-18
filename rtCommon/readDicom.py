@@ -7,12 +7,31 @@ try:
     import pydicom as dicom  # type: ignore
 except ModuleNotFoundError:
     import dicom  # type: ignore
+# import glob
+# from subprocess import call
+# from nilearn.image import new_img_like
+# from nibabel.nicom import dicomreaders
+# import nibabel as nib
+# import numpy as np
+# from rtCommon.readDicom import readDicomFromBuffer, readRetryDicomFromFileInterface
+# from rtCommon.fileClient import FileInterface
+# import rtCommon.projectUtils as projUtils
+# from rtCommon.structDict import StructDict
 
+
+"""-----------------------------------------------------------------------------
+
+The following functions can be used to read the dicom files that are coming in
+from the scanner. 
+
+-----------------------------------------------------------------------------"""
 
 def parseDicomVolume(dicomImg, sliceDim):
-    '''The raw dicom file will be a 2D picture with multiple slices tiled together.
-       We need to separate the slices and form a volume from them.
-    '''
+    """
+    The raw dicom file coming from the scanner will be a 2-dimensional picture
+    made of up multiple image slices that are tiled together. This function 
+    separates the image slices to form a single volume.
+    """
     sliceWidth = sliceDim
     sliceHeight = sliceDim
 
@@ -40,17 +59,28 @@ def parseDicomVolume(dicomImg, sliceDim):
 
 
 def readDicomFromBuffer(data):
+    """
+    ANNE - what does this do?
+    """
     dataBytesIO = dicom.filebase.DicomBytesIO(data)
     dicomImg = dicom.dcmread(dataBytesIO)
     return dicomImg
 
 
 def readDicomFromFile(filename):
+    """
+    This function takes the path/name of the dicom file of interest and reads it.
+    """
     dicomImg = dicom.read_file(filename)
     return dicomImg
 
 
 def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
+    """
+    This function is waiting and watching for a dicom file to be sent to the cloud 
+    from the scanner. It dodes this by calling the 'watchFile()' function in the
+    'fileInterface.py' 
+    """
     retries = 0
     while retries < 5:
         retries += 1
@@ -69,6 +99,9 @@ def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
 
 
 def applyMask(volume, roiInds):
+    """
+    ANNE - what does this do?
+    """
     # maskedVolume = np.zeros(volume.shape, dtype=float)
     # maskedVolume.flat[roiInds] = volume.flat[roiInds]
     maskedVolume = volume.flat[roiInds]
@@ -76,7 +109,11 @@ def applyMask(volume, roiInds):
 
 
 def anonymizeDicom(dicomImg):
-    """Anonymize header"""
+    """
+    This function takes in the dicom image that you read in and deletes
+    lots of different variables. The purpose of this is to anonymize the
+    dicom data before transferring it to the cloud.
+    """
     del dicomImg.PatientID
     del dicomImg.PatientAge
     del dicomImg.PatientBirthDate
@@ -100,6 +137,9 @@ def anonymizeDicom(dicomImg):
     return dicomImg
 
 def writeDicomToBuffer(dicomImg):
+    """
+    ANNE - what does this do?
+    """
     dataBytesIO = dicom.filebase.DicomBytesIO()
     dicom.filewriter.write_file(dataBytesIO, dicomImg)
     dataBytesIO.seek(0)
@@ -107,6 +147,11 @@ def writeDicomToBuffer(dicomImg):
     return data
 
 def getDicomFileName(cfg, scanNum, fileNum):
+    """
+    This function takes in different variables (which are both specific to the specific
+    scan and the general setup for the entire experiment) to produce the full filename
+    for the dicom file of interest.
+    """
     if scanNum < 0:
         raise ValidationError("ScanNumber not supplied of invalid {}".format(scanNum))
     
@@ -121,3 +166,10 @@ def getDicomFileName(cfg, scanNum, fileNum):
     fullFileName = os.path.join(cfg.dicomDir, fileName)
     
     return fullFileName
+
+"""-----------------------------------------------------------------------------
+
+The following functions can be used to read the dicom files that are coming in
+from the scanner. 
+
+-----------------------------------------------------------------------------"""
