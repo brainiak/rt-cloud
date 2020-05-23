@@ -12,22 +12,12 @@ from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 
-def saveAsNiftiImage(dicomDataObject, expected_dicom_name, cfg):
-    # A = time.time()
-    nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
-    tempNiftiDir = os.path.join(cfg.dataDir, 'tmp/convertedNiftis/')
-    if not os.path.exists(tempNiftiDir):
-        command = 'mkdir -pv {0}'.format(tempNiftiDir)
-        call(command, shell=True)
-    fullNiftiFilename = os.path.join(tempNiftiDir, nameToSaveNifti)
+def saveAsNiftiImage(dicomDataObject, fullNiftiFilename, cfg, reference):
     niftiObject = dicomreaders.mosaic_to_nii(dicomDataObject)
-    temp_data = niftiObject.get_data()
-    # rounded_temp_data = np.round(temp_data)
+    temp_data = niftiObject.get_fdata()
     output_image_correct = nib.orientations.apply_orientation(temp_data, cfg.axesTransform)
-    correct_object = new_img_like(cfg.ref_BOLD, output_image_correct, copy_header=True)
+    correct_object = new_img_like(reference, output_image_correct, copy_header=True)
     correct_object.to_filename(fullNiftiFilename)
-    # B = time.time()
-    # print(B-A)
     return fullNiftiFilename
 
 def getAxesForTransform(startingDicomFile,cfg):
