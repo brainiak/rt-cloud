@@ -1,8 +1,15 @@
-# PURPOSE: anonmyize dicom data
+"""-----------------------------------------------------------------------------
+
+dicomNiftiHandler.py (Last Updated: 05/25/2020)
+
+The purpose of this script is to test to assert that the nifti file conversion
+done in the cloud matches the nifti conversion done during your offline analyses.
+This script address the warning you get when you import pydicom.
+
+-----------------------------------------------------------------------------"""
 
 import os
 import glob
-from subprocess import call
 from nilearn.image import new_img_like
 from nibabel.nicom import dicomreaders
 import nibabel as nib
@@ -12,57 +19,19 @@ from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 
-def saveAsNiftiImage(dicomDataObject, expected_dicom_name, cfg):
-    # A = time.time()
-    nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
-    tempNiftiDir = os.path.join(cfg.dataDir, 'tmp/convertedNiftis/')
-    if not os.path.exists(tempNiftiDir):
-        command = 'mkdir -pv {0}'.format(tempNiftiDir)
-        call(command, shell=True)
-    fullNiftiFilename = os.path.join(tempNiftiDir, nameToSaveNifti)
-    niftiObject = dicomreaders.mosaic_to_nii(dicomDataObject)
-    temp_data = niftiObject.get_data()
-    # rounded_temp_data = np.round(temp_data)
-    output_image_correct = nib.orientations.apply_orientation(temp_data, cfg.axesTransform)
-    correct_object = new_img_like(cfg.ref_BOLD, output_image_correct, copy_header=True)
-    correct_object.to_filename(fullNiftiFilename)
-    # B = time.time()
-    # print(B-A)
-    return fullNiftiFilename
-
-def getAxesForTransform(startingDicomFile,cfg):
-    """ Load one example file """
-    nifti_object = nib.load(cfg.ref_BOLD)
-    target_orientation = nib.aff2axcodes(nifti_object.affine)
-    dicom_object = getLocalDicomData(cfg,startingDicomFile)
-    dicom_object = dicomreaders.mosaic_to_nii(dicom_object)
-    dicom_orientation = nib.aff2axcodes(dicom_object.affine)
-    return target_orientation,dicom_orientation # from here you can save and load it so getTransform is hard coded --you only need to run this once
-
-def getTransform(target_orientation,dicom_orientation):
-    target_orientation_code = nib.orientations.axcodes2ornt(target_orientation)
-    dicom_orientation_code = nib.orientations.axcodes2ornt(dicom_orientation)
-    transform = nib.orientations.ornt_transform(dicom_orientation_code,target_orientation_code)
-    return transform
-
-def getLocalDicomData(cfg,fullpath):
-    projComm = projUtils.initProjectComm(None,False)
-    fileInterface = FileInterface(filesremote=False,commPipes=projComm)
-    fileInterface.initWatch(cfg.dicomDir,cfg.dicomNamePattern,300000)
-    dicomData = readRetryDicomFromFileInterface(fileInterface,fullpath)
-    return dicomData
-
 def checkDicomNiftiConversion(cfg):
-    """Purpose: check the nibabel nifti/dicom conversion method BEFORE using it in real-time.
+    """
+    Purpose: check the nibabel nifti/dicom conversion method BEFORE using it in real-time.
     Here we're assuming you have raw dicoms and the corresponding converted nifti that you 
-    used in pilot data collection."""
+    used in pilot data collection.
 
-    # STEPS:
-    # 0. set up config
-    # 1. get number of TRs from dicom path and nifti path
-    # 2. go through each TR in dicom, convert them each to niftis and save
-    # 3. load in each nifti into new data matrix
-    # 4. compare this to loaded offline nifti file
+    STEPS:
+        0. set up config
+        1. get number of TRs from dicom path and nifti path
+        2. go through each TR in dicom, convert them each to niftis and save
+        3. load in each nifti into new data matrix
+        4. compare this to loaded offline nifti file
+    """
     complete_path = os.path.join(cfg.dicomDir,cfg.dicomNamePattern).format('*')
     all_dicoms = glob.glob(complete_path)
     sorted_dicom_list = sorted(all_dicoms, key=lambda x: int("".join([i for i in x if i.isdigit()])))
@@ -102,9 +71,6 @@ def checkDicomNiftiConversion(cfg):
     elif len(different_values) > 0:
         PASSED = 0
     return PASSED
-
-
-
 
 def main():
     pass
