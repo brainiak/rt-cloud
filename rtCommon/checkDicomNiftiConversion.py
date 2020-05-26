@@ -1,10 +1,15 @@
 """-----------------------------------------------------------------------------
 
-dicomNiftiHandler.py (Last Updated: 05/25/2020)
+checkDicomNiftiConversion.py (Last Updated: 05/26/2020)
 
-The purpose of this script is to test to assert that the nifti file conversion
-done in the cloud matches the nifti conversion done during your offline analyses.
-This script address the warning you get when you import pydicom.
+The purpose of this script is to check that the nifti file conversion done during
+real-time in the cloud matches the nifti conversion done during your offline 
+analyses, assuming you used heudiconv or you directly called 'dcm2nix()'. 
+This script addresses the warning you get when you import pydicom.
+
+To run this script, uncomment the lines in 'def main()' below. Complete the
+sections that need to be filled in, denoted by "[FILL IN]"'". Save this file 
+and then run the script "python checkDicomNiftiConversion.py" in the terminal.
 
 -----------------------------------------------------------------------------"""
 
@@ -14,14 +19,18 @@ from nilearn.image import new_img_like
 from nibabel.nicom import dicomreaders
 import nibabel as nib
 import numpy as np
-from rtCommon.readDicom import readDicomFromBuffer, readRetryDicomFromFileInterface
+### PAULA - make sure that you import the function used that you moved to readDicom
+from rtCommon.readAndConvertDicomData import readDicomFromBuffer, \
+    readRetryDicomFromFileInterface, getLocalDicomData, getAxesForTransform, \
+    getTransform, saveAsNiftiImage
 from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 
-def checkDicomNiftiConversion(cfg):
+def checkingDicomNiftiConversion(cfg):
     """
-    Purpose: check the nibabel nifti/dicom conversion method BEFORE using it in real-time.
+    Purpose: check the nibabel nifti/dicom conversion method BEFORE using it in 
+    real-time.
     Here we're assuming you have raw dicoms and the corresponding converted nifti that you 
     used in pilot data collection.
 
@@ -73,38 +82,17 @@ def checkDicomNiftiConversion(cfg):
     return PASSED
 
 def main():
-    pass
-    # example below how to use this code
-    # you have to make sure you have certain files in the config file**
 
-    # configFile = 'greenEyes.toml'
-    # cfg = initializeGreenEyes(configFile)
-    # scanNum = 9
-    # TRnum = 11
-    # expected_dicom_name = cfg.dicomNamePattern.format(scanNum,TRnum)
-    # full_dicom_name = '{0}{1}'.format(cfg.subjectDcmDir,expected_dicom_name)
-
-    # dicomImg = anonymizeDicom(full_dicom_name)
-    # saveAsNiftiImage(dicomImg,expected_dicom_name,cfg)
-
-    # # TEST EXACTLY THE SAME
-    # f1 = '/jukebox/norman/amennen/github/brainiak/rtAttenPenn/greenEyes/tmp/convertedNiftis/9-11-1.nii.gz'
-    # f2 = '/jukebox/norman/amennen/github/brainiak/rtAttenPenn/greenEyes/data/sub-102/ses-02/converted_niftis/9-11-1.nii.gz'
-
-    # obj_1 = nib.load(f1)
-    # obj_2 = nib.load(f2)
-    # d_1 = obj_1.get_fdata()
-    # d_2 = obj_2.get_fdata()
-
-    # np.argwhere(d_1!=d_2)
-
-    cfg = StructDict()
+    # cfg = StructDict() # initialize empty dictionary
     # cfg.dataDir = os.getcwd() # or change to any directory where you want the tmp/convertedNiftis to go
-    # cfg.ref_BOLD = # YOUR REFERNECE IMAGE
-    # cfg.dicomDir = # YOUR DICOM DIRECTORY
-    # cfg.dicomNamePattern = # DICOM PATTERN FOR THE SPECIFIC SERIES/RUN OF THE SCANNER (e.g, 9) THAT YOU'RE TESTING '9-{}-1.dcm' 
-    # cfg.niftiFile =  # FULL NIFTI PATH AND FILENAME FOR THE CORRESPONDING NIFTI FILE CREATED FROM THE SAME RUN
-    #PASSFAIL = checkDicomNiftiConversion(cfg)
+    # cfg.ref_BOLD = [FILL IN] # reference image saved as a nifti file after undergoing fMRIprep
+    # cfg.dicomDir = [FILL IN] # directory where the dicoms get save (on the stimulus computer)
+    # cfg.dicomNamePattern = [FILL IN] # the naming pattern for the dicom files, 
+    # # which should include the specific series/scan number of the scanner '9-{}-1.dcm' 
+    # cfg.niftiFile =  [FILL IN] # the full path from the nifti file for that run (assuming you 
+    # # already did heudiconv)
+    # PASSFAIL = checkingDicomNiftiConversion(cfg)
+    # print('Checking Conversion Outcome:', PASSFAIL)
 
 
 if __name__ == "__main__":
