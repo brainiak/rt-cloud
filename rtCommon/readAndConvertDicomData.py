@@ -1,8 +1,6 @@
 """-----------------------------------------------------------------------------
 
-readDicom.py (Last Updated: 05/26/2020)
-
-GRANT & ANNE - do you have any thoughts on a better name for this script?
+readAndConvertDicomData.py (Last Updated: 05/26/2020)
 
 This script includes all of the functions that are needed (1) to transfer dicom
 files back and forth from the cloud and (2) to convert the dicom files to
@@ -194,12 +192,13 @@ used externally or internally.
 
 def getLocalDicomData(cfg,fullpath):
     """
-    This function takes the config file and the [ANNE - what is the "fullpath"?] 
-    to read in the dicom data in the cloud.
+    This function is called by 'checkDicomNiftiConversion()' and it reads a 
+    dicom file that has already been collected (e.g., is not real-time). It
+    reads the dicom given the config file and the full path for the dicom.
 
-    ANNE - what is the point of the "local dicom data"?
+    NOTE: It returns the data in bytes (not in a dicom file format).
 
-    Used externally???
+    Used internally.
     """
     projComm = projUtils.initProjectComm(None,False)
     fileInterface = FileInterface(filesremote=False,commPipes=projComm)
@@ -207,35 +206,15 @@ def getLocalDicomData(cfg,fullpath):
     dicomData = readRetryDicomFromFileInterface(fileInterface,fullpath)
     return dicomData
 
-def saveAsNiftiImage(dicomDataObject, expected_dicom_name, cfg):
-    """
-    ??
-
-    Used externally.
-    """
-    # A = time.time()
-    nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
-    tempNiftiDir = os.path.join(cfg.dataDir, 'tmp/convertedNiftis/')
-    if not os.path.exists(tempNiftiDir):
-        command = 'mkdir -pv {0}'.format(tempNiftiDir)
-        call(command, shell=True)
-    fullNiftiFilename = os.path.join(tempNiftiDir, nameToSaveNifti)
-    niftiObject = dicomreaders.mosaic_to_nii(dicomDataObject)
-    temp_data = niftiObject.get_fdata()
-    # rounded_temp_data = np.round(temp_data)
-    output_image_correct = nib.orientations.apply_orientation(temp_data, cfg.axesTransform)
-    correct_object = new_img_like(cfg.ref_BOLD, output_image_correct, copy_header=True)
-    correct_object.to_filename(fullNiftiFilename)
-    # B = time.time()
-    # print(B-A)
-    return fullNiftiFilename
-
 def getAxesForTransform(startingDicomFile,cfg):
     """
-    ??
+    This function takes a single dicom file (which can be the first file) and 
+    the config file to obtain the target_orientation (in nifti space) and the 
+    dicom_orientation (in the original space).
 
-    NOTE: You only need to run this function once to obtain the target and dicom orientations.
-    You can save and load these variables so that 'getTransform()' is hard coded.
+    NOTE: You only need to run this function once to obtain the target and 
+    dicom orientations. You can save and load these variables so that 
+    'getTransform()' is hard coded.
 
     Used externally.
     """
@@ -249,11 +228,37 @@ def getAxesForTransform(startingDicomFile,cfg):
 
 def getTransform(target_orientation,dicom_orientation):
     """
-    ??
+    This function calculates the right transformation needed to go from the original 
+    axis space (dicom_orientation) to the target axis space in nifti space 
+    (target_orientation).
 
     Used externally.
     """
     target_orientation_code = nib.orientations.axcodes2ornt(target_orientation)
     dicom_orientation_code = nib.orientations.axcodes2ornt(dicom_orientation)
-    transform = nib.orientations.ornt_transform(dicom_orientation_code,target_orientation_code)
+    transform = nib.orientations.ornt_transform(dicom_orientation_code,...
+        target_orientation_code)
     return transform
+
+def saveAsNiftiImage(dicomDataObject, expected_dicom_name, cfg):
+    """
+    This function takes in a dicom data object written in bytess, what you expect
+    the dicom file to be called (we will use the same name format for the nifti
+    file), and the config file while will have (1) the axes transformation for the
+    dicom file and (2) the header information from a reference scan.
+
+    Used externally.
+    """
+    nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
+    tempNiftiDir = os.path.join(cfg.dataDir, 'tmp/convertedNiftis/')
+    if not os.path.exists(tempNiftiDir):
+        command = 'mkdir -pv {0}'.format(tempNiftiDir)
+        call(command, shell=True)
+    fullNiftiFilename = os.path.join(tempNiftiDir, nameToSaveNifti)
+    niftiObject = dicomreaders.mosaic_to_nii(dicomDataObject)
+    temp_data = niftiObject.get_fdata()
+    output_image_correct = nib.orientations.apply_orientation(temp_data, cfg.axesTransform)
+    # take the header (e.g., dimension and axis information) from a reference scan 
+    correct_object = new_img_like(cfg.ref_BOLD, output_image_correct, copy_header=True)
+    correct_object.to_filename(fullNiftiFilename)
+    return fullNiftiFilename
