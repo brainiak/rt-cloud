@@ -4,8 +4,8 @@ The purpose of this sample project is to familiarize you with the tools that are
 
 - Simulate starting a projectInterface session on the cloud.
     - In this example, you will do this from your local computer but under the real experiment circumstances you would start the projectInterface from the cloud.
-- Simulate starting a fileServer session on the console computer.
-    - Again, in this example, you will do this from another terminal window on your local computer but under real experiment circumstances you would start the fileServer from the console computer to initialize a watch for incoming files of interest (e.g., dicoms). 
+- Simulate starting a fileServer session on the stimulus computer, which will automatically receive dicom files from the Siemens console computer after you change some parameters to the console.
+    - Again, in this example, you will do this from another terminal window on your local computer but under real experiment circumstances you would start the fileServer from the stimulus computer to initialize a watch for incoming files of interest (e.g., dicoms). 
 - Review the settings on the configuration file that are on the cloud using the web browser.
 - Initialize a real-time experiment session from the web browser.
 - Run a real-time experiment session:
@@ -27,12 +27,12 @@ There are six main components to the sample project, which are delineated below.
 - **`projectMain` script**
     - This script is called when you run the projectInterface. The projectInterface starts the web server in the cloud and initializes communication with the file server. From a browser window pointed to the web server URL you will have controls to start and stop your project scripts.
 - **`initialize` script**
-    - The purpose of this script is to run certain commands *before* you start your experiment. In this sample project, a temporary `tmp` folder is created with sub-directories `console_directory` and `cloud_directory` to illustrate the interaction between the console computer and the cloud. 
-        - NOTE: Under normal circumstances, all of the python scripts here will be running in the cloud. This means that, from your scripts' perspective, the `cloud_directory` would be a local directory whereas the `console_directory` would be a remote directory.  
+    - The purpose of this script is to run certain commands *before* you start your experiment. In this sample project, a temporary `tmp` folder is created with sub-directories `stimulus_directory` and `cloud_directory` to illustrate the interaction between the stimulus computer and the cloud. 
+        - NOTE: Under normal circumstances, all of the python scripts here will be running in the cloud. This means that, from your scripts' perspective, the `cloud_directory` would be a local directory whereas the `stimulus_directory` would be a remote directory.  
 - **`sample.py` script**
     - This is the script that actually runs the experiment! All of these scripts are well-documented, especially this one. Take a look at the comments to gain a better understanding of how we do what we do here.
 - **`finalize` script**
-    - The purpose of this script is to run certain commands *after* you finish running your experiment to finalize things. For instance, you can download files from the cloud to the console computer. You can also delete files from the cloud, which you might want to do for privacy.
+    - The purpose of this script is to run certain commands *after* you finish running your experiment to finalize things. For instance, you can download files from the cloud to the stimulus computer. You can also delete files from the cloud, which you might want to do for privacy.
 
 ## How do I make the sample project work?
 1. Follow the [installation instructions](https://github.com/brainiak/rt-cloud#installation) for the realtime fMRI cloud framework
@@ -44,7 +44,7 @@ There are six main components to the sample project, which are delineated below.
             - In this example, you will need to use the full path to the `sample` directory.
         - *allowed file extensions* → The list of extensions for the file types that will be allowed. Again for security, the fileserver will otherwise restrict which file types it will return.
             - In this example, you will need to allow the following extensions: `.dcm`, `.txt`, and `.mat`
-        - IMPORTANT: The previous notes are important because the projectInterface, which runs from the cloud, *needs* to get permission about what can be read or written to the console computer.
+        - IMPORTANT: The previous notes are important because the projectInterface, which runs from the cloud, *needs* to get permission about what can be read or written to the stimulus computer.
 
 3. When you navigate your web browser to the URL [http://localhost:8888/](http://localhost:8888/), you will see the following page:
 ![](ReadMe_Images/rtCloudWeb_login.png)
@@ -73,5 +73,5 @@ All of the functions we use within the real-time fMRI cloud framework live in th
     - The functions enable you to interact with files, from starting a lookout (or watch) for a specific type of file to displaying all of the allowed file types.
 - **`projectUtils` script**
     - The functions here allow you to interface between the cloud and the consol computer. For instance, if you want to download files from the cloud there's a function to help you do that here!
-- **`readDicom` script**
-    - The purpose of these functions is to help you read the dicom files and do anything else (e.g., apply a mask) with them.
+- **`readAndConvertDicomData` script**
+    - The purpose of these functions is to help you (1) transfer dicom files back and forth from the cloud and (2) convert the dicom files to nifti files, which is a file format that is better for data analyses.

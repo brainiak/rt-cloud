@@ -49,32 +49,32 @@ def initialize(cfg, fileInterface, projectComm):
     to the cloud that you will need for your entire scanning session.
 
     In this demo, we will show how you can move files (e.g., such as those 
-    needed for registration) from the local (non-cloud) console computer to the 
+    needed for registration) from the local (non-cloud) stimulus computer to the 
     cloud directory. Here, everything will be on the same computer but in different 
     folders to show how this will happen when you run your own experiment!
 
     INPUT:
         [1] cfg (configuration file with important variables)
         [2] fileInterface (this will allow a script from the cloud to access files 
-                   from the console computer)
+                   from the stimulus computer)
         [3] projectComm (communication pipe to talk with projectInterface)
     OUTPUT:
         None.
     """
 
-    # define directories where files are on the console ('tmp/console_directory/')
+    # define directories where files are on the stimulus ('tmp/stimulus_directory/')
     #   and where files are on the cloud ('tmp/cloud_directory')
-    consoleDir = os.path.join(currPath,'tmp/console_directory/')
+    stimulusDir = os.path.join(currPath,'tmp/stimulus_directory/')
     cloudDir = os.path.join(currPath,'tmp/cloud_directory/tmp/')
     # here, we will actually make the directories!
     try:
-        os.makedirs(consoleDir)
+        os.makedirs(stimulusDir)
         os.makedirs(cloudDir)
         print("Just made new directories")
     except FileExistsError:
         print("Directories already exist")
     
-    print("Location of console directory: \n%s\n" %consoleDir)
+    print("Location of stimulus directory: \n%s\n" %stimulusDir)
     print("Location of cloud directory: \n%s\n" %cloudDir)
 
     # before we get ahead of ourselves, we need to make sure that the necessary file
@@ -90,18 +90,18 @@ def initialize(cfg, fileInterface, projectComm):
     "Before continuing, we should check to see the file types that are allowed.\n"
     "To verify, we will use 'allowedFileTypes'. Only these files will be uploaded\n"
     "to the cloud in the next step!! If you need to add a file type that is missing\n"
-    "here, you will have to stop and restart the fileServer on the console computer\n"
+    "here, you will have to stop and restart the fileServer on the stimulus computer\n"
     "specifying the necessary file types in the command line parameters.\n"
     "Allowed file types: %s" %allowedFileTypes)
 
     # Use 'uploadFilesToCloud' from 'projectUtils' to allow you to access files on the
-    #   console computer from the scripts running on the cloud.
+    #   stimulus computer from the scripts running on the cloud.
     #   INPUT: 
     #       [1] fileInterface (this will allow a script from the cloud to access files 
-    #               from the console computer)
+    #               from the stimulus computer)
     #       [2] srcPattern (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
-    srcPattern = os.path.join(consoleDir,'**')
+    srcPattern = os.path.join(stimulusDir,'**')
     projUtils.uploadFilesToCloud(fileInterface,srcPattern,cloudDir)
 
     print(""
@@ -147,7 +147,7 @@ def main(argv=None):
     #   INPUT:
     #       [1] cfg (configuration file with important variables)
     #       [2] fileInterface (this will allow a script from the cloud to access files 
-    #               from the console computer)
+    #               from the stimulus computer)
     #       [3] projectComm (communication pipe to talk with projectInterface)
     initialize(cfg, fileInterface, projectComm)
     return 0
