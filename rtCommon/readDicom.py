@@ -221,7 +221,7 @@ def saveAsNiftiImage(dicomDataObject, expected_dicom_name, cfg):
         call(command, shell=True)
     fullNiftiFilename = os.path.join(tempNiftiDir, nameToSaveNifti)
     niftiObject = dicomreaders.mosaic_to_nii(dicomDataObject)
-    temp_data = niftiObject.get_data()
+    temp_data = niftiObject.get_fdata()
     # rounded_temp_data = np.round(temp_data)
     output_image_correct = nib.orientations.apply_orientation(temp_data, cfg.axesTransform)
     correct_object = new_img_like(cfg.ref_BOLD, output_image_correct, copy_header=True)
