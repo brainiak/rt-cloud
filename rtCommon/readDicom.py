@@ -1,20 +1,12 @@
 """-----------------------------------------------------------------------------
 
-readDicom.py (Last Updated: 05/25/2020)
+readDicom.py (Last Updated: 05/26/2020)
 
-CHANGE THIS DESCRIPTION!!
+GRANT & ANNE - do you have any thoughts on a better name for this script?
 
-The purpose of this script is to actually to run the sample project. 
-Specifically, it will initiate a file watcher that searches for incoming dicom 
-files, do some sort of analysis based on the dicom file that's been received, 
-and then output the answer.
-
-The purpose of this *particular* script is to demonstrated how you can use the 
-various scripts, functions, etc. we have developed for your use! The functions
-we will reference live in 'rt-cloud/rtCommon/'.
-
-Finally, this script is called from 'projectMain.py', which is called from 
-'run-projectInterface.sh'.
+This script includes all of the functions that are needed (1) to transfer dicom
+files back and forth from the cloud and (2) to convert the dicom files to
+nifti files, which is a file format that is better for data analyses.
 
 -----------------------------------------------------------------------------"""
 
@@ -198,7 +190,29 @@ used externally or internally.
 
 -----------------------------------------------------------------------------"""
 
+## ANNE - is this the correct order in which these functions would be used?
+
+def getLocalDicomData(cfg,fullpath):
+    """
+    This function takes the config file and the [ANNE - what is the "fullpath"?] 
+    to read in the dicom data in the cloud.
+
+    ANNE - what is the point of the "local dicom data"?
+
+    Used externally???
+    """
+    projComm = projUtils.initProjectComm(None,False)
+    fileInterface = FileInterface(filesremote=False,commPipes=projComm)
+    fileInterface.initWatch(cfg.dicomDir,cfg.dicomNamePattern,300000)
+    dicomData = readRetryDicomFromFileInterface(fileInterface,fullpath)
+    return dicomData
+
 def saveAsNiftiImage(dicomDataObject, expected_dicom_name, cfg):
+    """
+    ??
+
+    Used externally.
+    """
     # A = time.time()
     nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
     tempNiftiDir = os.path.join(cfg.dataDir, 'tmp/convertedNiftis/')
@@ -217,23 +231,29 @@ def saveAsNiftiImage(dicomDataObject, expected_dicom_name, cfg):
     return fullNiftiFilename
 
 def getAxesForTransform(startingDicomFile,cfg):
-    """ Load one example file """
+    """
+    ??
+
+    NOTE: You only need to run this function once to obtain the target and dicom orientations.
+    You can save and load these variables so that 'getTransform()' is hard coded.
+
+    Used externally.
+    """
+    #Load one example file
     nifti_object = nib.load(cfg.ref_BOLD)
     target_orientation = nib.aff2axcodes(nifti_object.affine)
     dicom_object = getLocalDicomData(cfg,startingDicomFile)
     dicom_object = dicomreaders.mosaic_to_nii(dicom_object)
     dicom_orientation = nib.aff2axcodes(dicom_object.affine)
-    return target_orientation,dicom_orientation # from here you can save and load it so getTransform is hard coded --you only need to run this once
+    return target_orientation,dicom_orientation 
 
 def getTransform(target_orientation,dicom_orientation):
+    """
+    ??
+
+    Used externally.
+    """
     target_orientation_code = nib.orientations.axcodes2ornt(target_orientation)
     dicom_orientation_code = nib.orientations.axcodes2ornt(dicom_orientation)
     transform = nib.orientations.ornt_transform(dicom_orientation_code,target_orientation_code)
     return transform
-
-def getLocalDicomData(cfg,fullpath):
-    projComm = projUtils.initProjectComm(None,False)
-    fileInterface = FileInterface(filesremote=False,commPipes=projComm)
-    fileInterface.initWatch(cfg.dicomDir,cfg.dicomNamePattern,300000)
-    dicomData = readRetryDicomFromFileInterface(fileInterface,fullpath)
-    return dicomData
