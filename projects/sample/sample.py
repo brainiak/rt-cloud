@@ -1,6 +1,6 @@
 """-----------------------------------------------------------------------------
 
-sample.py (Last Updated: 01/16/2020)
+sample.py (Last Updated: 05/26/2020)
 
 The purpose of this script is to actually to run the sample project. 
 Specifically, it will initiate a file watcher that searches for incoming dicom 
@@ -53,7 +53,8 @@ sys.path.append(rootPath)
 from rtCommon.utils import loadConfigFile
 from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
-from rtCommon.readDicom import readRetryDicomFromFileInterface, getDicomFileName
+from rtCommon.readAndConvertDicomData import readRetryDicomFromFileInterface, \
+    getDicomFileName
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
@@ -69,7 +70,8 @@ def doRuns(cfg, fileInterface, projectComm):
     INPUT:
         [1] cfg (configuration file with important variables)
         [2] fileInterface (this will allow a script from the cloud to access files 
-                   from the console computer)
+               from the stimulus computer, which receives dicom files directly
+               from the Siemens console computer)
         [3] projectComm (communication pipe to talk with projectInterface)
     OUTPUT:
         None.
@@ -172,7 +174,8 @@ def doRuns(cfg, fileInterface, projectComm):
         #   reading the dicom file once it receives it detected having received it
         #   INPUT:
         #       [1] fileInterface (this will allow a script from the cloud to access files 
-        #               from the console computer)
+        #               from the stimulus computer that receives dicoms from the Siemens
+        #               console computer)
         #       [2] filename (for the dicom file we're watching for and want to load)
         #       [3] timeout (time spent waiting for a file before timing out)
         #   OUTPUT:
@@ -275,7 +278,8 @@ def main(argv=None):
     #   INPUT:
     #       [1] cfg (configuration file with important variables)
     #       [2] fileInterface (this will allow a script from the cloud to access files 
-    #               from the console computer)
+    #               from the stimulus computer that receives dicoms from the Siemens
+    #               console computer)
     #       [3] projectComm (communication pipe to talk with projectInterface)
     doRuns(cfg, fileInterface, projectComm)
     
