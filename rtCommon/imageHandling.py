@@ -1,6 +1,6 @@
 """-----------------------------------------------------------------------------
 
-readAndConvertDicomData.py (Last Updated: 05/26/2020)
+imageHandling.py (Last Updated: 05/27/2020)
 
 This script includes all of the functions that are needed (1) to transfer dicom
 files back and forth from the cloud and (2) to convert the dicom files to

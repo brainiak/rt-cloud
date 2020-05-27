@@ -20,9 +20,8 @@ from nibabel.nicom import dicomreaders
 import nibabel as nib
 import numpy as np
 ### PAULA - make sure that you import the function used that you moved to readDicom
-from rtCommon.readAndConvertDicomData import readDicomFromBuffer, \
-    readRetryDicomFromFileInterface, getLocalDicomData, getAxesForTransform, \
-    getTransform, saveAsNiftiImage
+from rtCommon.imageHandling import readDicomFromBuffer, readRetryDicomFromFileInterface, \
+    getLocalDicomData, getAxesForTransform, getTransform, saveAsNiftiImage
 from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict

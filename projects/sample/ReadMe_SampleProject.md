@@ -73,5 +73,5 @@ All of the functions we use within the real-time fMRI cloud framework live in th
     - The functions enable you to interact with files, from starting a lookout (or watch) for a specific type of file to displaying all of the allowed file types.
 - **`projectUtils` script**
     - The functions here allow you to interface between the cloud and the consol computer. For instance, if you want to download files from the cloud there's a function to help you do that here!
-- **`readAndConvertDicomData` script**
+- **`imageHandling` script**
     - The purpose of these functions is to help you (1) transfer dicom files back and forth from the cloud and (2) convert the dicom files to nifti files, which is a file format that is better for data analyses.

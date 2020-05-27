@@ -53,8 +53,7 @@ sys.path.append(rootPath)
 from rtCommon.utils import loadConfigFile
 from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
-from rtCommon.readAndConvertDicomData import readRetryDicomFromFileInterface, \
-    getDicomFileName
+from rtCommon.imageHandling import readRetryDicomFromFileInterface, getDicomFileName
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
