@@ -14,6 +14,7 @@ import logging
 import numpy as np  # type: ignore
 import nibabel as nib
 import rtCommon.projectUtils as projUtils
+from rtCommon.structDict import StructDict
 from rtCommon.errors import StateError
 from subprocess import call
 from nilearn.image import new_img_like
@@ -240,7 +241,7 @@ def getTransform(target_orientation,dicom_orientation):
         target_orientation_code)
     return transform
 
-def saveAsNiftiImage(dicomDataObject, expected_dicom_name, cfg):
+def saveAsNiftiImage(dicomDataObject, fullNiftiFilename, cfg, reference):
     """
     This function takes in a dicom data object written in bytess, what you expect
     the dicom file to be called (we will use the same name format for the nifti
@@ -249,16 +250,9 @@ def saveAsNiftiImage(dicomDataObject, expected_dicom_name, cfg):
 
     Used externally.
     """
-    nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
-    tempNiftiDir = os.path.join(cfg.dataDir, 'tmp/convertedNiftis/')
-    if not os.path.exists(tempNiftiDir):
-        command = 'mkdir -pv {0}'.format(tempNiftiDir)
-        call(command, shell=True)
-    fullNiftiFilename = os.path.join(tempNiftiDir, nameToSaveNifti)
     niftiObject = dicomreaders.mosaic_to_nii(dicomDataObject)
     temp_data = niftiObject.get_fdata()
     output_image_correct = nib.orientations.apply_orientation(temp_data, cfg.axesTransform)
-    # take the header (e.g., dimension and axis information) from a reference scan 
-    correct_object = new_img_like(cfg.ref_BOLD, output_image_correct, copy_header=True)
+    correct_object = new_img_like(reference, output_image_correct, copy_header=True)
     correct_object.to_filename(fullNiftiFilename)
     return fullNiftiFilename
