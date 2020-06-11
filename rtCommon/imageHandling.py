@@ -19,7 +19,6 @@ from rtCommon.errors import StateError
 from subprocess import call
 from nilearn.image import new_img_like
 from nibabel.nicom import dicomreaders
-from rtCommon.fileClient import FileInterface
 try:
     import pydicom as dicom  # type: ignore
 except ModuleNotFoundError:
@@ -43,17 +42,17 @@ def getDicomFileName(cfg, scanNum, fileNum):
     """
     if scanNum < 0:
         raise ValidationError("ScanNumber not supplied of invalid {}".format(scanNum))
-    
+
     # converting important info to strings
     scanNumStr = str(scanNum).zfill(2)
     fileNumStr = str(fileNum).zfill(3)
-    
+
     # the naming pattern is provided in the toml file
     if cfg.dicomNamePattern is None:
         raise InvocationError("Missing config settings dicomNamePattern")
     fileName = cfg.dicomNamePattern.format(scanNumStr, fileNumStr)
     fullFileName = os.path.join(cfg.dicomDir, fileName)
-    
+
     return fullFileName
 
 def anonymizeDicom(dicomImg):
@@ -99,7 +98,7 @@ def writeDicomToBuffer(dicomImg):
     """
     This function write dicom data to binary mode so that it can be transferred
     to the cloud, where it again becomes a dicom. This is needed because files are
-    transferred to the cloud in the following manner: 
+    transferred to the cloud in the following manner:
         dicom from scanner --> binary file  --> transfer to cloud --> dicom file
 
     Used internally.
@@ -112,9 +111,9 @@ def writeDicomToBuffer(dicomImg):
 
 def readDicomFromBuffer(data):
     """
-    This function reads data that is in binary mode and then converts it into a 
+    This function reads data that is in binary mode and then converts it into a
     structure that can be read as a dicom file. This is necessary because files are
-    transferred to the cloud in the following manner: 
+    transferred to the cloud in the following manner:
         dicom from scanner --> binary file  --> transfer to cloud --> dicom file
 
     Use internally.
@@ -125,9 +124,9 @@ def readDicomFromBuffer(data):
 
 def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
     """
-    This function is waiting and watching for a dicom file to be sent to the cloud 
+    This function is waiting and watching for a dicom file to be sent to the cloud
     from the scanner. It dodes this by calling the 'watchFile()' function in the
-    'fileInterface.py' 
+    'fileInterface.py'
 
     Used externally (and internally).
     """
@@ -150,7 +149,7 @@ def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
 def parseDicomVolume(dicomImg, sliceDim):
     """
     The raw dicom file coming from the scanner will be a 2-dimensional picture
-    made of up multiple image slices that are tiled together. This function 
+    made of up multiple image slices that are tiled together. This function
     separates the image slices to form a single volume.
 
     Used externally.
@@ -191,30 +190,14 @@ used externally or internally.
 
 ## ANNE - is this the correct order in which these functions would be used?
 
-def getLocalDicomData(cfg,fullpath):
-    """
-    This function is called by 'checkDicomNiftiConversion()' and it reads a 
-    dicom file that has already been collected (e.g., is not real-time). It
-    reads the dicom given the config file and the full path for the dicom.
-
-    NOTE: It returns the data in bytes (not in a dicom file format).
-
-    Used internally.
-    """
-    projComm = projUtils.initProjectComm(None,False)
-    fileInterface = FileInterface(filesremote=False,commPipes=projComm)
-    fileInterface.initWatch(cfg.dicomDir,cfg.dicomNamePattern,300000)
-    dicomData = readRetryDicomFromFileInterface(fileInterface,fullpath)
-    return dicomData
-
 def getAxesForTransform(startingDicomFile,cfg):
     """
-    This function takes a single dicom file (which can be the first file) and 
-    the config file to obtain the target_orientation (in nifti space) and the 
+    This function takes a single dicom file (which can be the first file) and
+    the config file to obtain the target_orientation (in nifti space) and the
     dicom_orientation (in the original space).
 
-    NOTE: You only need to run this function once to obtain the target and 
-    dicom orientations. You can save and load these variables so that 
+    NOTE: You only need to run this function once to obtain the target and
+    dicom orientations. You can save and load these variables so that
     'getTransform()' is hard coded.
 
     Used externally.
@@ -225,20 +208,19 @@ def getAxesForTransform(startingDicomFile,cfg):
     dicom_object = getLocalDicomData(cfg,startingDicomFile)
     dicom_object = dicomreaders.mosaic_to_nii(dicom_object)
     dicom_orientation = nib.aff2axcodes(dicom_object.affine)
-    return target_orientation,dicom_orientation 
+    return target_orientation,dicom_orientation
 
 def getTransform(target_orientation,dicom_orientation):
     """
-    This function calculates the right transformation needed to go from the original 
-    axis space (dicom_orientation) to the target axis space in nifti space 
+    This function calculates the right transformation needed to go from the original
+    axis space (dicom_orientation) to the target axis space in nifti space
     (target_orientation).
 
     Used externally.
     """
     target_orientation_code = nib.orientations.axcodes2ornt(target_orientation)
     dicom_orientation_code = nib.orientations.axcodes2ornt(dicom_orientation)
-    transform = nib.orientations.ornt_transform(dicom_orientation_code,...
-        target_orientation_code)
+    transform = nib.orientations.ornt_transform(dicom_orientation_code, target_orientation_code)
     return transform
 
 def saveAsNiftiImage(dicomDataObject, fullNiftiFilename, cfg, reference):

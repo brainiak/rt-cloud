@@ -1,6 +1,6 @@
 import pytest
 import os
-import rtCommon.readDicom as rd
+import rtCommon.imageHandling as rd
 from nibabel.nicom import dicomreaders
 from rtCommon.fileClient import FileInterface
 

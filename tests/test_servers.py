@@ -14,7 +14,7 @@ from rtCommon.projectInterface import Web, handleDataRequest, CommonOutputDir
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 from rtCommon.errors import RequestError
-from rtCommon.readDicom import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
+from rtCommon.imageHandling import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
 
 
 testDir = os.path.dirname(__file__)

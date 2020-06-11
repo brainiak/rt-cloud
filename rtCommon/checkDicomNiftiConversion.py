@@ -3,12 +3,12 @@
 checkDicomNiftiConversion.py (Last Updated: 05/26/2020)
 
 The purpose of this script is to check that the nifti file conversion done during
-real-time in the cloud matches the nifti conversion done during your offline 
-analyses, assuming you used heudiconv or you directly called 'dcm2nix()'. 
+real-time in the cloud matches the nifti conversion done during your offline
+analyses, assuming you used heudiconv or you directly called 'dcm2nix()'.
 This script addresses the warning you get when you import pydicom.
 
 To run this script, uncomment the lines in 'def main()' below. Complete the
-sections that need to be filled in, denoted by "[FILL IN]"'". Save this file 
+sections that need to be filled in, denoted by "[FILL IN]"'". Save this file
 and then run the script "python checkDicomNiftiConversion.py" in the terminal.
 
 -----------------------------------------------------------------------------"""
@@ -26,11 +26,29 @@ from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 
+
+def getLocalDicomData(cfg, fullpath):
+    """
+    This function is called by 'checkDicomNiftiConversion()' and it reads a
+    dicom file that has already been collected (e.g., is not real-time). It
+    reads the dicom given the config file and the full path for the dicom.
+
+    NOTE: It returns the data in bytes (not in a dicom file format).
+
+    Used internally.
+    """
+    projComm = projUtils.initProjectComm(None,False)
+    fileInterface = FileInterface(filesremote=False,commPipes=projComm)
+    fileInterface.initWatch(cfg.dicomDir,cfg.dicomNamePattern,300000)
+    dicomData = readRetryDicomFromFileInterface(fileInterface,fullpath)
+    return dicomData
+
+
 def checkingDicomNiftiConversion(cfg):
     """
-    Purpose: check the nibabel nifti/dicom conversion method BEFORE using it in 
+    Purpose: check the nibabel nifti/dicom conversion method BEFORE using it in
     real-time.
-    Here we're assuming you have raw dicoms and the corresponding converted nifti that you 
+    Here we're assuming you have raw dicoms and the corresponding converted nifti that you
     used in pilot data collection.
 
     STEPS:
@@ -86,9 +104,9 @@ def main():
     # cfg.dataDir = os.getcwd() # or change to any directory where you want the tmp/convertedNiftis to go
     # cfg.ref_BOLD = [FILL IN] # reference image saved as a nifti file after undergoing fMRIprep
     # cfg.dicomDir = [FILL IN] # directory where the dicoms get save (on the stimulus computer)
-    # cfg.dicomNamePattern = [FILL IN] # the naming pattern for the dicom files, 
-    # # which should include the specific series/scan number of the scanner '9-{}-1.dcm' 
-    # cfg.niftiFile =  [FILL IN] # the full path from the nifti file for that run (assuming you 
+    # cfg.dicomNamePattern = [FILL IN] # the naming pattern for the dicom files,
+    # # which should include the specific series/scan number of the scanner '9-{}-1.dcm'
+    # cfg.niftiFile =  [FILL IN] # the full path from the nifti file for that run (assuming you
     # # already did heudiconv)
     # PASSFAIL = checkingDicomNiftiConversion(cfg)
     # print('Checking Conversion Outcome:', PASSFAIL)

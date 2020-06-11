@@ -15,7 +15,7 @@ from pathlib import Path
 from base64 import b64encode, b64decode
 import rtCommon.utils as utils
 from rtCommon.structDict import StructDict
-from rtCommon.readDicom import readDicomFromBuffer
+from rtCommon.imageHandling import readDicomFromBuffer
 from rtCommon.errors import RequestError, StateError, ValidationError
 from requests.packages.urllib3.contrib import pyopenssl
 
