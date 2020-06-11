@@ -3,7 +3,7 @@
 initialize.py (Last Updated: 01/16/2020)
 
 The purpose of this script is to finalize the rt-cloud session. Specifically,
-here we want to dowload any important files from the cloud back to the console
+here we want to dowload any important files from the cloud back to the stimulus
 computer and maybe even delete files from the cloud that we don't want to 
 stay there (maybe for privacy purposes).
 
@@ -14,7 +14,7 @@ print(""
     "-----------------------------------------------------------------------------\n"
     "Hooray! You are almost done! The purpose of this script is to show you how\n"
     "you can use a finalization script to download important files from the cloud\n"
-    "to your console computer at the end of the experiment, as well as do anything\n"
+    "to your stimulus computer at the end of the experiment, as well as do anything\n"
     "else prior to completely finishing the experiment. Again, you'll find some\n"
     "comments prints on the html browser but please look at finalization.py\n"
     "if you want more details.\n"
@@ -50,27 +50,27 @@ def finalize(cfg, fileInterface, projectComm):
     This function is called my 'main()' below. Here, we will do a demo of the
     types of things that you can do in this 'finalize.py' script. For instance,
     you can move intermediate files and result files from the cloud directory
-    to the console computer. You can also delete intermediate files at the end of
+    to the stimulus computer. You can also delete intermediate files at the end of
     the session, which is necessary to protect the privacy of your participants.
 
     In this demo, things are in the cloud directory and we want to move them
-    to the local (non-cloud) console computer. Here, everything is on the same 
+    to the local (non-cloud) stimulus computer. Here, everything is on the same 
     computer but this doesn't have to be the case when you run your own experiment!
 
     INPUT:
         [1] cfg (configuration file with important variables)
         [2] fileInterface (this will allow a script from the cloud to access files 
-                   from the console computer)
+                   from the stimulus computer)
         [3] projectComm (communication pipe to talk with projectInterface)
     OUTPUT:
         None.
     """
 
-    # define directories where files are on the console ('tmp/console_directory/')
+    # define directories where files are on the stimulus ('tmp/stimulus_directory/')
     #   and where files are on the cloud ('tmp/cloud_directory')
-    consoleDir = os.path.join(currPath,'tmp/console_directory/')
+    stimulusDir = os.path.join(currPath,'tmp/stimulus_directory/')
     cloudDir = os.path.join(currPath,'tmp/cloud_directory/')
-    print("Location of console directory: \n%s\n" %consoleDir)
+    print("Location of stimulus directory: \n%s\n" %stimulusDir)
     print("Location of cloud directory: \n%s\n" %cloudDir)
 
     print(""
@@ -93,17 +93,17 @@ def finalize(cfg, fileInterface, projectComm):
         print('• %s'%checking_fileList[i])
 
     # let's say that you want to download all of the .txt and .mat intermediary
-    #   files from the cloud directory to the console computer ...to do this,
+    #   files from the cloud directory to the stimulus computer ...to do this,
     #   use 'downloadFolderFromCloud' from 'projectUtils'
     #   INPUT: 
     #       [1] fileInterface (this will allow a script from the cloud to access files 
-    #               from the console computer)
+    #               from the stimulus computer)
     #       [2] srcDir (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
     #       [4] deleteAfter (do you want to delete the files after copying?
     #               note that te default is False)
     srcDir = os.path.join(cloudDir,'tmp/')
-    outputDir = os.path.join(consoleDir,'tmp_files/')
+    outputDir = os.path.join(stimulusDir,'tmp_files/')
     projUtils.downloadFolderFromCloud(fileInterface, srcDir, outputDir, deleteAfter=True)
 
     print(""
@@ -149,7 +149,7 @@ def main(argv=None):
     #   INPUT:
     #       [1] cfg (configuration file with important variables)
     #       [2] fileInterface (this will allow a script from the cloud to access files 
-    #               from the console computer)
+    #               from the stimulus computer)
     #       [3] projectComm (communication pipe to talk with projectInterface)
     finalize(cfg, fileInterface, projectComm)
     return 0

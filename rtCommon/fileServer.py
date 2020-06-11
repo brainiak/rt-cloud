@@ -16,7 +16,7 @@ rootPath = os.path.dirname(currPath)
 sys.path.append(rootPath)
 from rtCommon.errors import StateError, RTError
 from rtCommon.fileWatcher import FileWatcher
-from rtCommon.readDicom import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
+from rtCommon.imageHandling import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
 from rtCommon.utils import DebugLevels, findNewestFile, installLoggers
 from rtCommon.projectUtils import login, certFile, checkSSLCertAltName, makeSSLCertFile
 from rtCommon.projectUtils import generateDataParts, unpackDataMessage
