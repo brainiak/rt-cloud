@@ -2,6 +2,7 @@ name: rtcloud
 channels:
   - defaults
   - conda-forge
+  - brainiak
 dependencies:
   - numpy
   - scipy
@@ -22,6 +23,8 @@ dependencies:
   - wsaccel
   - scikit-learn
   - nilearn
+  - brainiak
+  - dcm2niix
   - pip:
     - watchdog
     - inotify

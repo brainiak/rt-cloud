@@ -1,0 +1,27 @@
+# Config file for sample.py project
+title = 'Sample Project - Synthetic Data'
+isSynthetic = true
+numSynthetic = 200
+sessionId = "20200101T120000"
+subjectName = "001_synthetic"
+# subjectName = "0301181_sample"
+datestr = "20200101"
+imgDir = "/tmp/synthetic_dicom"
+subjectNum = 101
+subjectDay = 1
+sessionNum = 1
+runNum = [1]
+scanNum = [13]
+plotTitle = 'Realtime Plot'
+plotXLabel = 'Sample #'
+plotYLabel = 'Value'
+plotXRangeLow = 0
+plotXRangeHigh = 20
+plotYRangeLow = -1
+plotYRangeHigh = 1
+plotAutoRangeX = false
+plotAutoRangeY = true
+
+## important variables about the dicom files
+dicomNamePattern = "rt_{run:03d}.dcm"
+minExpectedDicomSize = 200000

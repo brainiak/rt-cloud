@@ -11,18 +11,19 @@ nifti files, which is a file format that is better for data analyses.
 import os
 import time
 import logging
+import subprocess
 import numpy as np  # type: ignore
 import nibabel as nib
-import rtCommon.projectUtils as projUtils
-from rtCommon.structDict import StructDict
-from rtCommon.errors import StateError
-from subprocess import call
+from rtCommon.errors import StateError, ValidationError, InvocationError
 from nilearn.image import new_img_like
 from nibabel.nicom import dicomreaders
 try:
     import pydicom as dicom  # type: ignore
 except ModuleNotFoundError:
     import dicom  # type: ignore
+
+# binary path of the conda environment
+binPath = None
 
 """-----------------------------------------------------------------------------
 
@@ -41,19 +42,22 @@ def getDicomFileName(cfg, scanNum, fileNum):
     Used externally.
     """
     if scanNum < 0:
-        raise ValidationError("ScanNumber not supplied of invalid {}".format(scanNum))
-
-    # converting important info to strings
-    scanNumStr = str(scanNum).zfill(2)
-    fileNumStr = str(fileNum).zfill(3)
+        raise ValidationError("ScanNumber not supplied or invalid {}".format(scanNum))
 
     # the naming pattern is provided in the toml file
     if cfg.dicomNamePattern is None:
         raise InvocationError("Missing config settings dicomNamePattern")
-    fileName = cfg.dicomNamePattern.format(scanNumStr, fileNumStr)
+
+    if '{run' in cfg.dicomNamePattern:
+        fileName = cfg.dicomNamePattern.format(scan=scanNum, run=fileNum)
+    else:
+        scanNumStr = str(scanNum).zfill(2)
+        fileNumStr = str(fileNum).zfill(3)
+        fileName = cfg.dicomNamePattern.format(scanNumStr, fileNumStr)
     fullFileName = os.path.join(cfg.dicomDir, fileName)
 
     return fullFileName
+
 
 def anonymizeDicom(dicomImg):
     """
@@ -63,27 +67,28 @@ def anonymizeDicom(dicomImg):
 
     Used externally.
     """
-    del dicomImg.PatientID
-    del dicomImg.PatientAge
-    del dicomImg.PatientBirthDate
-    del dicomImg.PatientName
-    del dicomImg.PatientSex
-    del dicomImg.PatientSize
-    del dicomImg.PatientWeight
-    del dicomImg.PatientPosition
-    del dicomImg.StudyDate
-    del dicomImg.StudyTime
-    del dicomImg.SeriesDate
-    del dicomImg.SeriesTime
-    del dicomImg.AcquisitionDate
-    del dicomImg.AcquisitionTime
-    del dicomImg.ContentDate
-    del dicomImg.ContentTime
-    del dicomImg.InstanceCreationDate
-    del dicomImg.InstanceCreationTime
-    del dicomImg.PerformedProcedureStepStartDate
-    del dicomImg.PerformedProcedureStepStartTime
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientID
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientAge
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientBirthDate
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientName
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientSex
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientSize
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientWeight
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientPosition
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.StudyDate
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.StudyTime
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.SeriesDate
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.SeriesTime
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.AcquisitionDate
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.AcquisitionTime
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.ContentDate
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.ContentTime
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.InstanceCreationDate
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.InstanceCreationTime
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PerformedProcedureStepStartDate
+    if hasattr(dicomImg, 'PatientID'): del dicomImg.PerformedProcedureStepStartTime
     return dicomImg
+
 
 def readDicomFromFile(filename):
     """
@@ -93,6 +98,17 @@ def readDicomFromFile(filename):
     """
     dicomImg = dicom.read_file(filename)
     return dicomImg
+
+
+def writeDicomFile(dicomImg, filename):
+    """
+    This function takes a dicomImg and the path/name of the file to write to.
+
+    Used internally.
+    """
+    dicomImg.save_as(filename)
+    return
+
 
 def writeDicomToBuffer(dicomImg):
     """
@@ -109,6 +125,7 @@ def writeDicomToBuffer(dicomImg):
     data = dataBytesIO.read()
     return data
 
+
 def readDicomFromBuffer(data):
     """
     This function reads data that is in binary mode and then converts it into a
@@ -121,6 +138,7 @@ def readDicomFromBuffer(data):
     dataBytesIO = dicom.filebase.DicomBytesIO(data)
     dicomImg = dicom.dcmread(dataBytesIO)
     return dicomImg
+
 
 def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
     """
@@ -145,6 +163,7 @@ def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
             logging.warning("LoadImage error, retry in 100 ms: {} ".format(err))
             time.sleep(0.1)
     return None
+
 
 def parseDicomVolume(dicomImg, sliceDim):
     """
@@ -190,7 +209,7 @@ used externally or internally.
 
 ## ANNE - is this the correct order in which these functions would be used?
 
-def getAxesForTransform(startingDicomFile,cfg):
+def getAxesForTransform(startingDicomFile, cfg):
     """
     This function takes a single dicom file (which can be the first file) and
     the config file to obtain the target_orientation (in nifti space) and the
@@ -205,12 +224,13 @@ def getAxesForTransform(startingDicomFile,cfg):
     #Load one example file
     nifti_object = nib.load(cfg.ref_BOLD)
     target_orientation = nib.aff2axcodes(nifti_object.affine)
-    dicom_object = getLocalDicomData(cfg,startingDicomFile)
+    dicom_object = readDicomFromFile(startingDicomFile)
     dicom_object = dicomreaders.mosaic_to_nii(dicom_object)
     dicom_orientation = nib.aff2axcodes(dicom_object.affine)
     return target_orientation,dicom_orientation
 
-def getTransform(target_orientation,dicom_orientation):
+
+def getTransform(target_orientation, dicom_orientation):
     """
     This function calculates the right transformation needed to go from the original
     axis space (dicom_orientation) to the target axis space in nifti space
@@ -222,6 +242,7 @@ def getTransform(target_orientation,dicom_orientation):
     dicom_orientation_code = nib.orientations.axcodes2ornt(dicom_orientation)
     transform = nib.orientations.ornt_transform(dicom_orientation_code, target_orientation_code)
     return transform
+
 
 def saveAsNiftiImage(dicomDataObject, fullNiftiFilename, cfg, reference):
     """
@@ -238,3 +259,36 @@ def saveAsNiftiImage(dicomDataObject, fullNiftiFilename, cfg, reference):
     correct_object = new_img_like(reference, output_image_correct, copy_header=True)
     correct_object.to_filename(fullNiftiFilename)
     return fullNiftiFilename
+
+
+def convertDicomFileToNifti(dicomFilename, niftiFilename):
+    global binPath
+    if binPath is None:
+        result = subprocess.run(['which', 'python'], stdout=subprocess.PIPE)
+        binPath = result.stdout.decode('utf-8')
+        binPath = os.path.dirname(binPath)
+    dcm2niiCmd = os.path.join(binPath, 'dcm2niix')
+    outPath, outName = os.path.split(niftiFilename)
+    if outName.endswith('.nii'):
+        outName = os.path.splitext(outName)[0]  # remove extention
+    cmd = '{bin} -s y -b n -o {outdir} -f {outname} {inname}'.format(
+        bin=dcm2niiCmd, outdir=outPath, outname=outName, inname=dicomFilename
+        )
+    os.system(cmd)
+
+
+def readNifti(niftiFilename):
+    nifitImg = nib.load(niftiFilename)
+    return nifitImg
+
+
+def convertDicomImgToNifti(dicomImg, dicomFilename='/tmp/convert.dcm'):
+    writeDicomFile(dicomImg, dicomFilename)
+    # swap .dcm extension with .nii extension
+    base, ext = os.path.splitext(dicomFilename)
+    assert ext == '.dcm'
+    niftiFilename = base + '.nii'
+    # concvert dicom file to nifti file
+    convertDicomFileToNifti(dicomFilename, niftiFilename)
+    niftiImg = readNifti(niftiFilename)
+    return niftiImg

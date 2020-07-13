@@ -25,6 +25,8 @@ do
       ;;
     --test) TEST='--test'
       ;;
+    --allow_synthetic_data) SYNTH='--synthetic-data'
+      ;;
   esac
   shift
 done
@@ -47,4 +49,4 @@ source ~/.bashrc
 conda deactivate
 conda activate rtcloud
 
-python rtCommon/fileServer.py $USER_PARAM $PASSWD_PARAM -s $SERVER -d $ALLOWDIRS -f $ALLOWFILES $TEST
+python rtCommon/fileServer.py $USER_PARAM $PASSWD_PARAM -s $SERVER -d $ALLOWDIRS -f $ALLOWFILES $TEST $SYNTH

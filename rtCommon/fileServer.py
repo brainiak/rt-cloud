@@ -9,6 +9,7 @@ import logging
 import threading
 import websocket
 from pathlib import Path
+import brainiak.utils.fmrisim_real_time_generator as datagen
 # import project modules
 # Add base project path (two directories up)
 currPath = os.path.dirname(os.path.realpath(__file__))
@@ -22,7 +23,7 @@ from rtCommon.projectUtils import login, certFile, checkSSLCertAltName, makeSSLC
 from rtCommon.projectUtils import generateDataParts, unpackDataMessage
 
 defaultAllowedDirs = ['/tmp', '/data']
-defaultAllowedTypes = ['.dcm', '.mat']
+defaultAllowedTypes = ['.dcm', '.mat', '.txt']
 
 
 class WsFileWatcher:
@@ -374,6 +375,8 @@ if __name__ == "__main__":
                         help="rtcloud website password")
     parser.add_argument('--test', default=False, action='store_true',
                         help='Use unsecure non-encrypted connection')
+    parser.add_argument('--synthetic-data', default=False, action='store_true',
+                        help='Generate synthetic data for the run')
     args = parser.parse_args()
 
     if not re.match(r'.*:\d+', args.server):
@@ -393,6 +396,12 @@ if __name__ == "__main__":
         # Addr not listed in sslCert, recreate ssl Cert
         makeSSLCertFile(addr)
 
+    # if generate synthetic data
+    if args.synthetic_data:
+        # check if the dicoms are already created
+        if not os.path.exists("/tmp/synthetic_dicom/rt_199.dcm"):
+            datagen.generate_data("/tmp/synthetic_dicom", {'save_dicom': True})
+    
     print("Server: {}, interval {}".format(args.server, args.interval))
     print("Allowed file types {}".format(args.allowedFileTypes))
     print("Allowed directories {}".format(args.allowedDirs))

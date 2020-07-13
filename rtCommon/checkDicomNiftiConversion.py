@@ -15,33 +15,10 @@ and then run the script "python checkDicomNiftiConversion.py" in the terminal.
 
 import os
 import glob
-from nilearn.image import new_img_like
-from nibabel.nicom import dicomreaders
 import nibabel as nib
 import numpy as np
-### PAULA - make sure that you import the function used that you moved to readDicom
-from rtCommon.imageHandling import readDicomFromBuffer, readRetryDicomFromFileInterface, \
-    getLocalDicomData, getAxesForTransform, getTransform, saveAsNiftiImage
-from rtCommon.fileClient import FileInterface
-import rtCommon.projectUtils as projUtils
-from rtCommon.structDict import StructDict
-
-
-def getLocalDicomData(cfg, fullpath):
-    """
-    This function is called by 'checkDicomNiftiConversion()' and it reads a
-    dicom file that has already been collected (e.g., is not real-time). It
-    reads the dicom given the config file and the full path for the dicom.
-
-    NOTE: It returns the data in bytes (not in a dicom file format).
-
-    Used internally.
-    """
-    projComm = projUtils.initProjectComm(None,False)
-    fileInterface = FileInterface(filesremote=False,commPipes=projComm)
-    fileInterface.initWatch(cfg.dicomDir,cfg.dicomNamePattern,300000)
-    dicomData = readRetryDicomFromFileInterface(fileInterface,fullpath)
-    return dicomData
+from rtCommon.imageHandling import saveAsNiftiImage, getAxesForTransform, \
+    getTransform, readDicomFromFile
 
 
 def checkingDicomNiftiConversion(cfg):
@@ -61,8 +38,8 @@ def checkingDicomNiftiConversion(cfg):
     complete_path = os.path.join(cfg.dicomDir,cfg.dicomNamePattern).format('*')
     all_dicoms = glob.glob(complete_path)
     sorted_dicom_list = sorted(all_dicoms, key=lambda x: int("".join([i for i in x if i.isdigit()])))
-    target_orientation,dicom_orientation = getAxesForTransform(sorted_dicom_list[0],cfg)
-    cfg.axesTransform = getTransform(target_orientation,dicom_orientation)
+    target_orientation, dicom_orientation = getAxesForTransform(sorted_dicom_list[0],cfg)
+    cfg.axesTransform = getTransform(target_orientation, dicom_orientation)
     nTRs_dicom = len(sorted_dicom_list)
     nifti_image = nib.load(cfg.niftiFile)
     nifti_data = nifti_image.get_fdata()
@@ -80,9 +57,9 @@ def checkingDicomNiftiConversion(cfg):
     full_nifti_name = [None]*nTR
     for trIndex in np.arange(nTR):
         print(trIndex)
-        dicomData = getLocalDicomData(cfg,sorted_dicom_list[trIndex])
+        dicomData = readDicomFromFile(sorted_dicom_list[trIndex])
         expected_dicom_name = sorted_dicom_list[trIndex].split('/')[-1]
-        full_nifti_name[trIndex] = saveAsNiftiImage(dicomData,expected_dicom_name,cfg)
+        full_nifti_name[trIndex] = saveAsNiftiImage(dicomData, expected_dicom_name, cfg, cfg.ref_BOLD)
     # now load in each nifti and create new matrix
     print('Step 3: Reading in the saved dicoms')
     dicom_data = np.zeros(image_shape)
@@ -98,8 +75,9 @@ def checkingDicomNiftiConversion(cfg):
         PASSED = 0
     return PASSED
 
-def main():
 
+def main():
+    pass
     # cfg = StructDict() # initialize empty dictionary
     # cfg.dataDir = os.getcwd() # or change to any directory where you want the tmp/convertedNiftis to go
     # cfg.ref_BOLD = [FILL IN] # reference image saved as a nifti file after undergoing fMRIprep
