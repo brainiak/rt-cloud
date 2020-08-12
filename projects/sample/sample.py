@@ -209,7 +209,7 @@ def doRuns(cfg, fileInterface, projectComm):
         # use 'sendResultToWeb' from 'projectUtils.py' to send the result to the
         #   web browser to be plotted in the --Data Plots-- tab.
         print("| send result to the web, plotted in the 'Data Plots' tab")
-        projUtils.sendResultToWeb(projectComm, runNum, float(this_TR), float(avg_niftiData))
+        projUtils.sendResultToWeb(projectComm, runNum, int(this_TR), float(avg_niftiData))
 
         # save the activations value info into a vector that can be saved later
         all_avg_activations[this_TR] = avg_niftiData
