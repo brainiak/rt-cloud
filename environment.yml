@@ -25,6 +25,7 @@ dependencies:
   - nilearn
   - brainiak
   - dcm2niix
+  - nodejs
   - pip:
     - watchdog
     - inotify

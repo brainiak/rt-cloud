@@ -27,9 +27,25 @@ class WsFeedbackReceiver:
     needLogin = True
     shouldExit = False
     validationError = None
+    recvThread = None
     msgQueue = Queue()
     # Synchronizing across threads
     clientLock = threading.Lock()
+
+    @staticmethod
+    def startReceiverThread(serverAddr, retryInterval=10,
+                            username=None, password=None,
+                            testMode=False):
+        WsFeedbackReceiver.recvThread = \
+            threading.Thread(name='recvThread',
+                             target=WsFeedbackReceiver.runReceiver,
+                             args=(serverAddr,),
+                             kwargs={'retryInterval': retryInterval,
+                                     'username': username,
+                                     'password': password,
+                                     'testMode': testMode})
+        WsFeedbackReceiver.recvThread.setDaemon(True)
+        WsFeedbackReceiver.recvThread.start()
 
     @staticmethod
     def runReceiver(serverAddr, retryInterval=10,
@@ -170,21 +186,11 @@ if __name__ == "__main__":
 
     print("Server: {}, interval {}".format(args.server, args.interval))
 
-    recvThread = threading.Thread(name='recvThread', target=WsFeedbackReceiver.runReceiver,
-                                  args=(args.server,),
-                                  kwargs={'retryInterval': args.interval,
-                                          'username': args.username,
-                                          'password': args.password,
-                                          'testMode': args.test})
-    recvThread.setDaemon(True)
-    recvThread.start()
-
-    # Above thread is equivalent to calling:
-    # WsFeedbackReceiver.runReceiver(args.server,
-    #                                retryInterval=args.interval,
-    #                                username=args.username,
-    #                                password=args.password,
-    #                                testMode=args.test)
+    WsFeedbackReceiver.startReceiverThread(args.server,
+                                           retryInterval=args.interval,
+                                           username=args.username,
+                                           password=args.password,
+                                           testMode=args.test)
 
     while True:
         feedbackMsg = WsFeedbackReceiver.msgQueue.get(block=True, timeout=None)
