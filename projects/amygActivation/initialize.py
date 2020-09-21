@@ -30,7 +30,8 @@ import rtCommon.utils as utils
 from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
-from rtCommon.dicomNiftiHandler import getTransform
+#from rtCommon.dicomNiftiHandler import getTransform
+from rtCommon.imageHandling import getTransform
 
 
 # obtain the full path for the configuration toml file
