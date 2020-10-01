@@ -1,6 +1,4 @@
-# Purpose: finalize experiment when you're done running for the day
-# Add whatever you want to do, but typically first we should make sure to 
-# move and delete all sever data
+# Purpose: initialize experiment to set up files and folders
 
 import os
 import glob
@@ -30,8 +28,7 @@ import rtCommon.utils as utils
 from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
-#from rtCommon.dicomNiftiHandler import getTransform
-from rtCommon.imageHandling import getTransform
+from rtCommon.dicomNiftiHandler import getTransform
 
 
 # obtain the full path for the configuration toml file
@@ -82,6 +79,7 @@ def initialize(cfg, args):
     cfg.subject_reg_dir = cfg.local.subject_reg_dir
     cfg.wf_dir = cfg.local.wf_dir
     cfg.n_masks = len(cfg.MASK)
+    cfg.maskDir = cfg.local.maskDir
 
     if args.filesremote: # here we will need to specify separate paths for processing
         cfg.server.codeDir = os.path.join(cfg.server.rtcloudDir, 'projects', cfg.projectName)
@@ -92,6 +90,7 @@ def initialize(cfg, args):
         cfg.server.maskDir = os.path.join(cfg.server.codeDir, 'ROI')
         cfg.subject_reg_dir = cfg.server.subject_reg_dir
         cfg.wf_dir = cfg.server.wf_dir
+        cfg.maskDir = cfg.server.maskDir
     cfg.ref_BOLD = os.path.join(cfg.wf_dir,'ref_image.nii.gz')
     cfg.MNI_ref_filename = os.path.join(cfg.wf_dir, cfg.MNI_ref_BOLD) 
     cfg.T1_to_BOLD = os.path.join(cfg.wf_dir, 'affine.txt')
@@ -100,8 +99,10 @@ def initialize(cfg, args):
     cfg.local_MASK_transformed = [''] * cfg.n_masks
     for m in np.arange(cfg.n_masks):
         mask_name = cfg.MASK[m].split('.')[0] + '_space-native.nii.gz'
-        cfg.MASK_transformed[m] = os.path.join(cfg.subject_reg_dir, mask_name)
-        cfg.local_MASK_transformed[m] = os.path.join(cfg.local.subject_reg_dir, mask_name)
+        # the path that we will be using in real-time - server or local
+        cfg.MASK_transformed[m] = os.path.join(cfg.maskDir, mask_name) 
+        # the local path so we know where to transfer from if need be
+        cfg.local_MASK_transformed[m] = os.path.join(cfg.local.maskDir, mask_name)
     # get conversion to flip dicom to nifti files
     cfg.axesTransform = getTransform(('L', 'A', 'S'),('P', 'L', 'S'))
     return cfg
@@ -173,7 +174,8 @@ def main(argv=None):
     # load the experiment configuration file
     cfg = utils.loadConfigFile(args.config)
     cfg = initialize(cfg, args)
-
+    if not os.path.exists(cfg.local.subject_full_day_path):
+        os.makedirs(cfg.local.subject_full_day_path)
     # build subject folders on server
     if args.filesremote:
         buildSubjectFoldersOnServer(cfg)
@@ -189,14 +191,15 @@ def main(argv=None):
         fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
 
         # next, transfer transformation files from local --> server for online processing
-        projUtils.uploadFolderToCloud(fileInterface,cfg.local.wf_dir,cfg.server.wf_dir)
+        #(don't need to do in this version)
+        #projUtils.uploadFolderToCloud(fileInterface,cfg.local.wf_dir,cfg.server.wf_dir)
 
         # upload ROI folder to cloud server - we would need to do this if we were using
         # a standard mask, but we're not in this case
         #projUtils.uploadFolderToCloud(fileInterface,cfg.local.maskDir,cfg.server.maskDir)
 
         # upload all transformed masks to the cloud
-        projUtils.uploadFilesFromList(fileInterface,cfg.local_MASK_transformed,cfg.subject_reg_dir)
+        projUtils.uploadFilesFromList(fileInterface,cfg.local_MASK_transformed,cfg.server.maskDir)
     return 0
 
 if __name__ == "__main__":

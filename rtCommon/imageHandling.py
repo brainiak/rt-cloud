@@ -58,6 +58,14 @@ def getDicomFileName(cfg, scanNum, fileNum):
 
     return fullFileName
 
+attributesToAnonymize = [
+        'PatientID', 'PatientAge', 'PatientBirthDate', 'PatientName',
+        'PatientSex', 'PatientSize', 'PatientWeight', 'PatientPosition',
+        'StudyDate', 'StudyTime', 'SeriesDate', 'SeriesTime',
+        'AcquisitionDate', 'AcquisitionTime', 'ContentDate', 'ContentTime',
+        'InstanceCreationDate', 'InstanceCreationTime',
+        'PerformedProcedureStepStartDate', 'PerformedProcedureStepStartTime'
+]
 
 def anonymizeDicom(dicomImg):
     """
@@ -67,28 +75,11 @@ def anonymizeDicom(dicomImg):
 
     Used externally.
     """
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientID
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientAge
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientBirthDate
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientName
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientSex
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientSize
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientWeight
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PatientPosition
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.StudyDate
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.StudyTime
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.SeriesDate
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.SeriesTime
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.AcquisitionDate
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.AcquisitionTime
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.ContentDate
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.ContentTime
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.InstanceCreationDate
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.InstanceCreationTime
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PerformedProcedureStepStartDate
-    if hasattr(dicomImg, 'PatientID'): del dicomImg.PerformedProcedureStepStartTime
-    return dicomImg
+    for toAnonymize in attributesToAnonymize:
+        if hasattr(dicomImg, toAnonymize):
+            delattr(dicomImg, toAnonymize)
 
+    return dicomImg
 
 def readDicomFromFile(filename):
     """

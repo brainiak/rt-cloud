@@ -27,13 +27,11 @@ currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 import rtCommon.utils as utils
-#from rtCommon.readDicom import readDicomFromBuffer, readRetryDicomFromFileInterface
-from rtCommon.imageHandling import readDicomFromBuffer, readRetryDicomFromFileInterface
+from rtCommon.readDicom import readDicomFromBuffer, readRetryDicomFromFileInterface
 from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
-#import rtCommon.dicomNiftiHandler as dnh
-import rtCommon.imageHandling as ihd
+import rtCommon.dicomNiftiHandler as dnh
 from initialize import initialize
 logLevel = logging.INFO
 
@@ -102,9 +100,9 @@ def convertToNifti(cfg, args, TRnum, scanNum, dicomData):
     nameToSaveNifti = expected_dicom_name.split('.')[0] + '.nii.gz'
     fullNiftiFilename = os.path.join(tempNiftiDir, nameToSaveNifti)
     if not os.path.isfile(fullNiftiFilename): # only convert if haven't done so yet (check if doesn't exist)
-        base_ROI_name = cfg.MASK[0].split('.')[0]
-        reference = '{0}/{1}_space-native.nii.gz'.format(cfg.subject_reg_dir, base_ROI_name)
-        fullNiftiFilename = ihd.saveAsNiftiImage(dicomData, fullNiftiFilename, cfg, reference)
+        base_ROI_name = cfg.MASK[cfg.useMask].split('.')[0]
+        reference = '{0}/{1}_space-native.nii.gz'.format(cfg.maskDir, base_ROI_name)
+        fullNiftiFilename = dnh.saveAsNiftiImage(dicomData, fullNiftiFilename, cfg, reference)
     else:
         print('SKIPPING CONVERSION FOR EXISTING NIFTI {}'.format(fullNiftiFilename))
     return fullNiftiFilename
@@ -411,8 +409,10 @@ def main():
             A = time.time()
             dicomData = readRetryDicomFromFileInterface(fileInterface, getDicomFileName(cfg, scanNum, TRFilenum), timeout=timeout_file)
             full_nifti_name = convertToNifti(cfg, args, TRFilenum, scanNum, dicomData)
+            print('**NEW NIFTI FILE THAT IS BEING READ**')
             print(full_nifti_name)
-            print(cfg.MASK_transformed[cfg.useMask])
+            PRINT('**COMMENT OUT (amygActivation.py - line 414) TO REMOVE THIS OUTPUT')
+            # print(cfg.MASK_transformed[cfg.useMask])
             maskedData = apply_mask(full_nifti_name, cfg.MASK_transformed[cfg.useMask])
             runData.all_data[:, TRindex] = maskedData
             B = time.time()
