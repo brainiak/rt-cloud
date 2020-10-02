@@ -40,3 +40,17 @@ def test_readDicom():
 
     fileInterface.fileWatcher.__del__()
     fileInterface.fileWatcher = None
+
+    # Test anonymization of sensitive patient fields
+    def countUnanonymizedSensitiveAttrs(dicomImg):
+        sensitiveAttrs = 0
+        for attr in rd.attributesToAnonymize:
+            if hasattr(dicomImg, attr) and getattr(dicomImg, attr) != "":
+                sensitiveAttrs += 1
+        return sensitiveAttrs
+
+    dicomImg5 = rd.readDicomFromFile(dicomFile)
+    assert countUnanonymizedSensitiveAttrs(dicomImg5) >= 1
+
+    rd.anonymizeDicom(dicomImg5)
+    assert countUnanonymizedSensitiveAttrs(dicomImg5) == 0
