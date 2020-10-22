@@ -45,6 +45,26 @@ class MissedMultipleDeadlines(RTError):
     """Server missed two or more deadlines"""
     pass
 
+
 class NotImplementedError(RTError):
     """Functionality is not implemented yet"""
+    pass
+
+
+class MissingMetadataError(RTError):
+    """Required BIDS metadata missing"""
+    pass
+
+
+class MetadataMismatchError(RTError):
+    """Mismatch in metadata (e.g., BIDS or NIfTI)"""
+    pass
+
+
+class DimensionError(RTError):
+    """Invalid image dimensions for requested operation"""
+    pass
+
+class QueryError(RTError):
+    """A query failed or returned unexpected results"""
     pass
