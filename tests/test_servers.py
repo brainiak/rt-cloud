@@ -15,6 +15,7 @@ import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 from rtCommon.errors import RequestError
 from rtCommon.imageHandling import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
+from rtCommon.webSocketHandlers import sendWebSocketMessage
 
 
 testDir = os.path.dirname(__file__)
@@ -89,9 +90,9 @@ class TestServers:
         print("test_ping")
         global pingCallbackEvent
         # Send a ping request from projectInterface to fileWatcher
-        assert Web.wsDataConn is not None
+        # assert Web.wsDataConn is not None
         cmd = {'cmd': 'ping'}
-        response = Web.sendDataMsgFromThread(cmd, timeout=2)
+        response = Web.wsDataRequest(cmd, timeout=2)
         if response['status'] != 200:
             print("Ping error: {}".format(response))
         assert response['status'] == 200
@@ -125,16 +126,16 @@ class TestServers:
     def test_getFile(self, dicomTestFilename):
         print("test_getFile")
         global fileData
-        assert Web.wsDataConn is not None
+        # assert Web.wsDataConn is not None
         # Try to initialize file watcher with non-allowed directory
         cmd = projUtils.initWatchReqStruct('/', '*', 0)
-        response = Web.sendDataMsgFromThread(cmd)
+        response = Web.wsDataRequest(cmd)
         # we expect an error because '/' directory not allowed
         assert response['status'] == 400
 
         # Initialize with allowed directory
         cmd = projUtils.initWatchReqStruct(testDir, '*.dcm', 0)
-        response = Web.sendDataMsgFromThread(cmd)
+        response = Web.wsDataRequest(cmd)
         assert response['status'] == 200
 
         dcmImg = readDicomFromFile(dicomTestFilename)
@@ -189,7 +190,7 @@ class TestServers:
             # Expecting a status not 200 error to be raised
             assert 'status' in str(err)
         else:
-            self.fail('Expecting RequestError')
+            pytest.fail('Expecting RequestError')
 
         # try from a non-allowed directory
         cmd = projUtils.getFileReqStruct('/nope/file.dcm')
@@ -199,13 +200,13 @@ class TestServers:
             # Expecting a status not 200 error to be raised
             assert 'status' in str(err)
         else:
-            self.fail('Expecting RequestError')
+            pytest.fail('Expecting RequestError')
 
         # Test putTextFile
         testText = 'hello2'
         textFileName = os.path.join(tmpDir, 'test2.txt')
         cmd = projUtils.putTextFileReqStruct(textFileName, testText)
-        response = Web.sendDataMsgFromThread(cmd)
+        response = Web.wsDataRequest(cmd)
         assert response['status'] == 200
 
         # Test putBinaryData function
@@ -213,11 +214,11 @@ class TestServers:
         dataFileName = os.path.join(tmpDir, 'test2.bin')
         cmd = projUtils.putBinaryFileReqStruct(dataFileName)
         for putFilePart in projUtils.generateDataParts(testData, cmd, compress=True):
-            response = Web.sendDataMsgFromThread(putFilePart)
+            response = Web.wsDataRequest(putFilePart)
         assert response['status'] == 200
         # read back an compare to original
         cmd = projUtils.getFileReqStruct(dataFileName)
-        response = Web.sendDataMsgFromThread(cmd)
+        response = Web.wsDataRequest(cmd)
         responseData = b64decode(response['data'])
         assert responseData == testData
 
@@ -240,7 +241,7 @@ class TestServers:
         startTime = time.time()
         cmd = projUtils.putBinaryFileReqStruct(bigTestfile)
         for putFilePart in projUtils.generateDataParts(data, cmd, compress=False):
-            response = Web.sendDataMsgFromThread(putFilePart)
+            response = Web.wsDataRequest(putFilePart)
             assert response['status'] == 200
         print('Write Bigfile sync time: {}'.format(time.time() - startTime))
 
@@ -249,10 +250,11 @@ class TestServers:
         cmd = projUtils.putBinaryFileReqStruct(bigTestfile)
         callIds = []
         for putFilePart in projUtils.generateDataParts(data, cmd, compress=False):
-            callId = Web.sendDataMsgFromThreadAsync(putFilePart)
+            call_id, conn = Web.dataRequestHandler.prepare_request(putFilePart)
+            Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsData', msg=json.dumps(putFilePart), conn=conn)
             callIds.append(callId)
         for callId in callIds:
-            response = Web.getDataMsgResponse(callId)
+            response = Web.dataRequestHandler.get_response(callId)
             assert response['status'] == 200
         print('Write Bigfile async time: {}'.format(time.time() - startTime))
 

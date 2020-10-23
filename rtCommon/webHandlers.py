@@ -1,5 +1,6 @@
 import os
 import time
+import threading
 import bcrypt
 import logging
 import tornado.web
@@ -12,6 +13,7 @@ class HttpHandler(tornado.web.RequestHandler):
     def initialize(self, webObject, page):
         self.web = webObject
         self.page = page
+        self.httpLock = threading.Lock()
 
     def get_current_user(self):
         return self.get_secure_cookie("login", max_age_days=maxDaysLoginCookieValid)
@@ -20,11 +22,11 @@ class HttpHandler(tornado.web.RequestHandler):
     def get(self):
         full_path = os.path.join(self.web.htmlDir, self.page)
         logging.log(DebugLevels.L6, f'{self.request.uri} request: pwd: {full_path}')
-        self.web.httpLock.acquire()
+        self.httpLock.acquire()
         try:
             self.render(full_path)
         finally:
-            self.web.httpLock.release()
+            self.httpLock.release()
 
 
 class LoginHandler(tornado.web.RequestHandler):

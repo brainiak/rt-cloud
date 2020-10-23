@@ -23,7 +23,8 @@ from rtCommon.certsUtils import getCertPath, getKeyPath
 from rtCommon.utils import DebugLevels, writeFile, loadConfigFile
 from rtCommon.errors import StateError, RequestError, RTError
 from rtCommon.webHandlers import HttpHandler, LoginHandler, LogoutHandler, certsDir
-
+from rtCommon.webSocketHandlers import BaseWebSocketHandler, DataWebSocketHandler, \
+    RequestHandler, sendWebSocketMessage, closeAllConnections
 
 sslCertFile = 'rtcloud.crt'
 sslPrivateKey = 'rtcloud_private.key'
@@ -42,15 +43,8 @@ class Web():
     app = None
     httpServer = None
     httpPort = 8888
-    # Arrays of WebSocket connections that have been established from client windows
-    wsBrowserMainConns = []  # type: ignore
-    wsBiofeedbackConns = []  # type: ignore
-    wsEventConns = []  # type: ignore
-    wsDataConn = None  # type: ignore  # Only one data connection
     # Callback functions to invoke when message received from client window connection
     browserMainCallback = None
-    browserBiofeedCallback = None
-    eventCallback = None
     # Main html page to load
     webDir = os.path.join(rootDir, 'web/')
     confDir = os.path.join(webDir, 'conf/')
@@ -58,13 +52,7 @@ class Web():
     webIndexPage = 'index.html'
     webLoginPage = 'login.html'
     webBiofeedPage = 'biofeedback.html'
-    dataCallbacks = {}
-    dataSequenceNum = 0
-    cbPruneTime = 0
     # Synchronizing across threads
-    callbackLock = threading.Lock()
-    wsConnLock = threading.Lock()
-    httpLock = threading.Lock()
     ioLoopInst = None
     filesremote = False
     fmriPyScript = None
@@ -75,6 +63,7 @@ class Web():
     testMode = False
     runInfo = StructDict({'threadId': None, 'stopRun': False})
     resultVals = [[{'x': 0, 'y': 0}]]
+    dataRequestHandler = RequestHandler('wsData')
 
     @staticmethod
     def start(params, cfg, testMode=False):
@@ -83,14 +72,8 @@ class Web():
         Web.testMode = testMode
         # Set default value before checking for param overrides
         Web.browserMainCallback = defaultBrowserMainCallback
-        Web.browserBiofeedCallback = defaultBrowserBiofeedCallback
-        Web.eventCallback = defaultEventCallback
         if params.browserMainCallback:
             Web.browserMainCallback = params.browserMainCallback
-        if params.browserBiofeedCallback:
-            Web.browserBiofeedCallback = params.browserBiofeedCallback
-        if params.eventCallback:
-            Web.eventCallback = params.eventCallback
         if params.htmlDir:
             Web.htmlDir = params.htmlDir
             Web.webDir = os.path.dirname(Web.htmlDir)
@@ -124,10 +107,10 @@ class Web():
             (r'/feedback', HttpHandler, dict(webObject=Web, page=Web.webBiofeedPage)),  # shows image
             (r'/login', LoginHandler, dict(webObject=Web)),
             (r'/logout', LogoutHandler, dict(webObject=Web)),
-            (r'/wsUser', Web.UserWebSocket),
-            (r'/wsSubject', Web.BiofeedbackWebSocket),
-            (r'/wsData', Web.DataWebSocket),
-            (r'/wsEvents', Web.EventWebSocket),  # gets signal to change image
+            (r'/wsUser', BaseWebSocketHandler, dict(name='wsUser', callback=Web.browserMainCallback)),
+            (r'/wsSubject', BaseWebSocketHandler, dict(name='wsBioFeedback', callback=params.browserBiofeedCallback)),
+            (r'/wsEvents', BaseWebSocketHandler, dict(name='wsEvent', callback=params.eventCallback)),  # gets signal to change image
+            (r'/wsData', DataWebSocketHandler, dict(name='wsData', callback=Web.dataRequestHandler.callback)),
             (r'/src/(.*)', tornado.web.StaticFileHandler, {'path': src_root}),
             (r'/css/(.*)', tornado.web.StaticFileHandler, {'path': css_root}),
             (r'/img/(.*)', tornado.web.StaticFileHandler, {'path': img_root}),
@@ -170,28 +153,13 @@ class Web():
     def close():
         # Currently this should never be called
         raise StateError("Web close() called")
-
-        Web.wsConnLock.acquire()
-        try:
-            if Web.wsDataConn is not None:
-                Web.wsDataConn.close()
-            Web.wsDataConn = None
-
-            for client in Web.wsBrowserMainConns[:]:
-                client.close()
-            Web.wsBrowserMainConns = []
-
-            for client in Web.wsBiofeedbackConns[:]:
-                client.close()
-            Web.wsBiofeedbackConns = []
-        finally:
-            Web.wsConnLock.release()
+        closeAllConnections()
 
     @staticmethod
     def dataLog(filename, logStr):
         cmd = {'cmd': 'dataLog', 'logLine': logStr, 'filename': filename}
         try:
-            response = Web.sendDataMsgFromThread(cmd, timeout=5)
+            response = Web.wsDataRequest(cmd, timeout=5)
             if response.get('status') != 200:
                 logging.warning('Web: dataLog: error {}'.format(response.get('error')))
                 return False
@@ -203,199 +171,44 @@ class Web():
     @staticmethod
     def userLog(logStr):
         cmd = {'cmd': 'userLog', 'value': logStr}
-        Web.sendUserMsgFromThread(json.dumps(cmd))
+        Web.wsUserSendMsg(json.dumps(cmd))
 
     @staticmethod
     def sessionLog(logStr):
         cmd = {'cmd': 'sessionLog', 'value': logStr}
-        Web.sendUserMsgFromThread(json.dumps(cmd))
+        Web.wsUserSendMsg(json.dumps(cmd))
 
     @staticmethod
     def setUserError(errStr):
         response = {'cmd': 'error', 'error': errStr}
-        Web.sendUserMsgFromThread(json.dumps(response))
+        Web.wsUserSendMsg(json.dumps(response))
 
     @staticmethod
     def sendUserConfig(config, filename=''):
         response = {'cmd': 'config', 'value': config, 'filename': filename}
-        Web.sendUserMsgFromThread(json.dumps(response))
+        Web.wsUserSendMsg(json.dumps(response))
 
     @staticmethod
     def sendUserDataVals(dataPoints):
         response = {'cmd': 'dataPoints', 'value': dataPoints}
-        Web.sendUserMsgFromThread(json.dumps(response))
+        Web.wsUserSendMsg(json.dumps(response))
 
     @staticmethod
-    def sendDataMsgFromThreadAsync(msg):
-        if Web.wsDataConn is None:
-            raise StateError("ProjectInterface: FileServer not connected. Please run the fileServer.")
-        callId = msg.get('callId')
-        if not callId:
-            callbackStruct = StructDict()
-            callbackStruct.dataConn = Web.wsDataConn
-            callbackStruct.numResponses = 0
-            callbackStruct.responses = []
-            callbackStruct.semaphore = threading.Semaphore(value=0)
-            callbackStruct.timeStamp = time.time()
-            callbackStruct.msg = msg.copy()
-            if 'data' in callbackStruct.msg:
-                del callbackStruct.msg['data']
-            Web.callbackLock.acquire()
-            try:
-                Web.dataSequenceNum += 1
-                callId = Web.dataSequenceNum
-                callbackStruct.callId = callId
-                msg['callId'] = callId
-                Web.dataCallbacks[callId] = callbackStruct
-            finally:
-                Web.callbackLock.release()
-            Web.ioLoopInst.add_callback(Web.sendDataMessage, msg)
-        return callId
-
-    @staticmethod
-    def getDataMsgResponse(callId, timeout=None):
-        Web.callbackLock.acquire()
-        try:
-            callbackStruct = Web.dataCallbacks.get(callId, None)
-            if callbackStruct is None:
-                raise StateError('sendDataMsgFromThread: no callbackStruct found for callId {}'.format(callId))
-        finally:
-            Web.callbackLock.release()
-        # wait for semaphore signal indicating a callback for this callId has occured
-        signaled = callbackStruct.semaphore.acquire(timeout=timeout)
-        if signaled is False:
-            raise TimeoutError("sendDataMessage: Data Request Timed Out({}) {}".
-                               format(timeout, callbackStruct.msg))
-        Web.callbackLock.acquire()
-        try:
-            # Remove from front of list not back to stay in order
-            # Can test removing from back of list to make sure out-of-order works too
-            response = callbackStruct.responses.pop(0)
-            if 'data' in response:
-                status = response.get('status', -1)
-                numParts = response.get('numParts', 1)
-                complete = (callbackStruct.numResponses == numParts and len(callbackStruct.responses) == 0)
-                if complete or status != 200:
-                    # End the multipart transfer
-                    response['incomplete'] = False
-                    Web.dataCallbacks.pop(callId, None)
-                else:
-                    response['incomplete'] = True
-        except IndexError:
-            raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.
-                             format(callbackStruct.msg))
-        finally:
-            Web.callbackLock.release()
-        response['callId'] = callbackStruct.callId
+    def wsDataRequest(msg, timeout=None):
+        call_id, conn = Web.dataRequestHandler.prepare_request(msg)
+        cmd = msg.get('cmd')
+        print(f'wsDataRequest, {cmd}, call_id {call_id}')
+        Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsData', msg=json.dumps(msg), conn=conn)
+        response = Web.dataRequestHandler.get_response(call_id, timeout=timeout)
         return response
 
     @staticmethod
-    def sendDataMsgFromThread(msg, timeout=None):
-        callId = Web.sendDataMsgFromThreadAsync(msg)
-        response = Web.getDataMsgResponse(callId, timeout=timeout)
-        return response
+    def wsUserSendMsg(msg):
+        Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsUser', msg=msg)
 
     @staticmethod
-    def sendDataMessage(cmd):
-        ''' This function is called within the ioloop thread by scheduling the call'''
-        Web.wsConnLock.acquire()
-        try:
-            msg = json.dumps(cmd)
-            Web.wsDataConn.write_message(msg)
-        except Exception as err:
-            errStr = 'sendDataMessage error: type {}: {}'.format(type(err), str(err))
-            raise RTError(errStr)
-        finally:
-            Web.wsConnLock.release()
-
-    @staticmethod
-    def dataCallback(client, message):
-        response = json.loads(message)
-        if 'cmd' not in response:
-            raise StateError('dataCallback: cmd field missing from response: {}'.format(response))
-        if 'status' not in response:
-            raise StateError('dataCallback: status field missing from response: {}'.format(response))
-        if 'callId' not in response:
-            raise StateError('dataCallback: callId field missing from response: {}'.format(response))
-        status = response.get('status', -1)
-        callId = response.get('callId', -1)
-        origCmd = response.get('cmd', 'NoCommand')
-        logging.log(DebugLevels.L6, "callback {}: {} {}".format(callId, origCmd, status))
-        # Thread Synchronized Section
-        Web.callbackLock.acquire()
-        try:
-            callbackStruct = Web.dataCallbacks.get(callId, None)
-            if callbackStruct is None:
-                logging.error('ProjectInterface: dataCallback callId {} not found, current callId {}'
-                              .format(callId, Web.dataSequenceNum))
-                return
-            if callbackStruct.callId != callId:
-                # This should never happen
-                raise StateError('callId mismtach {} {}'.format(callbackStruct.callId, callId))
-            callbackStruct.responses.append(response)
-            callbackStruct.numResponses += 1
-            callbackStruct.semaphore.release()
-        except Exception as err:
-            logging.error('ProjectInterface: dataCallback error: {}'.format(err))
-            raise err
-        finally:
-            Web.callbackLock.release()
-        if time.time() > Web.cbPruneTime:
-            Web.cbPruneTime = time.time() + 60
-            Web.pruneCallbacks()
-
-    @staticmethod
-    def pruneCallbacks():
-        numWaitingCallbacks = len(Web.dataCallbacks)
-        if numWaitingCallbacks == 0:
-            return
-        logging.info('Web pruneCallbacks: checking {} callbaks'.format(numWaitingCallbacks))
-        Web.callbackLock.acquire()
-        try:
-            maxSeconds = 300
-            now = time.time()
-            for callId in Web.dataCallbacks.keys():
-                # check how many seconds old each callback is
-                cb = Web.dataCallbacks[callId]
-                secondsElapsed = now - cb.timeStamp
-                if secondsElapsed > maxSeconds:
-                    # older than max threshold so remove
-                    cb.status = 400
-                    cb.error = 'Callback time exceeded max threshold {}s {}s'.format(maxSeconds, secondsElapsed)
-                    cb.responses.append({'cmd': 'unknown', 'status': cb.status, 'error': cb.error})
-                    for i in range(len(cb.responses)):
-                        cb.semaphore.release()
-                    del Web.dataCallbacks[callId]
-        except Exception as err:
-            logging.error('Web pruneCallbacks: error {}'.format(err))
-        finally:
-            Web.callbackLock.release()
-
-    @staticmethod
-    def sendUserMsgFromThread(msg):
-        Web.ioLoopInst.add_callback(Web.sendUserMessage, msg)
-
-    @staticmethod
-    def sendUserMessage(msg):
-        Web.wsConnLock.acquire()
-        try:
-            for client in Web.wsBrowserMainConns:
-                client.write_message(msg)
-        finally:
-            Web.wsConnLock.release()
-
-    @staticmethod
-    def sendBiofeedbackMsgFromThread(msg):
-        Web.ioLoopInst.add_callback(Web.sendBiofeedbackMessage, msg)
-
-    @staticmethod
-    def sendBiofeedbackMessage(msg):
-        Web.wsConnLock.acquire()
-        try:
-            for client in Web.wsBiofeedbackConns:
-                client.write_message(msg)
-        finally:
-            Web.wsConnLock.release()
+    def wsBioFeedbackSendMsg(msg):
+        Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsBioFeedback', msg=msg)
 
     @staticmethod
     def addResultValue(request):
@@ -424,163 +237,6 @@ class Web():
                 return
         runVals.append({'x': x, 'y': y})
 
-    class BiofeedbackWebSocket(tornado.websocket.WebSocketHandler):
-        # TODO - combine these in-common setups into helper functions
-        def open(self):
-            user_id = self.get_secure_cookie("login")
-            if not user_id:
-                response = {'cmd': 'error', 'error': 'Websocket authentication failed'}
-                self.write_message(json.dumps(response))
-                self.close()
-                return
-            logging.log(DebugLevels.L1, "Biofeedback WebSocket opened")
-            self.set_nodelay(True)
-            Web.wsConnLock.acquire()
-            try:
-                Web.wsBiofeedbackConns.append(self)
-            finally:
-                Web.wsConnLock.release()
-
-        def on_close(self):
-            logging.log(DebugLevels.L1, "Biofeedback WebSocket closed")
-            Web.wsConnLock.acquire()
-            try:
-                if self in Web.wsBiofeedbackConns:
-                    Web.wsBiofeedbackConns.remove(self)
-            finally:
-                Web.wsConnLock.release()
-
-        def on_message(self, message):
-            Web.browserBiofeedCallback(self, message)
-
-    class UserWebSocket(tornado.websocket.WebSocketHandler):
-        # def get(self, *args, **kwargs):
-        #     if self.get_secure_cookie("login"):
-        #         super(Web.BiofeedbackWebSocket, self).get(*args, **kwargs)
-        #     else:
-        #         What to do here when authentication fails?
-        #         return
-
-        def open(self):
-            user_id = self.get_secure_cookie("login")
-            if not user_id:
-                response = {'cmd': 'error', 'error': 'Websocket authentication failed'}
-                self.write_message(json.dumps(response))
-                self.close()
-                return
-            logging.log(DebugLevels.L1, "User WebSocket opened")
-            self.set_nodelay(True)
-            Web.wsConnLock.acquire()
-            try:
-                Web.wsBrowserMainConns.append(self)
-            finally:
-                Web.wsConnLock.release()
-
-        def on_close(self):
-            logging.log(DebugLevels.L1, "User WebSocket closed")
-            Web.wsConnLock.acquire()
-            try:
-                if self in Web.wsBrowserMainConns:
-                    Web.wsBrowserMainConns.remove(self)
-                else:
-                    logging.log(DebugLevels.L1, "on_close: connection not in list")
-            finally:
-                Web.wsConnLock.release()
-
-        def on_message(self, message):
-            Web.browserMainCallback(self, message)
-
-    class EventWebSocket(tornado.websocket.WebSocketHandler):
-        def open(self):
-            user_id = self.get_secure_cookie("login")
-            if not user_id:
-                response = {'cmd': 'error', 'error': 'Websocket authentication failed'}
-                self.write_message(json.dumps(response))
-                self.close()
-                return
-            logging.log(DebugLevels.L1, "Event WebSocket opened")
-            self.set_nodelay(True)
-            Web.wsConnLock.acquire()
-            try:
-                Web.wsEventConns.append(self)
-            finally:
-                Web.wsConnLock.release()
-
-        def on_close(self):
-            logging.log(DebugLevels.L1, "Event WebSocket closed")
-            Web.wsConnLock.acquire()
-            try:
-                if self in Web.wsEventConns:
-                    Web.wsEventConns.remove(self)
-            finally:
-                Web.wsConnLock.release()
-
-        def on_message(self, message):
-            Web.eventCallback(self, message)
-
-    class DataWebSocket(tornado.websocket.WebSocketHandler):
-        def open(self):
-            user_id = self.get_secure_cookie("login")
-            if not user_id:
-                logging.warning('Data websocket authentication failed')
-                response = {'cmd': 'error', 'status': 401, 'error': 'Websocket authentication failed'}
-                self.write_message(json.dumps(response))
-                self.close()
-                return
-            logging.log(DebugLevels.L1, "Data WebSocket opened")
-            self.set_nodelay(True)
-            Web.wsConnLock.acquire()
-            try:
-                # temporarily cache any previous connection
-                prevDataConn = Web.wsDataConn
-                # add new connection
-                Web.wsDataConn = self
-                # If there was a previous connection close it
-                if prevDataConn is not None:
-                    prevDataConn.close()
-            except Exception as err:
-                logging.error('ProjectInterface: Open Data Socket error: {}'.format(err))
-            finally:
-                Web.wsConnLock.release()
-            print('DataWebSocket: connected {}'.format(self.request.remote_ip))
-
-        def on_close(self):
-            if Web.wsDataConn == self:
-                Web.wsConnLock.acquire()
-                Web.wsDataConn = None
-                Web.wsConnLock.release()
-                logging.log(DebugLevels.L1, "Data WebSocket closed")
-            else:
-                logging.log(DebugLevels.L1, "on_close: Data WebSocket mismatch")
-            self.close_pending_requests()
-
-        def close_pending_requests(self):
-            Web.callbackLock.acquire()
-            try:
-                # signal the close to anyone waiting for replies
-                callIdsToRemove = []
-                for callId, cb in Web.dataCallbacks.items():
-                    if cb.dataConn == self:
-                        callIdsToRemove.append(callId)
-                        cb.status = 499
-                        cb.error = 'Client closed connection'
-                        # TODO - check this logic
-                        cb.responses.append({'cmd': 'unknown', 'status': cb.status, 'error': cb.error})
-                        for i in range(len(cb.responses)):
-                            cb.semaphore.release()
-                for callId in callIdsToRemove:
-                    Web.dataCallbacks.pop(callId, None)
-            finally:
-                Web.callbackLock.release()
-
-        def on_message(self, message):
-            try:
-                Web.dataCallback(self, message)
-            except Exception as err:
-                logging.error('DataWebSocket: on_message error: {}'.format(err))
-
-
-
 
 def getCookieSecret(dir):
     filename = os.path.join(dir, 'cookie-secret')
@@ -600,6 +256,7 @@ def getCookieSecret(dir):
 
 def defaultBrowserMainCallback(client, message):
     request = json.loads(message)
+    print(f'browserCallback: {request}')
     if 'config' in request:
         # Common code for any command that sends config information - retrieve the config info
         cfgData = request['config']
@@ -679,20 +336,6 @@ def defaultBrowserMainCallback(client, message):
         Web.setUserError("unknown command " + cmd)
 
 
-def defaultBrowserBiofeedCallback(client, message):
-    request = json.loads(message)
-    cmd = request['cmd']
-    logging.log(DebugLevels.L3, "WEB SUBJ CMD: %s", cmd)
-    print('Subject Callback: {}'.format(cmd))
-
-
-def defaultEventCallback(client, message):
-    request = json.loads(message)
-    cmd = request['cmd']
-    logging.log(DebugLevels.L3, "WEB EVENT CMD: %s", cmd)
-    print('Event Callback: {}'.format(cmd))
-
-
 def runSession(cfg, pyScript, filesremote, tag, logType='run'):
     # write out config file for use by pyScript
     if logType == 'run':
@@ -723,7 +366,7 @@ def runSession(cfg, pyScript, filesremote, tag, logType='run'):
                             stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
     # send running status to user web page
     response = {'cmd': 'runStatus', 'status': tag}
-    Web.sendUserMsgFromThread(json.dumps(response))
+    Web.wsUserSendMsg(json.dumps(response))
     # start a separate thread to read the process output
     lineQueue = queue.Queue()
     outputThread = threading.Thread(target=procOutputReader, args=(proc, lineQueue))
@@ -750,7 +393,7 @@ def runSession(cfg, pyScript, filesremote, tag, logType='run'):
     if Web.runInfo.stopRun is True:
         endStatus = 'stopped'
     response = {'cmd': 'runStatus', 'status': endStatus}
-    Web.sendUserMsgFromThread(json.dumps(response))
+    Web.wsUserSendMsg(json.dumps(response))
     outputThread.join(timeout=1)
     if outputThread.is_alive():
         print("OutputThread failed to exit")
@@ -815,7 +458,7 @@ def processPyScriptRequest(request):
     response = StructDict({'status': 200})
     if route == 'dataserver':
         try:
-            response = Web.sendDataMsgFromThread(request, timeout=localtimeout)
+            response = Web.wsDataRequest(request, timeout=localtimeout)
             if response is None:
                 raise StateError('handleFifoRequests: Response None from sendDataMessage')
             if 'status' not in response:
@@ -837,9 +480,9 @@ def processPyScriptRequest(request):
         elif cmd == 'resultValue':
             try:
                 # forward to bioFeedback Display
-                Web.sendBiofeedbackMsgFromThread(json.dumps(request))
+                Web.wsBioFeedbackSendMsg(json.dumps(request))
                 # forward to main browser window
-                Web.sendUserMsgFromThread(json.dumps(request))
+                Web.wsUserSendMsg(json.dumps(request))
                 # Accumulate results locally to resend to browser as needed
                 Web.addResultValue(request)
             except Exception as err:
@@ -883,7 +526,7 @@ def handleDataRequest(cmd):
     savedError = None
     incomplete = True
     while incomplete:
-        response = Web.sendDataMsgFromThread(cmd, timeout=60)
+        response = Web.wsDataRequest(cmd, timeout=60)
         if response.get('status') != 200:
             raise RequestError('handleDataRequest: status not 200: {}'.format(response.get('status')))
         try:
@@ -902,11 +545,6 @@ def handleDataRequest(cmd):
 def uploadFiles(request):
     if 'cmd' not in request or request['cmd'] != "uploadFiles":
         raise StateError('uploadFiles: incorrect cmd request: {}'.format(request))
-    if Web.wsDataConn is None:
-        # A remote fileWatcher hasn't connected yet
-        errStr = 'Waiting for fileWatcher to attach, please try again momentarily'
-        Web.setUserError(errStr)
-        return
     try:
         srcFile = request['srcFile']
         compress = request['compress']
@@ -915,7 +553,8 @@ def uploadFiles(request):
         return
     # get the list of file to upload
     cmd = listFilesReqStruct(srcFile)
-    response = Web.sendDataMsgFromThread(cmd, timeout=10)
+    # TODO - add a try catch for this request in case the fileWatcher isn't connected?
+    response = Web.wsDataRequest(cmd, timeout=10)
     if response.get('status') != 200:
         Web.setUserError("Error listing files {}: {}".
                          format(srcFile, response.get('error')))
@@ -927,7 +566,7 @@ def uploadFiles(request):
         return
     if len(fileList) == 0:
         response = {'cmd': 'uploadProgress', 'file': 'No Matching Files'}
-        Web.sendUserMsgFromThread(json.dumps(response))
+        Web.wsUserSendMsg(json.dumps(response))
         return
     for file in fileList:
         try:
@@ -953,6 +592,6 @@ def uploadFiles(request):
                 "Error uploading file {}: {}".format(file, str(err)))
             return
         response = {'cmd': 'uploadProgress', 'file': file}
-        Web.sendUserMsgFromThread(json.dumps(response))
+        Web.wsUserSendMsg(json.dumps(response))
     response = {'cmd': 'uploadProgress', 'file': '------upload complete------'}
-    Web.sendUserMsgFromThread(json.dumps(response))
+    Web.wsUserSendMsg(json.dumps(response))
