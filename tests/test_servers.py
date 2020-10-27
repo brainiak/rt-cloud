@@ -3,6 +3,7 @@ import os
 import threading
 import time
 import glob
+import json
 import shutil
 import logging
 from base64 import b64decode
@@ -252,7 +253,7 @@ class TestServers:
         for putFilePart in projUtils.generateDataParts(data, cmd, compress=False):
             call_id, conn = Web.dataRequestHandler.prepare_request(putFilePart)
             Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsData', msg=json.dumps(putFilePart), conn=conn)
-            callIds.append(callId)
+            callIds.append(call_id)
         for callId in callIds:
             response = Web.dataRequestHandler.get_response(callId)
             assert response['status'] == 200

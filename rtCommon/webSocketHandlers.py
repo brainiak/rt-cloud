@@ -38,7 +38,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
         websocketState.wsConnLock.acquire()
         try:
             wsConnections = websocketState.wsConnectionLists.get(self.name)
-            print(f'ws open {self.name}, list {wsConnections}')  # TODO remove this
+            # print(f'ws open {self.name}, list {wsConnections}')
             wsConnections.append(self)
         finally:
             websocketState.wsConnLock.release()
@@ -49,7 +49,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
         websocketState.wsConnLock.acquire()
         try:
             wsConnections = websocketState.wsConnectionLists.get(self.name)
-            print(f'ws close {self.name}, list {wsConnections}')  # TODO remove
+            # print(f'ws close {self.name}, list {wsConnections}')
             if self in wsConnections:
                 wsConnections.remove(self)
             else:
@@ -60,7 +60,6 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         client_conn = self
         callback_func = websocketState.wsCallbacks.get(self.name)
-        print(f'ws on_message {self.name}, callback {callback_func}')  # TODO remove
         try:
             callback_func(client_conn, message)
         except Exception as err:
@@ -69,7 +68,6 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
 
 class DataWebSocketHandler(BaseWebSocketHandler):
     def on_close(self):
-        print(f'## Data websocket closed')
         super().on_close()
         # get the corresponding RequestHandler object so we can clear any waiting threads
         callback_func = websocketState.wsCallbacks.get(self.name)
@@ -78,7 +76,6 @@ class DataWebSocketHandler(BaseWebSocketHandler):
 
 
 def sendWebSocketMessage(wsName, msg, conn=None):
-    # print(f'sendWsMessage: {wsName}, {msg}')
     websocketState.wsConnLock.acquire()
     try:
         connList = websocketState.wsConnectionLists.get(wsName)
@@ -178,11 +175,15 @@ class RequestHandler:
         callId = response.get('callId', -1)
         origCmd = response.get('cmd', 'NoCommand')
         logging.log(DebugLevels.L6, "callback {}: {} {}".format(callId, origCmd, status))
+        numParts = response.get('numParts')
+        partId = response.get('partId')
+        # print(f'callback {callId}: {origCmd} {status} numParts {numParts} partId {partId}')
         # Thread Synchronized Section
         self.callbackLock.acquire()
         try:
             callbackStruct = self.dataCallbacks.get(callId, None)
             if callbackStruct is None:
+                # print(f'ProjectInterface: dataCallback callId {callId} not found, current callId {self.dataSequenceNum}')
                 logging.error('ProjectInterface: dataCallback callId {} not found, current callId {}'
                                 .format(callId, self.dataSequenceNum))
                 return

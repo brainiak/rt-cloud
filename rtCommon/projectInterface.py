@@ -196,9 +196,11 @@ class Web():
     @staticmethod
     def wsDataRequest(msg, timeout=None):
         call_id, conn = Web.dataRequestHandler.prepare_request(msg)
+        isNewRequest = not msg.get('incomplete', False)
         cmd = msg.get('cmd')
-        print(f'wsDataRequest, {cmd}, call_id {call_id}')
-        Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsData', msg=json.dumps(msg), conn=conn)
+        print(f'wsDataRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
+        if isNewRequest is True:
+            Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsData', msg=json.dumps(msg), conn=conn)
         response = Web.dataRequestHandler.get_response(call_id, timeout=timeout)
         return response
 
@@ -535,8 +537,9 @@ def handleDataRequest(cmd):
             logging.error('handleDataRequest: unpackDataMessage: {}'.format(err))
             if savedError is None:
                 savedError = err
-        cmd['callId'] = response.get('callId', -1)
         incomplete = response.get('incomplete', False)
+        cmd['callId'] = response.get('callId', -1)
+        cmd['incomplete'] = incomplete
     if savedError:
         raise RequestError('handleDataRequest: unpackDataMessage: {}'.format(savedError))
     return data

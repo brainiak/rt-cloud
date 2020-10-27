@@ -299,6 +299,7 @@ def clientSendCmd(commPipes, cmd):
             cmd['callId'] = response.get('callId', -1)
         # Check if need to continue to get more parts
         incomplete = response.get('incomplete', False)
+        cmd['incomplete'] = incomplete
     if savedError:
         raise RequestError('clientSendCmd: {}'.format(savedError))
     retVals = StructDict()
