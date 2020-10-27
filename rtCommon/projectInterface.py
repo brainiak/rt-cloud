@@ -198,7 +198,7 @@ class Web():
         call_id, conn = Web.dataRequestHandler.prepare_request(msg)
         isNewRequest = not msg.get('incomplete', False)
         cmd = msg.get('cmd')
-        print(f'wsDataRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
+        logging.log(DebugLevels.L6, f'wsDataRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
         if isNewRequest is True:
             Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsData', msg=json.dumps(msg), conn=conn)
         response = Web.dataRequestHandler.get_response(call_id, timeout=timeout)
@@ -258,6 +258,7 @@ def getCookieSecret(dir):
 
 def defaultBrowserMainCallback(client, message):
     request = json.loads(message)
+    logging.log(DebugLevels.L3, f'browserCallback: {request}')
     print(f'browserCallback: {request}')
     if 'config' in request:
         # Common code for any command that sends config information - retrieve the config info

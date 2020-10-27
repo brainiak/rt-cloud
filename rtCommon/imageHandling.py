@@ -12,11 +12,14 @@ import os
 import time
 import logging
 import subprocess
+import warnings
 import numpy as np  # type: ignore
 import nibabel as nib
 from rtCommon.errors import StateError, ValidationError, InvocationError
 from nilearn.image import new_img_like
-from nibabel.nicom import dicomreaders
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    from nibabel.nicom import dicomreaders
 try:
     import pydicom as dicom  # type: ignore
 except ModuleNotFoundError:

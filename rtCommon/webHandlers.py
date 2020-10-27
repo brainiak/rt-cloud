@@ -63,7 +63,7 @@ class LoginHandler(tornado.web.RequestHandler):
                     # checkpw expects bytes array rather than string so use .encode()
                     if bcrypt.checkpw(login_passwd.encode(), hashed_passwd.encode()) is True:
                         # Remove failed attempts entry
-                        del self.web.LoginHandler.loginAttempts[login_name]
+                        del self.loginAttempts[login_name]
                         self.set_secure_cookie("login", login_name, expires_days=maxDaysLoginCookieValid)
                         self.redirect(self.get_query_argument('next', '/'))
                         return
@@ -75,7 +75,7 @@ class LoginHandler(tornado.web.RequestHandler):
                     errorReply = 'Login Error: Login Incorrect'
         except Exception as err:
             errorReply = 'Exception: {} {}'.format(type(err), err)
-        assert errorReply is not None, "Assert: Web.LoginHandler.error not empty"
+        assert errorReply is not None, "Assert: LoginHandler.error not empty"
         logging.warning('Login Failure: {}'.format(login_name))
         params = {
             "error_msg": errorReply,
@@ -92,8 +92,8 @@ class LoginHandler(tornado.web.RequestHandler):
             until next login attempt is allowed.
         '''
         now = time.time()
-        loginAttempts = self.web.LoginHandler.loginAttempts
-        retryTime = now + self.web.LoginHandler.loginRetryDelay
+        loginAttempts = self.loginAttempts
+        retryTime = now + self.loginRetryDelay
         loginTry = loginAttempts.get(user)
         if loginTry is not None:
             failedLogins = loginTry.get('failedLogins', 0)

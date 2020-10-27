@@ -487,7 +487,8 @@ def login(serverAddr, username, password, testMode=False):
     postResp = session.post(loginURL, postData)
     if postResp.status_code != 200:
         raise requests.HTTPError('Post URL: {}, returned {}'.format(loginURL, postResp.status_code))
-    return session.cookies['login']
+    login_cookie = session.cookies.get('login')
+    return login_cookie
 
 
 def checkSSLCertAltName(certFilename, altName):

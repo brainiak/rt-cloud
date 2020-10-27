@@ -79,15 +79,16 @@ def sendWebSocketMessage(wsName, msg, conn=None):
     websocketState.wsConnLock.acquire()
     try:
         connList = websocketState.wsConnectionLists.get(wsName)
-        if connList is None:
-            raise StateError(f'sendWebSocketMessage: {wsName} has no connections')
-        if conn is not None:
-            if conn not in connList:
-                raise StateError(f'sendWebSocketMessage: {wsName} no matching connection {conn}')
-            conn.write_message(msg)
+        if connList is not None:
+            if conn is None:
+                for client in connList:
+                    client.write_message(msg)
+            else:
+                if conn not in connList:
+                    raise StateError(f'sendWebSocketMessage: {wsName} no matching connection {conn}')
+                conn.write_message(msg)
         else:
-            for client in connList:
-                client.write_message(msg)
+            logging.log(DebugLevels.L6, f'sendWebSocketMessage: {wsName} has no connectionList')
     finally:
         websocketState.wsConnLock.release()
 
@@ -107,7 +108,7 @@ def defaultWebsocketCallback(client, message):
     request = json.loads(message)
     cmd = request['cmd']
     logging.log(DebugLevels.L3, f"WEBSOCKET {client.name} CMD: {cmd}")
-    print(f'{client.name} Callback: {cmd}')
+    # print(f'{client.name} Callback: {cmd}')
 
 
 ###################
@@ -231,6 +232,10 @@ class RequestHandler:
                     self.dataCallbacks.pop(callId, None)
                 else:
                     response['incomplete'] = True
+            else:
+                if len(callbackStruct.responses) != 0:
+                    print(f'callback num responses not zero {response}')
+                self.dataCallbacks.pop(callId, None)
         except IndexError:
             raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.
                                 format(callbackStruct.msg))
@@ -251,7 +256,7 @@ class RequestHandler:
                     cb.error = 'Client closed connection'
                     # TODO - check this logic
                     cb.responses.append({'cmd': 'unknown', 'status': cb.status, 'error': cb.error})
-                    for i in range(len(cb.responses)):
+                    for _ in range(len(cb.responses)):
                         cb.semaphore.release()
             for callId in callIdsToRemove:
                 self.dataCallbacks.pop(callId, None)
@@ -267,18 +272,21 @@ class RequestHandler:
         try:
             maxSeconds = 300
             now = time.time()
+            callIdsToRemove = []
             for callId in self.dataCallbacks.keys():
                 # check how many seconds old each callback is
                 cb = self.dataCallbacks[callId]
                 secondsElapsed = now - cb.timeStamp
                 if secondsElapsed > maxSeconds:
                     # older than max threshold so remove
+                    callIdsToRemove.append(callId)
                     cb.status = 400
                     cb.error = 'Callback time exceeded max threshold {}s {}s'.format(maxSeconds, secondsElapsed)
                     cb.responses.append({'cmd': 'unknown', 'status': cb.status, 'error': cb.error})
-                    for i in range(len(cb.responses)):
+                    for _ in range(len(cb.responses)):
                         cb.semaphore.release()
-                    del self.dataCallbacks[callId]
+            for callId in callIdsToRemove:
+                self.dataCallbacks.pop(callId, None)
         except Exception as err:
             logging.error(f'RequestHandler {self.name} pruneCallbacks: error {err}')
         finally:
