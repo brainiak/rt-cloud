@@ -8,6 +8,7 @@ DICOM, BIDS-Incremental (BIDS-I), and BIDS formats.
 -----------------------------------------------------------------------------"""
 
 import pydicom
+import re
 from rtCommon.errors import ValidationError
 
 
@@ -28,17 +29,22 @@ def getMetadata(dicomImg: pydicom.dataset.Dataset) -> (dict, dict):
     privateMeta = {}
 
     # BIDS recommends CamelCase for the key names, which can be obtained from
-    # DICOM key names by removing spaces, apostrophes, and parantheses
+    # DICOM key names by removing non-alphanumeric characters
     # NOTE: Keys like 'Frame of Reference UID' become 'FrameofReferenceUID',
     # which might be different than the expected behavior
-    removalMap = {ord(c): None for c in " \'()-"}
+    removalRegex = re.compile('[^a-zA-z]')
     ignoredTags = ['Pixel Data']
 
     for elem in dicomImg:
         if elem.name in ignoredTags:
             continue
 
-        toInsert = publicMeta if elem.tag.group % 2 == 0 else privateMeta
-        toInsert[elem.name.translate(removalMap)] = str(elem.value)
+        cleanedKey = removalRegex.sub("", elem.name)
+        # in DICOM, public tags have even group numbers and private tags are odd
+        # http://dicom.nema.org/dicom/2013/output/chtml/part05/chapter_7.html
+        if elem.tag.group % 2 == 0:
+            publicMeta[cleanedKey] = str(elem.value)
+        else:
+            privateMeta[cleanedKey] = str(elem.value)
 
     return (publicMeta, privateMeta)
