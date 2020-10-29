@@ -27,7 +27,6 @@ sys.path.append(rootPath)
 #sys.path.append('/jukebox/norman/amennen/github/brainiak/rt-cloud/')
 
 import rtCommon.utils as utils
-from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 #from rtCommon.dicomNiftiHandler import getTransform
@@ -157,9 +156,6 @@ def main(argv=None):
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment config file (.json or .toml)')
-    # This parameter is used for projectInterface
-    argParser.add_argument('--commpipe', '-q', default=None, type=str,
-                           help='Named pipe to communicate with projectInterface')
     argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
                            help='retrieve files from the remote server')
     argParser.add_argument('--addr', '-a', default='localhost', type=str, 
@@ -178,25 +174,18 @@ def main(argv=None):
     if args.filesremote:
         buildSubjectFoldersOnServer(cfg)
 
-        # open up the communication pipe using 'projectInterface'
-        projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
-
-        # initiate the 'fileInterface' class, which will allow you to read and write 
-        #   files and many other things using functions found in 'fileClient.py'
-        #   INPUT:
-        #       [1] args.filesremote (to retrieve dicom files from the remote server)
-        #       [2] projectComm (communication pipe that is set up above)
-        fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
+        # establish the RPC connection to the projectInterface
+        clientRPC = projUtils.ClientRPC()
 
         # next, transfer transformation files from local --> server for online processing
-        projUtils.uploadFolderToCloud(fileInterface,cfg.local.wf_dir,cfg.server.wf_dir)
+        projUtils.uploadFolderToCloud(clientRPC.fileInterface, cfg.local.wf_dir, cfg.server.wf_dir)
 
         # upload ROI folder to cloud server - we would need to do this if we were using
         # a standard mask, but we're not in this case
         #projUtils.uploadFolderToCloud(fileInterface,cfg.local.maskDir,cfg.server.maskDir)
 
         # upload all transformed masks to the cloud
-        projUtils.uploadFilesFromList(fileInterface,cfg.local_MASK_transformed,cfg.subject_reg_dir)
+        projUtils.uploadFilesFromList(clientRPC.fileInterface, cfg.local_MASK_transformed, cfg.subject_reg_dir)
     return 0
 
 if __name__ == "__main__":

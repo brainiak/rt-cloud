@@ -1,6 +1,6 @@
 import pytest
 import os
-from rtCommon.fileClient import FileInterface
+from rtCommon.fileInterface import FileInterface
 
 # Note these tests will test the local version of FileInterface (not remote)
 

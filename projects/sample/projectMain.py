@@ -7,9 +7,10 @@ import argparse
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
-from rtCommon.utils import loadConfigFile, installLoggers
+from rtCommon.mainServer import startMainServer
+from rtCommon.utils import installLoggers
 from rtCommon.structDict import StructDict
-from rtCommon.projectInterface import Web
+ 
 
 # HERE: Set the path to the fMRI Python script to run here
 scriptToRun = 'projects/sample/sample.py'
@@ -32,8 +33,8 @@ if __name__ == "__main__":
     params = StructDict({'fmriPyScript': scriptToRun,
                          'initScript': initScript,
                          'finalizeScript': finalizeScript,
-                         'filesremote': args.filesremote,
                          })
 
-    web = Web()
-    web.start(params, args.config, testMode=args.test)
+    # start the projectInterface server
+    # this will have both a web server and rpc servers to handle client requests
+    startMainServer(params, args)

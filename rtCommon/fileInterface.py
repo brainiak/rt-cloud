@@ -4,12 +4,11 @@ from rtCommon.fileWatcher import FileWatcher
 from rtCommon.utils import findNewestFile
 import rtCommon.projectUtils as projUtils
 from rtCommon.errors import StateError, RequestError
-
+from rtCommon.projectInterface import processPyScriptRequest
 
 class FileInterface:
-    def __init__(self, filesremote=False, commPipes=None):
+    def __init__(self, filesremote=False):
         self.local = not filesremote
-        self.commPipes = commPipes
         self.fileWatcher = None
         self.initWatchSet = False
         if self.local:
@@ -27,7 +26,7 @@ class FileInterface:
                 data = fp.read()
         else:
             getFileCmd = projUtils.getFileReqStruct(filename)
-            retVals = projUtils.clientSendCmd(self.commPipes, getFileCmd)
+            retVals = processPyScriptRequest(getFileCmd)
             data = retVals.data
         return data
 
@@ -49,7 +48,7 @@ class FileInterface:
                     data = fp.read()
         else:
             getNewestFileCmd = projUtils.getNewestFileReqStruct(filePattern)
-            retVals = projUtils.clientSendCmd(self.commPipes, getNewestFileCmd)
+            retVals = processPyScriptRequest(getNewestFileCmd)
             data = retVals.data
         return data
 
@@ -58,7 +57,7 @@ class FileInterface:
             self.fileWatcher.initFileNotifier(dir, filePattern, minFileSize, demoStep)
         else:
             initWatchCmd = projUtils.initWatchReqStruct(dir, filePattern, minFileSize, demoStep)
-            projUtils.clientSendCmd(self.commPipes, initWatchCmd)
+            _ = processPyScriptRequest(initWatchCmd)
         self.initWatchSet = True
         return
 
@@ -75,7 +74,7 @@ class FileInterface:
                     data = fp.read()
         else:
             watchCmd = projUtils.watchFileReqStruct(filename, timeout=timeout)
-            retVals = projUtils.clientSendCmd(self.commPipes, watchCmd)
+            retVals = processPyScriptRequest(watchCmd)
             data = retVals.data
         return data
 
@@ -88,7 +87,7 @@ class FileInterface:
                 textFile.write(text)
         else:
             putFileCmd = projUtils.putTextFileReqStruct(filename, text)
-            projUtils.clientSendCmd(self.commPipes, putFileCmd)
+            _ = processPyScriptRequest(putFileCmd)
         return
 
     def putBinaryFile(self, filename, data, compress=False):
@@ -104,14 +103,14 @@ class FileInterface:
                 putFileCmd = projUtils.putBinaryFileReqStruct(filename)
                 for putFilePart in projUtils.generateDataParts(data, putFileCmd, compress):
                     fileHash = putFilePart.get('fileHash')
-                    projUtils.clientSendCmd(self.commPipes, putFilePart)
+                    _ = processPyScriptRequest(putFilePart)
             except Exception as err:
                 # Send error notice to clear any partially cached data on the server side
                 # Add fileHash to message and send status=400 to notify
                 if fileHash:
                     putFileCmd['fileHash'] = fileHash
                     putFileCmd['status'] = 400
-                    projUtils.clientSendCmd(self.commPipes, putFileCmd)
+                    _ = processPyScriptRequest(putFileCmd)
                 raise err
         return
 
@@ -127,7 +126,7 @@ class FileInterface:
                 fileList.append(filename)
         else:
             listCmd = projUtils.listFilesReqStruct(filePattern)
-            retVals = projUtils.clientSendCmd(self.commPipes, listCmd)
+            retVals = processPyScriptRequest(listCmd)
             fileList = retVals.get('fileList')
             if type(fileList) is not list:
                 errStr = "Invalid fileList reponse type {}: expecting list".format(type(fileList))
@@ -139,7 +138,7 @@ class FileInterface:
             return ['*']
         else:
             cmd = projUtils.allowedFileTypesReqStruct()
-            retVals = projUtils.clientSendCmd(self.commPipes, cmd)
+            retVals = processPyScriptRequest(cmd)
             fileTypes = retVals.get('fileTypes')
             if type(fileTypes) is not list:
                 errStr = "Invalid fileTypes reponse type {}: expecting list".format(type(fileTypes))

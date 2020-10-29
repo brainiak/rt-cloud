@@ -29,7 +29,6 @@ sys.path.append(rootPath)
 import rtCommon.utils as utils
 #from rtCommon.readDicom import readDicomFromBuffer, readRetryDicomFromFileInterface
 from rtCommon.imageHandling import readDicomFromBuffer, readRetryDicomFromFileInterface
-from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 #import rtCommon.dicomNiftiHandler as dnh
@@ -337,9 +336,6 @@ def main():
                        help='Comma separated list of run numbers')
     argParser.add_argument('--scans', '-s', default='', type=str,
                        help='Comma separated list of scan number')
-    # creates pipe communication link to send/request responses through web pipe
-    argParser.add_argument('--commpipe', '-q', default=None, type=str,
-                       help='Named pipe to communicate with projectInterface')
     argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
                        help='dicom files retrieved from remote server')
     argParser.add_argument('--deleteTmpNifti', '-d', default='1', type=str,
@@ -360,9 +356,13 @@ def main():
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
     createTmpFolder(cfg,args)
-    # comm pipe
-    projComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
-    fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projComm)
+
+    # Initialize the RPC connection to the projectInterface
+    # This will give us a fileInterface for retrieving files and
+    # a subjectInterface for giving feedback
+    clientRPC = projUtils.ClientRPC()
+    fileInterface = clientRPC.fileInterface
+
     # intialize watching in particular directory
     fileInterface.initWatch(cfg.dicomDir, cfg.dicomNamePattern, cfg.minExpectedDicomSize) 
 
@@ -409,7 +409,9 @@ def main():
             else:
                 timeout_file = 5
             A = time.time()
-            dicomData = readRetryDicomFromFileInterface(fileInterface, getDicomFileName(cfg, scanNum, TRFilenum), timeout=timeout_file)
+            dicomFilename = getDicomFileName(cfg, scanNum, TRFilenum)
+            print(f'Get Dicom: {dicomFilename}')
+            dicomData = readRetryDicomFromFileInterface(fileInterface, dicomFilename, timeout=timeout_file)
             full_nifti_name = convertToNifti(cfg, args, TRFilenum, scanNum, dicomData)
             print(full_nifti_name)
             print(cfg.MASK_transformed[cfg.useMask])
@@ -431,9 +433,8 @@ def main():
                 full_file_name_to_save =  os.path.join(cfg.local.subject_full_day_path, runId, file_name_to_save)
                 # Send classification result back to the console computer
                 fileInterface.putTextFile(full_file_name_to_save, text_to_save)
-                if args.commpipe:    
-                    # JUST TO PLOT ON WEB SERVER
-                    projUtils.sendResultToWeb(projComm, run, int(TRFilenum), runData.percent_change[TRindex])
+                # JUST TO PLOT ON WEB SERVER
+                clientRPC.subjInterface.sendClassificationResult(run, int(TRFilenum), runData.percent_change[TRindex])
             TRheader = makeTRHeader(cfg, runIndex, TRFilenum, TRindex, runData.percent_change[TRindex])
             TRindex += 1
 

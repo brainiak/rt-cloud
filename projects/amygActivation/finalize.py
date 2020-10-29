@@ -25,7 +25,6 @@ sys.path.append(rootPath)
 #sys.path.append('/jukebox/norman/amennen/github/brainiak/rt-cloud/')
 
 import rtCommon.utils as utils
-from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 #from rtCommon.dicomNiftiHandler import getTransform
@@ -80,15 +79,8 @@ def main(argv=None):
 	# everything in temp/convertedNiftis
 	if args.filesremote:
 
-		# open up the communication pipe using 'projectInterface'
-		projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
-
-		# initiate the 'fileInterface' class, which will allow you to read and write 
-		#   files and many other things using functions found in 'fileClient.py'
-		#   INPUT:
-		#       [1] args.filesremote (to retrieve dicom files from the remote server)
-		#       [2] projectComm (communication pipe that is set up above)
-		fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
+		# establish the RPC connection to the projectInterface
+		clientRPC = projUtils.ClientRPC()
 
 		# we don't need the tmp/convertedNiftis so first remove those
 		tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
@@ -104,7 +96,7 @@ def main(argv=None):
 			runFolder = os.path.join(cfg.server.subject_full_day_path, runId, '*')
 			listOfFiles = glob.glob(runFolder)
 			runFolder_local = os.path.join(cfg.local.subject_full_day_path, runId)
-			projUtils.downloadFilesFromList(fileInterface, listOfFiles, runFolder_local)
+			projUtils.downloadFilesFromList(clientRPC.fileInterface, listOfFiles, runFolder_local)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('downloading data to local computer: ', runFolder)
 		# next delete the entire subject folder on the cloud

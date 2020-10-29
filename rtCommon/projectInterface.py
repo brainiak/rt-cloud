@@ -22,7 +22,7 @@ from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.certsUtils import getCertPath, getKeyPath
 from rtCommon.utils import DebugLevels, writeFile, loadConfigFile
 from rtCommon.errors import StateError, RequestError, RTError
-from rtCommon.webHandlers import HttpHandler, LoginHandler, LogoutHandler, certsDir
+from rtCommon.webHttpHandlers import HttpHandler, LoginHandler, LogoutHandler, certsDir
 from rtCommon.webSocketHandlers import BaseWebSocketHandler, DataWebSocketHandler, \
     RequestHandler, sendWebSocketMessage, closeAllConnections
 
@@ -54,7 +54,6 @@ class Web():
     webBiofeedPage = 'biofeedback.html'
     # Synchronizing across threads
     ioLoopInst = None
-    filesremote = False
     fmriPyScript = None
     initScript = None
     finalizeScript = None
@@ -82,7 +81,6 @@ class Web():
         Web.fmriPyScript = params.fmriPyScript
         Web.initScript = params.initScript
         Web.finalizeScript = params.finalizeScript
-        Web.filesremote = params.filesremote
         if type(cfg) is str:
             Web.configFilename = cfg
             cfg = loadConfigFile(Web.configFilename)
@@ -123,12 +121,6 @@ class Web():
             # RuntimeError thrown if no current event loop
             # Start the event loop
             asyncio.set_event_loop(asyncio.new_event_loop())
-
-        # start thread listening for remote file requests on a default named pipe
-        commPipes = makeFifo(pipename=defaultPipeName)
-        fifoThread = threading.Thread(name='defaultPipeThread', target=repeatPipeRequestHandler, args=(commPipes,))
-        fifoThread.setDaemon(True)
-        fifoThread.start()
 
         if Web.testMode is True:
             print("Listening on: http://localhost:{}".format(Web.httpPort))
@@ -313,8 +305,7 @@ def defaultBrowserMainCallback(client, message):
             Web.setUserError("{} script not set".format(cmd))
             return
         Web.runInfo.threadId = threading.Thread(name='sessionThread', target=runSession,
-                                                args=(Web.cfg, sessionScript,
-                                                      Web.filesremote, tag, logType))
+                                                args=(Web.cfg, sessionScript, tag, logType))
         Web.runInfo.threadId.setDaemon(True)
         Web.runInfo.threadId.start()
     elif cmd == "stop":
@@ -339,7 +330,7 @@ def defaultBrowserMainCallback(client, message):
         Web.setUserError("unknown command " + cmd)
 
 
-def runSession(cfg, pyScript, filesremote, tag, logType='run'):
+def runSession(cfg, pyScript, tag, logType='run'):
     # write out config file for use by pyScript
     if logType == 'run':
         configFileName = os.path.join(Web.confDir, 'cfg_sub{}_day{}_run{}.toml'.
@@ -352,17 +343,6 @@ def runSession(cfg, pyScript, filesremote, tag, logType='run'):
 
     # specify -u python option to disable buffering print commands
     cmdStr = 'python -u {} -c {}'.format(pyScript, configFileName)
-    # set option for remote file requests
-    if filesremote is True:
-        cmdStr += ' -x'
-    # Create a project commPipe even if using local files so we can send
-    #  classification results to the subject feedback window
-    commPipes = makeFifo()
-    cmdStr += ' --commpipe {}'.format(commPipes.fifoname)
-    # start thread listening for remote file requests on fifo queue
-    fifoThread = threading.Thread(name='fifoThread', target=commPipeRequestHandler, args=(commPipes,))
-    fifoThread.setDaemon(True)
-    fifoThread.start()
     # print(cmdStr)
     cmd = shlex.split(cmdStr)
     proc = subprocess.Popen(cmd, cwd=rootDir, stdout=subprocess.PIPE,
@@ -400,9 +380,6 @@ def runSession(cfg, pyScript, filesremote, tag, logType='run'):
     outputThread.join(timeout=1)
     if outputThread.is_alive():
         print("OutputThread failed to exit")
-    # make sure fifo thread has exited
-    if fifoThread is not None:
-        signalFifoExit(fifoThread, commPipes)
     return
 
 
@@ -418,65 +395,47 @@ def procOutputReader(proc, lineQueue):
             break
 
 
-def repeatPipeRequestHandler(commPipes):
-    while True:
-        commPipeRequestHandler(commPipes)
-
-
-def commPipeRequestHandler(commPipes):
-    '''A thread routine that listens for requests from a process through a pair of named pipes.
-    This allows another process to send project requests without directly integrating
-    the projectInterface into the process.
-    Listens on an fd_in pipe for requests and writes the results back on the fd_out pipe.
-    '''
-    commPipes.fd_out = open(commPipes.name_out, mode='w', buffering=1)
-    commPipes.fd_in = open(commPipes.name_in, mode='r')
-    try:
-        while True:
-            msg = commPipes.fd_in.readline()
-            if len(msg) == 0:
-                # fifo closed
-                break
-            # parse command
-            cmd = json.loads(msg)
-            response = processPyScriptRequest(cmd)
-            try:
-                commPipes.fd_out.write(json.dumps(response) + os.linesep)
-            except BrokenPipeError:
-                print('handleFifoRequests: pipe broken')
-                break
-        # End while loop
-    finally:
-        logging.info('handleFifo thread exit')
-        commPipes.fd_in.close()
-        commPipes.fd_out.close()
-
-
 def processPyScriptRequest(request):
     if 'cmd' not in request:
-        raise StateError('handleFifoRequests: cmd field not in request: {}'.format(request))
+        raise StateError('processPyScriptRequest: cmd field not in request: {}'.format(request))
     cmd = request['cmd']
     route = request.get('route')
     localtimeout = request.get('timeout', 10) + 5
     response = StructDict({'status': 200})
+    data = None
     if route == 'dataserver':
-        try:
-            response = Web.wsDataRequest(request, timeout=localtimeout)
-            if response is None:
-                raise StateError('handleFifoRequests: Response None from sendDataMessage')
-            if 'status' not in response:
-                raise StateError('handleFifoRequests: status field missing from response: {}'.format(response))
-            if response['status'] not in (200, 408):
-                if 'error' not in response:
-                    raise StateError('handleFifoRequests: error field missing from response: {}'.format(response))
-                Web.setUserError(response['error'])
-                logging.error('handleFifo status {}: {}'.format(response['status'], response['error']))
-        except Exception as err:
-            errStr = 'SendDataMessage Exception type {}: error {}:'.format(type(err), str(err))
-            response = {'status': 400, 'error': errStr}
-            Web.setUserError(errStr)
-            logging.error('handleFifo Excpetion: {}'.format(errStr))
-            raise err
+        savedError = None
+        incomplete = True
+        while incomplete:
+            try:
+                response = Web.wsDataRequest(request, timeout=localtimeout)
+                if response is None:
+                    raise StateError('processPyScriptRequest: Response None from sendDataMessage')
+                if 'status' not in response:
+                    raise StateError('processPyScriptRequest: status field missing from response: {}'.format(response))
+                if response['status'] not in (200, 408):
+                    if 'error' not in response:
+                        raise StateError('processPyScriptRequest: error field missing from response: {}'.format(response))
+                    Web.setUserError(response['error'])
+                    logging.error('processPyScriptRequest status {}: {}'.format(response['status'], response['error']))
+            except Exception as err:
+                errStr = 'SendDataMessage Exception type {}: error {}:'.format(type(err), str(err))
+                response = {'status': 400, 'error': errStr}
+                Web.setUserError(errStr)
+                logging.error('processPyScriptRequest Excpetion: {}'.format(errStr))
+                raise err
+            if 'data' in response:
+                try:
+                    data = unpackDataMessage(response)
+                except Exception as err:
+                    # The call may be incomplete, save the error and keep receiving as needed
+                    logging.error('processPyScriptRequest: {}'.format(err))
+                    if savedError is None:
+                        savedError = err
+                request['callId'] = response.get('callId', -1)
+            # Check if need to continue to get more parts
+            incomplete = response.get('incomplete', False)
+            request['incomplete'] = incomplete
     else:
         if cmd == 'webCommonDir':
             response.filename = CommonOutputDir
@@ -496,33 +455,20 @@ def processPyScriptRequest(request):
                 raise err
         elif cmd == 'subjectDisplay':
             logging.info('subjectDisplay projectInterface Callback')
-    return response
+    retVals = StructDict()
+    retVals.statusCode = response.get('status', -1)
+    if 'filename' in response:
+        retVals.filename = response['filename']
+    if 'fileList' in response:
+        retVals.fileList = response['fileList']
+    if 'fileTypes' in response:
+        retVals.fileTypes = response['fileTypes']
+    if data:
+        retVals.data = data
+        if retVals.filename is None:
+            raise StateError('clientSendCmd: filename field is None')
+    return retVals
 
-
-def signalFifoExit(fifoThread, commPipes):
-    '''Under normal exit conditions the fifothread will exit when the fifo filehandles
-    are closed. However if the fifo filehandles were never opened by both ends then
-    the fifothread can be blocked waiting for them to open. To handle that case
-    we open both filehandles with O_NONBLOCK flag so that if the fifo thread reader
-    is listening it will be opened and closed, if not it will throw OSError exception
-    in which case the fifothread has already exited and closed the fifo filehandles.
-    '''
-    if fifoThread is None:
-        return
-    try:
-        pipeout = os.open(commPipes.name_out, os.O_RDONLY | os.O_NONBLOCK)
-        os.close(pipeout)
-        # trigger context swap to allow handleFifoRequests to open next pipe if needed
-        time.sleep(0.1)
-        pipein = os.open(commPipes.name_in, os.O_WRONLY | os.O_NONBLOCK)
-        os.close(pipein)
-    except OSError as err:
-        # No reader/writer listening on file so fifoThread already exited
-        # print('signalFifoExit: exception {}'.format(err))
-        pass
-    fifoThread.join(timeout=1)
-    if fifoThread.is_alive() is not False:
-        raise StateError('runSession: fifoThread not completed')
 
 
 def handleDataRequest(cmd):

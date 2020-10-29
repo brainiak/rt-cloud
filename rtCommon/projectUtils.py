@@ -11,6 +11,7 @@ import logging
 import getpass
 import requests
 import threading
+import rpyc
 from pathlib import Path
 from base64 import b64encode, b64decode
 import rtCommon.utils as utils
@@ -25,6 +26,14 @@ defaultPipeName = 'rt_pipe_default'
 # Cache of multi-part data transfers in progress
 multiPartDataCache = {}
 dataPartSize = 10 * (2**20)
+
+
+class ClientRPC:
+    def __init__(self):
+        rpcConn = rpyc.connect('localhost', 12345, 
+                               config={"allow_public_attrs": True,})
+        self.fileInterface = rpcConn.root.FileInterface
+        self.subjInterface = rpcConn.root.SubjectInterface
 
 
 def openNamedPipe(pipeName):

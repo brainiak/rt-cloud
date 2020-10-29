@@ -8,7 +8,7 @@ import shutil
 import logging
 from base64 import b64decode
 import projects.sample.sample as sample
-from rtCommon.fileClient import FileInterface
+from rtCommon.fileInterface import FileInterface
 import rtCommon.utils as utils
 from rtCommon.fileServer import WsFileWatcher
 from rtCommon.projectInterface import Web, handleDataRequest, CommonOutputDir
@@ -17,6 +17,7 @@ from rtCommon.structDict import StructDict
 from rtCommon.errors import RequestError
 from rtCommon.imageHandling import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
 from rtCommon.webSocketHandlers import sendWebSocketMessage
+from rtCommon.mainServer import startMainServer
 
 
 testDir = os.path.dirname(__file__)
@@ -42,7 +43,7 @@ def bigTestfile():  # type: ignore
 
 
 class TestServers:
-    webThread = None
+    mainThread = None
     fileThread = None
     pingCount = 0
 
@@ -58,9 +59,11 @@ class TestServers:
                           'subjectNum': 1,
                           'subjectDay': 1,
                           'sessionNum': 1})
-        cls.webThread = threading.Thread(name='webThread', target=Web.start, args=(params, cfg, True))
-        cls.webThread.setDaemon(True)
-        cls.webThread.start()
+        args = StructDict({'config': cfg, 'filesremote': True, 'test': True})
+        # startMainServer(params, args)
+        cls.mainThread = threading.Thread(name='mainThread', target=startMainServer, args=(params, args))
+        cls.mainThread.setDaemon(True)
+        cls.mainThread.start()
         time.sleep(.1)
 
         # Start a fileWatcher thread running
@@ -266,13 +269,12 @@ class TestServers:
         assert writtenData == data
 
     def test_runFromCommandLine(self):
-        argv = ['--filesremote']
+        argv = []
         ret = sample.main(argv)
         assert ret == 0
 
     def test_fileInterface(self, bigTestfile):
-        projectComm = projUtils.initProjectComm(None, True)
-        fileInterface = FileInterface(filesremote=True, commPipes=projectComm)
+        fileInterface = FileInterface(filesremote=True)
 
         # Read in original data
         with open(bigTestfile, 'rb') as fp:

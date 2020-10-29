@@ -16,7 +16,7 @@ Finally, this script is called from 'projectMain.py', which is called from
 
 -----------------------------------------------------------------------------"""
 
-verbose = True
+verbose = False
 
 if verbose:
     # print a short introduction on the internet window
@@ -60,7 +60,6 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 # import project modules from rt-cloud
 from rtCommon.utils import loadConfigFile
-from rtCommon.fileClient import FileInterface
 import rtCommon.projectUtils as projUtils
 from rtCommon.imageHandling import readRetryDicomFromFileInterface, getDicomFileName, convertDicomImgToNifti
 
@@ -68,7 +67,7 @@ from rtCommon.imageHandling import readRetryDicomFromFileInterface, getDicomFile
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
-def doRuns(cfg, fileInterface, projectComm):
+def doRuns(cfg, fileInterface, subjInterface):
     """
     This function is called by 'main()' below. Here, we use the 'fileInterface'
     to read in dicoms (presumably from the scanner, but here it's from a folder
@@ -145,7 +144,7 @@ def doRuns(cfg, fileInterface, projectComm):
     # here, we are clearing an already existing plot
     if verbose:
         print("• clear any pre-existing plot using 'sendResultToWeb'")
-    projUtils.sendResultToWeb(projectComm, runNum, None, None)
+    subjInterface.sendClassificationResult(runNum, None, None)
 
     if verbose:
         print(""
@@ -229,7 +228,7 @@ def doRuns(cfg, fileInterface, projectComm):
         #   web browser to be plotted in the --Data Plots-- tab.
         if verbose:
             print("| send result to the web, plotted in the 'Data Plots' tab")
-        projUtils.sendResultToWeb(projectComm, runNum, int(this_TR), float(avg_niftiData))
+        subjInterface.sendClassificationResult(runNum, int(this_TR), float(avg_niftiData))
 
         # save the activations value info into a vector that can be saved later
         all_avg_activations[this_TR] = avg_niftiData
@@ -279,11 +278,7 @@ def main(argv=None):
                            help='Comma separated list of run numbers')
     argParser.add_argument('--scans', '-s', default='', type=str,
                            help='Comma separated list of scan number')
-    # This parameter is used for projectInterface
-    argParser.add_argument('--commpipe', '-q', default=None, type=str,
-                           help='Named pipe to communicate with projectInterface')
-    argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
-                           help='retrieve dicom files from the remote server')
+
     args = argParser.parse_args(argv)
 
     # load the experiment configuration file
@@ -294,15 +289,10 @@ def main(argv=None):
         cfg.imgDir = os.path.join(currPath, 'dicomDir')
     cfg.codeDir = currPath
 
-    # open up the communication pipe using 'projectInterface'
-    projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
-
-    # initiate the 'fileInterface' class, which will allow you to read and write
-    #   files and many other things using functions found in 'fileClient.py'
-    #   INPUT:
-    #       [1] args.filesremote (to retrieve dicom files from the remote server)
-    #       [2] projectComm (communication pipe that is set up above)
-    fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
+    # Initialize the RPC connection to the projectInterface
+    # This will give us a fileInterface for retrieving files and
+    # a subjectInterface for giving feedback
+    clientRPC = projUtils.ClientRPC()
 
     # now that we have the necessary variables, call the function 'doRuns' in order
     #   to actually start reading dicoms and doing your analyses of interest!
@@ -311,8 +301,8 @@ def main(argv=None):
     #       [2] fileInterface (this will allow a script from the cloud to access files
     #               from the stimulus computer that receives dicoms from the Siemens
     #               console computer)
-    #       [3] projectComm (communication pipe to talk with projectInterface)
-    doRuns(cfg, fileInterface, projectComm)
+    #       [3] subjInterface (to send/receive feedback to the subject in the scanner)
+    doRuns(cfg, clientRPC.fileInterface, clientRPC.subjInterface)
 
     return 0
 

@@ -7,9 +7,9 @@ import logging
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
+from rtCommon.mainServer import startMainServer
 from rtCommon.utils import loadConfigFile, installLoggers
 from rtCommon.structDict import StructDict
-from rtCommon.projectInterface import Web
 
 defaultConfig = os.path.join(currPath, 'conf/amygActivation.toml')
 expScript = os.path.join(currPath, 'amygActivation.py')
@@ -29,11 +29,11 @@ if __name__ == "__main__":
     params = StructDict({'fmriPyScript': expScript,
                          'initScript': initScript,
                          'finalizeScript': finalizeScript,
-                         'filesremote': args.filesremote, 
                          'port': 8888,
                          })
 
     cfg = loadConfigFile(args.config)
 
-    web = Web()
-    web.start(params, cfg)
+    # start the projectInterface server
+    # this will have both a web server and rpc servers to handle client requests
+    startMainServer(params, args)
