@@ -434,7 +434,7 @@ def main():
                 # Send classification result back to the console computer
                 fileInterface.putTextFile(full_file_name_to_save, text_to_save)
                 # JUST TO PLOT ON WEB SERVER
-                clientRPC.subjInterface.sendClassificationResult(run, int(TRFilenum), runData.percent_change[TRindex])
+                clientRPC.subjInterface.sendClassificationResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
             TRheader = makeTRHeader(cfg, runIndex, TRFilenum, TRindex, runData.percent_change[TRindex])
             TRindex += 1
 

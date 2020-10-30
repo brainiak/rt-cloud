@@ -103,7 +103,7 @@ def main(argv=None):
 		# MAKE SURE THIS IS CORRECT FOR YOUR EXPERIMENT BEFORE YOU RUN
 		subject_dir = os.path.join(cfg.server.dataDir, cfg.bids_id)
 		print('FOLDER TO DELETE ON CLOUD SERVER: ', subject_dir)
-		print('IF THIS IS CORRECT, GO BACK TO THE CONFIG FILE USED ON THE WEB SERBER COMPUTER AND CHANGE THE FLAG FROM false --> true IN [server] deleteAfter')
+		print('IF THIS IS CORRECT, GO BACK TO THE CONFIG FILE USED ON THE WEB SERVER COMPUTER AND CHANGE THE FLAG FROM false --> true IN [server] deleteAfter')
 		if cfg.server.deleteAfter:
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('DELETING SUBJECT FOLDER ON CLOUD SERVER: ', subject_dir)

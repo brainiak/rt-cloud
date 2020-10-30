@@ -82,6 +82,13 @@ def initialize(cfg, args):
     cfg.wf_dir = cfg.local.wf_dir
     cfg.n_masks = len(cfg.MASK)
 
+    # Copy mask files to registration directory
+    if not os.path.exists(cfg.local.subject_reg_dir):
+        os.makedirs(cfg.local.subject_reg_dir)
+    if not os.path.exists(cfg.local.wf_dir):
+        os.makedirs(cfg.local.wf_dir)
+    os.system(f'cp {cfg.local.maskDir}/* {cfg.local.subject_reg_dir}')
+
     if args.filesremote: # here we will need to specify separate paths for processing
         cfg.server.codeDir = os.path.join(cfg.server.rtcloudDir, 'projects', cfg.projectName)
         cfg.server.dataDir = os.path.join(cfg.server.codeDir, cfg.server.serverDataDir)
@@ -166,6 +173,8 @@ def main(argv=None):
                        help='Comma separated list of scan number')
     args = argParser.parse_args(argv)
 
+    print('Initializing directories and configurations')
+
     # load the experiment configuration file
     cfg = utils.loadConfigFile(args.config)
     cfg = initialize(cfg, args)
@@ -186,6 +195,8 @@ def main(argv=None):
 
         # upload all transformed masks to the cloud
         projUtils.uploadFilesFromList(clientRPC.fileInterface, cfg.local_MASK_transformed, cfg.subject_reg_dir)
+    
+    print('Initialization Complete!')
     return 0
 
 if __name__ == "__main__":

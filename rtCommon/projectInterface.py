@@ -54,6 +54,7 @@ class Web():
     webBiofeedPage = 'biofeedback.html'
     # Synchronizing across threads
     ioLoopInst = None
+    filesremote = False
     fmriPyScript = None
     initScript = None
     finalizeScript = None
@@ -65,7 +66,7 @@ class Web():
     dataRequestHandler = RequestHandler('wsData')
 
     @staticmethod
-    def start(params, cfg, testMode=False):
+    def start(params, cfg, filesremote, testMode=False):
         if Web.app is not None:
             raise RuntimeError("Web Server already running.")
         Web.testMode = testMode
@@ -81,6 +82,7 @@ class Web():
         Web.fmriPyScript = params.fmriPyScript
         Web.initScript = params.initScript
         Web.finalizeScript = params.finalizeScript
+        Web.filesremote = filesremote
         if type(cfg) is str:
             Web.configFilename = cfg
             cfg = loadConfigFile(Web.configFilename)
@@ -305,7 +307,7 @@ def defaultBrowserMainCallback(client, message):
             Web.setUserError("{} script not set".format(cmd))
             return
         Web.runInfo.threadId = threading.Thread(name='sessionThread', target=runSession,
-                                                args=(Web.cfg, sessionScript, tag, logType))
+                                                args=(Web.cfg, sessionScript, Web.filesremote, tag, logType))
         Web.runInfo.threadId.setDaemon(True)
         Web.runInfo.threadId.start()
     elif cmd == "stop":
@@ -330,7 +332,7 @@ def defaultBrowserMainCallback(client, message):
         Web.setUserError("unknown command " + cmd)
 
 
-def runSession(cfg, pyScript, tag, logType='run'):
+def runSession(cfg, pyScript, filesremote, tag, logType='run'):
     # write out config file for use by pyScript
     if logType == 'run':
         configFileName = os.path.join(Web.confDir, 'cfg_sub{}_day{}_run{}.toml'.
@@ -343,6 +345,9 @@ def runSession(cfg, pyScript, tag, logType='run'):
 
     # specify -u python option to disable buffering print commands
     cmdStr = 'python -u {} -c {}'.format(pyScript, configFileName)
+    # set option for remote file requests
+    if filesremote is True:
+        cmdStr += ' -x'
     # print(cmdStr)
     cmd = shlex.split(cmdStr)
     proc = subprocess.Popen(cmd, cwd=rootDir, stdout=subprocess.PIPE,
@@ -361,6 +366,8 @@ def runSession(cfg, pyScript, tag, logType='run'):
         if Web.runInfo.stopRun is True:
             # signal the process to exit by closing stdin
             proc.stdin.close()
+            proc.terminate()
+            # proc.kill()
         try:
             line = lineQueue.get(block=True, timeout=1)
         except queue.Empty:
@@ -418,6 +425,8 @@ def processPyScriptRequest(request):
                         raise StateError('processPyScriptRequest: error field missing from response: {}'.format(response))
                     Web.setUserError(response['error'])
                     logging.error('processPyScriptRequest status {}: {}'.format(response['status'], response['error']))
+                    raise RequestError('processPyScriptRequest: Cmd: {} status {}: error {}'.
+                               format(cmd, response.get('status'), response.get('error')))
             except Exception as err:
                 errStr = 'SendDataMessage Exception type {}: error {}:'.format(type(err), str(err))
                 response = {'status': 400, 'error': errStr}
@@ -457,6 +466,7 @@ def processPyScriptRequest(request):
             logging.info('subjectDisplay projectInterface Callback')
     retVals = StructDict()
     retVals.statusCode = response.get('status', -1)
+    retVals.error = response.get('error')
     if 'filename' in response:
         retVals.filename = response['filename']
     if 'fileList' in response:
