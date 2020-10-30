@@ -135,7 +135,7 @@ class RequestHandler:
         try:
             wsConnections = websocketState.wsConnectionLists.get(self.name)
             if wsConnections is None or len(wsConnections) == 0:
-                raise StateError("ProjectInterface: FileServer not connected. Please run the fileServer.")
+                raise StateError("webServer: FileServer not connected. Please run the fileServer.")
             reqConn = wsConnections[-1]  # always use most recent connection
         finally:
             websocketState.wsConnLock.release()
@@ -184,8 +184,8 @@ class RequestHandler:
         try:
             callbackStruct = self.dataCallbacks.get(callId, None)
             if callbackStruct is None:
-                # print(f'ProjectInterface: dataCallback callId {callId} not found, current callId {self.dataSequenceNum}')
-                logging.error('ProjectInterface: dataCallback callId {} not found, current callId {}'
+                # print(f'webServer: dataCallback callId {callId} not found, current callId {self.dataSequenceNum}')
+                logging.error('webServer: dataCallback callId {} not found, current callId {}'
                                 .format(callId, self.dataSequenceNum))
                 return
             if callbackStruct.callId != callId:
@@ -195,7 +195,7 @@ class RequestHandler:
             callbackStruct.numResponses += 1
             callbackStruct.semaphore.release()
         except Exception as err:
-            logging.error('ProjectInterface: dataCallback error: {}'.format(err))
+            logging.error('webServer: dataCallback error: {}'.format(err))
             raise err
         finally:
             self.callbackLock.release()

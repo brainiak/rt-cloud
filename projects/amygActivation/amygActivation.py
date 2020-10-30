@@ -29,7 +29,7 @@ sys.path.append(rootPath)
 import rtCommon.utils as utils
 #from rtCommon.readDicom import readDicomFromBuffer, readRetryDicomFromFileInterface
 from rtCommon.imageHandling import readDicomFromBuffer, readRetryDicomFromFileInterface
-import rtCommon.projectUtils as projUtils
+import rtCommon.clientInterface as clientInterface
 from rtCommon.structDict import StructDict
 #import rtCommon.dicomNiftiHandler as dnh
 import rtCommon.imageHandling as ihd
@@ -340,13 +340,13 @@ def main():
                        help='Set to 0 if rerunning during a single scanning after error')
 
     args = argParser.parse_args()
-    print(args)
 
     # Initialize the RPC connection to the projectInterface
     # This will give us a fileInterface for retrieving files and
     # a subjectInterface for giving feedback
-    clientRPC = projUtils.ClientRPC()
+    clientRPC = clientInterface.ClientRPC()
     fileInterface = clientRPC.fileInterface
+    subjInterface = clientRPC.subjInterface
     args.filesremote = fileInterface.areFilesremote()
 
     cfg = utils.loadConfigFile(args.config)
@@ -434,7 +434,7 @@ def main():
                 # Send classification result back to the console computer
                 fileInterface.putTextFile(full_file_name_to_save, text_to_save)
                 # JUST TO PLOT ON WEB SERVER
-                clientRPC.subjInterface.sendClassificationResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
+                subjInterface.sendClassificationResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
             TRheader = makeTRHeader(cfg, runIndex, TRFilenum, TRindex, runData.percent_change[TRindex])
             TRindex += 1
 

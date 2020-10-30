@@ -60,8 +60,9 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 # import project modules from rt-cloud
 from rtCommon.utils import loadConfigFile
-import rtCommon.projectUtils as projUtils
+import rtCommon.clientInterface as clientInterface
 from rtCommon.imageHandling import readRetryDicomFromFileInterface, getDicomFileName, convertDicomImgToNifti
+from rtCommon.fileInterface import FileInterface
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
@@ -281,6 +282,13 @@ def main(argv=None):
 
     args = argParser.parse_args(argv)
 
+    # Initialize the RPC connection to the projectInterface
+    # This will give us a fileInterface for retrieving files and
+    # a subjectInterface for giving feedback
+    clientRPC = clientInterface.ClientRPC()
+    fileInterface = clientRPC.fileInterface
+    subjInterface = clientRPC.subjInterface
+
     # load the experiment configuration file
     cfg = loadConfigFile(args.config)
 
@@ -289,10 +297,7 @@ def main(argv=None):
         cfg.imgDir = os.path.join(currPath, 'dicomDir')
     cfg.codeDir = currPath
 
-    # Initialize the RPC connection to the projectInterface
-    # This will give us a fileInterface for retrieving files and
-    # a subjectInterface for giving feedback
-    clientRPC = projUtils.ClientRPC()
+
 
     # now that we have the necessary variables, call the function 'doRuns' in order
     #   to actually start reading dicoms and doing your analyses of interest!
@@ -302,7 +307,7 @@ def main(argv=None):
     #               from the stimulus computer that receives dicoms from the Siemens
     #               console computer)
     #       [3] subjInterface (to send/receive feedback to the subject in the scanner)
-    doRuns(cfg, clientRPC.fileInterface, clientRPC.subjInterface)
+    doRuns(cfg, fileInterface, subjInterface)
 
     return 0
 

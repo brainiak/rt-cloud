@@ -16,7 +16,7 @@ import asyncio
 import threading
 import subprocess
 from pathlib import Path
-from rtCommon.projectUtils import decodeMessageData, defaultPipeName, makeFifo, unpackDataMessage
+from rtCommon.projectUtils import decodeMessageData, unpackDataMessage
 from rtCommon.wsRequestStructs import listFilesReqStruct, getFileReqStruct
 from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.certsUtils import getCertPath, getKeyPath
@@ -29,7 +29,6 @@ from rtCommon.webSocketHandlers import BaseWebSocketHandler, DataWebSocketHandle
 sslCertFile = 'rtcloud.crt'
 sslPrivateKey = 'rtcloud_private.key'
 CommonOutputDir = '/rtfmriData/'
-
 
 moduleDir = os.path.dirname(os.path.realpath(__file__))
 rootDir = os.path.dirname(moduleDir)
@@ -54,7 +53,7 @@ class Web():
     webBiofeedPage = 'biofeedback.html'
     # Synchronizing across threads
     ioLoopInst = None
-    fmriPyScript = None
+    mainScript = None
     initScript = None
     finalizeScript = None
     configFilename = None
@@ -78,7 +77,7 @@ class Web():
             Web.webDir = os.path.dirname(Web.htmlDir)
         if params.port:
             Web.httpPort = params.port
-        Web.fmriPyScript = params.fmriPyScript
+        Web.mainScript = params.mainScript
         Web.initScript = params.initScript
         Web.finalizeScript = params.finalizeScript
         if type(cfg) is str:
@@ -290,7 +289,7 @@ def defaultBrowserMainCallback(client, message):
             Web.runInfo.threadId = None
         Web.runInfo.stopRun = False
         if cmd == 'run':
-            sessionScript = Web.fmriPyScript
+            sessionScript = Web.mainScript
             tag = 'running'
             logType = 'run'
         elif cmd == 'initSession':
@@ -342,10 +341,13 @@ def runSession(cfg, pyScript, tag, logType='run'):
         toml.dump(cfg, fd)
 
     # specify -u python option to disable buffering print commands
-    cmdStr = 'python -u {} -c {}'.format(pyScript, configFileName)
+    cmdStr = f'python -u {pyScript} -c {configFileName}'
+    # add to the rtCommon dir to the PYTHONPATH env variable
+    env = os.environ.copy()
+    env["PYTHONPATH"] = f'{rootDir}:' + env.get("PYTHONPATH", '')
     # print(cmdStr)
     cmd = shlex.split(cmdStr)
-    proc = subprocess.Popen(cmd, cwd=rootDir, stdout=subprocess.PIPE,
+    proc = subprocess.Popen(cmd, cwd=rootDir, env=env, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
     # send running status to user web page
     response = {'cmd': 'runStatus', 'status': tag}
@@ -458,7 +460,7 @@ def processPyScriptRequest(request):
                 logging.error('handleFifo Excpetion: {}'.format(errStr))
                 raise err
         elif cmd == 'subjectDisplay':
-            logging.info('subjectDisplay projectInterface Callback')
+            logging.info('subjectDisplay webServer Callback')
         else:
             raise RequestError(f'processPyScriptRequest: Cmd: {cmd} not supported')      
     retVals = StructDict()
@@ -475,7 +477,6 @@ def processPyScriptRequest(request):
         if retVals.filename is None:
             raise StateError('clientSendCmd: filename field is None')
     return retVals
-
 
 
 def handleDataRequest(cmd):

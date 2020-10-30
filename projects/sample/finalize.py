@@ -38,7 +38,7 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 # import project modules from rt-cloud
 import rtCommon.utils as utils
-import rtCommon.projectUtils as projUtils
+import rtCommon.clientInterface as clientInterface
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
@@ -103,7 +103,7 @@ def finalize(cfg, fileInterface):
     #               note that te default is False)
     srcDir = os.path.join(cloudDir,'tmp/')
     outputDir = os.path.join(stimulusDir,'tmp_files/')
-    fileInterface.downloadFolderFromCloud(srcDir, outputDir, deleteAfter=True)
+    fileInterface.downloadFolderFromCloud(srcDir, outputDir, deleteAfter=False)
 
     print(""
     "-----------------------------------------------------------------------------\n"
@@ -131,7 +131,7 @@ def main(argv=None):
     cfg = utils.loadConfigFile(args.config)
 
     # establish the RPC connection to the projectInterface
-    clientRPC = projUtils.ClientRPC()
+    clientRPC = clientInterface.ClientRPC()
 
     # now that we have the necessary variables, call the function 'finalize' in
     #   order to actually start reading dicoms and doing your analyses of interest!

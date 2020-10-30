@@ -7,7 +7,7 @@ import rtCommon.projectUtils as projUtils
 import rtCommon.wsRequestStructs as req
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.errors import StateError, RequestError
-from rtCommon.projectInterface import processPyScriptRequest
+from rtCommon.webServer import processPyScriptRequest
 
 class FileInterface:
     def __init__(self, filesremote=False):

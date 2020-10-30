@@ -11,7 +11,6 @@ import logging
 import getpass
 import requests
 import threading
-import rpyc
 from pathlib import Path
 from base64 import b64encode, b64decode
 import rtCommon.utils as utils
@@ -21,31 +20,10 @@ from rtCommon.errors import RequestError, StateError, ValidationError
 from requests.packages.urllib3.contrib import pyopenssl
 
 certFile = 'certs/rtcloud.crt'
-defaultPipeName = 'rt_pipe_default'
 
 # Cache of multi-part data transfers in progress
 multiPartDataCache = {}
 dataPartSize = 10 * (2**20)
-
-
-class ClientRPC:
-    def __init__(self):
-        rpcConn = rpyc.connect('localhost', 12345, 
-                               config={"allow_public_attrs": True,})
-        self.fileInterface = rpcConn.root.FileInterface
-        self.subjInterface = rpcConn.root.SubjectInterface
-
-
-def openNamedPipe(pipeName):
-    '''
-    Open a named pipe connection to the local projectInterface. Open the in and out named pipes.
-    Pipe.Open() blocks until the other end opens it as well. Therefore open the reader first
-    here and the writer first within the projectInterface.
-    '''
-    commPipes = makeFifo(pipename=pipeName, isServer=False)
-    commPipes.fd_in = open(commPipes.name_in, mode='r')
-    commPipes.fd_out = open(commPipes.name_out, mode='w', buffering=1)
-    return commPipes
 
 
 def watchForExit():
@@ -74,72 +52,6 @@ def processShouldExitThread():
             break
         time.sleep(0.5)
 
-
-def initProjectComm(commPipeName, filesRemote):
-    projComm = None
-    if commPipeName:
-        # Process is being run from a projectInterface
-        # Watch for parent process exiting and then exit when it does
-        watchForExit()
-    # If filesremote is true, must create a projComm connecton to the projectInterface to retrieve the files
-    # If filesremote is false, but runing from a projectInterface, still need a projComm connection to return logging output
-    # Only when local files is specified and script is not run from a projectInterface is no projComm connection needed
-    if filesRemote:
-        # Must have a projComm for remote files
-        if commPipeName is None:
-            # No pipe name specified, use default name
-            commPipeName = defaultPipeName
-    if commPipeName:
-        projComm = openNamedPipe(commPipeName)
-    return projComm
-
-
-def clientSendCmd(commPipes, cmd):
-    '''Send a request using named pipes to the projectInterface for handling.
-    This allows a separate client process to make requests of the projectInterface process.
-    It writes the request on fd_out and recieves the reply on fd_in.
-    '''
-    data = None
-    savedError = None
-    incomplete = True
-    while incomplete:
-        commPipes.fd_out.write(json.dumps(cmd) + os.linesep)
-        msg = commPipes.fd_in.readline()
-        if len(msg) == 0:
-            # fifo closed
-            raise StateError('commPipe closed')
-        response = json.loads(msg)
-        status = response.get('status', -1)
-        if status != 200:
-            raise RequestError('clientSendCmd: Cmd: {} status {}: error {}'.
-                               format(cmd.get('cmd'), status, response.get('error')))
-        if 'data' in response:
-            try:
-                data = unpackDataMessage(response)
-            except Exception as err:
-                # The call may be incomplete, save the error and keep receiving as needed
-                logging.error('clientSendCmd: {}'.format(err))
-                if savedError is None:
-                    savedError = err
-            cmd['callId'] = response.get('callId', -1)
-        # Check if need to continue to get more parts
-        incomplete = response.get('incomplete', False)
-        cmd['incomplete'] = incomplete
-    if savedError:
-        raise RequestError('clientSendCmd: {}'.format(savedError))
-    retVals = StructDict()
-    retVals.statusCode = response.get('status', -1)
-    if 'filename' in response:
-        retVals.filename = response['filename']
-    if 'fileList' in response:
-        retVals.fileList = response['fileList']
-    if 'fileTypes' in response:
-        retVals.fileTypes = response['fileTypes']
-    if data:
-        retVals.data = data
-        if retVals.filename is None:
-            raise StateError('clientSendCmd: filename field is None')
-    return retVals
 
 
 def generateDataParts(data, msg, compress):
@@ -338,33 +250,3 @@ def makeSSLCertFile(serverName):
     if not success:
         print('Failed to make certificate:')
         sys.exit()
-
-
-def makeFifo(pipename=None, isServer=True):
-    fifodir = '/tmp/pipes/'
-    if not os.path.exists(fifodir):
-        os.makedirs(fifodir)
-    # create new pipe
-    if pipename is None:
-        fifoname = os.path.join(fifodir, 'comm_pipe_{}'.format(int(time.time())))
-        if isServer:
-            # remove previous temporary named pipes
-            for p in Path(fifodir).glob("comm_pipe_*"):
-                p.unlink()
-    else:
-        fifoname = os.path.join(fifodir, pipename)
-    # fifo stuct
-    commPipes = StructDict()
-    if isServer:
-        commPipes.name_out = fifoname + '.toclient'
-        commPipes.name_in = fifoname + '.fromclient'
-    else:
-        commPipes.name_out = fifoname + '.fromclient'
-        commPipes.name_in = fifoname + '.toclient'
-
-    if not os.path.exists(commPipes.name_out):
-        os.mkfifo(commPipes.name_out)
-    if not os.path.exists(commPipes.name_in):
-        os.mkfifo(commPipes.name_in)
-    commPipes.fifoname = fifoname
-    return commPipes

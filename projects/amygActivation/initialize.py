@@ -27,7 +27,7 @@ sys.path.append(rootPath)
 #sys.path.append('/jukebox/norman/amennen/github/brainiak/rt-cloud/')
 
 import rtCommon.utils as utils
-import rtCommon.projectUtils as projUtils
+import rtCommon.clientInterface as clientInterface
 from rtCommon.structDict import StructDict
 #from rtCommon.dicomNiftiHandler import getTransform
 from rtCommon.imageHandling import getTransform
@@ -174,7 +174,7 @@ def main(argv=None):
     print('Initializing directories and configurations')
 
     # establish the RPC connection to the projectInterface
-    clientRPC = projUtils.ClientRPC()
+    clientRPC = clientInterface.ClientRPC()
     fileInterface = clientRPC.fileInterface
     args.filesremote = fileInterface.areFilesremote()
 

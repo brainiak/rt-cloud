@@ -5,7 +5,7 @@ while test $# -gt 0
 do
   case "$1" in
     -h)
-      echo "$0 [-p [project] -c <toml_file>] [-ip <local_ip_or_hostname] [--localfiles] [--test]"
+      echo "$0 -p <projectName> [-d <projectDir>] [-c <toml_file>] [-m <main_script.py>] [-ip <local_ip_or_hostname>] [--localfiles] [--test]"
       exit 0
       ;;
     -c) CFG=$2
@@ -13,6 +13,10 @@ do
     -ip) IP=$2
       ;;
     -p) PROJECT=$2
+      ;;
+    -d) PROJECT_DIR=$2
+      ;;
+    -m) MAIN_SCRIPT=$2
       ;;
     --localfiles) USELOCALFILES=1
       ;;
@@ -32,6 +36,11 @@ fi
 CFG_PARAM=''
 if [ ! -z $CFG ]; then
   CFG_PARAM="-c $CFG"
+fi
+
+MAIN_SCRIPT_PARAM=''
+if [ ! -z $MAIN_SCRIPT ]; then
+  MAIN_SCRIPT_PARAM="-m $MAIN_SCRIPT"
 fi
 
 R_PARAM=''
@@ -56,4 +65,4 @@ if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "rtcloud" ]; then
   conda activate rtcloud
 fi
 
-python projects/$PROJECT/projectMain.py $R_PARAM $CFG_PARAM $TEST_PARAM
+python rtCommon/projectServer.py -p $PROJECT $CFG_PARAM $MAIN_SCRIPT_PARAM $R_PARAM  $TEST_PARAM

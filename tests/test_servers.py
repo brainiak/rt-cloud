@@ -13,12 +13,12 @@ import rtCommon.utils as utils
 import rtCommon.projectUtils as projUtils
 from rtCommon.fileInterface import FileInterface
 from rtCommon.fileServer import WsFileWatcher
-from rtCommon.projectInterface import Web, handleDataRequest, CommonOutputDir
+from rtCommon.webServer import Web, handleDataRequest, CommonOutputDir
 from rtCommon.structDict import StructDict
 from rtCommon.errors import RequestError
 from rtCommon.imageHandling import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
 from rtCommon.webSocketHandlers import sendWebSocketMessage
-from rtCommon.mainServer import startMainServer
+from rtCommon.projectServer import ProjectServer
 
 
 testDir = os.path.dirname(__file__)
@@ -50,19 +50,19 @@ class TestServers:
 
     def setup_class(cls):
         utils.installLoggers(logging.DEBUG, logging.DEBUG, filename='logs/tests.log')
-        # Start a projectInterface thread running
-        params = StructDict({'fmriPyScript': 'projects/sample/sample.py',
-                             'filesremote': True,
-                             'port': 8921,
-                            })
+        # Start a projectServer thread running
         cfg = StructDict({'sessionId': "test",
                           'subjectName': "test_sample",
                           'subjectNum': 1,
                           'subjectDay': 1,
                           'sessionNum': 1})
-        args = StructDict({'config': cfg, 'filesremote': True, 'test': True})
-        # startMainServer(params, args)
-        cls.mainThread = threading.Thread(name='mainThread', target=startMainServer, args=(params, args))
+        args = StructDict({'config': cfg,
+                           'mainScript': 'projects/sample/sample.py',
+                           'filesremote': True,
+                           'port': 8921, 
+                           'test': True})
+        projectServer = ProjectServer(args)
+        cls.mainThread = threading.Thread(name='mainThread', target=projectServer.start)
         cls.mainThread.setDaemon(True)
         cls.mainThread.start()
         time.sleep(.1)
