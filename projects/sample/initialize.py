@@ -100,7 +100,7 @@ def initialize(cfg, fileInterface):
     #       [2] srcPattern (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
     srcPattern = os.path.join(stimulusDir,'**')
-    projUtils.uploadFilesToCloud(fileInterface,srcPattern,cloudDir)
+    fileInterface.uploadFilesToCloud(srcPattern, cloudDir)
 
     print(""
     "-----------------------------------------------------------------------------\n"

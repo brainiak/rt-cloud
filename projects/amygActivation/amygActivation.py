@@ -80,7 +80,7 @@ def makeRunReg(cfg, args, fileInterface, runNum, runFolder, saveMat=1):
             # make it into a list to use in the function
             fileList = [full_name]
             local_run_folder = os.path.join(cfg.local.subject_full_day_path, runId)
-            projUtils.downloadFilesFromList(fileInterface,fileList,local_run_folder)
+            fileInterface.downloadFilesFromList(fileList, local_run_folder)
     # TO DO: put command here to download data to local!
     return regressor
 
@@ -336,13 +336,19 @@ def main():
                        help='Comma separated list of run numbers')
     argParser.add_argument('--scans', '-s', default='', type=str,
                        help='Comma separated list of scan number')
-    argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
-                       help='dicom files retrieved from remote server')
     argParser.add_argument('--deleteTmpNifti', '-d', default='1', type=str,
                        help='Set to 0 if rerunning during a single scanning after error')
 
     args = argParser.parse_args()
     print(args)
+
+    # Initialize the RPC connection to the projectInterface
+    # This will give us a fileInterface for retrieving files and
+    # a subjectInterface for giving feedback
+    clientRPC = projUtils.ClientRPC()
+    fileInterface = clientRPC.fileInterface
+    args.filesremote = fileInterface.areFilesremote()
+
     cfg = utils.loadConfigFile(args.config)
     cfg = initialize(cfg, args)
 
@@ -356,12 +362,6 @@ def main():
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
     createTmpFolder(cfg,args)
-
-    # Initialize the RPC connection to the projectInterface
-    # This will give us a fileInterface for retrieving files and
-    # a subjectInterface for giving feedback
-    clientRPC = projUtils.ClientRPC()
-    fileInterface = clientRPC.fileInterface
 
     # intialize watching in particular directory
     fileInterface.initWatch(cfg.dicomDir, cfg.dicomNamePattern, cfg.minExpectedDicomSize) 

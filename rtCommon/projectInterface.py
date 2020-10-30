@@ -16,8 +16,8 @@ import asyncio
 import threading
 import subprocess
 from pathlib import Path
-from rtCommon.projectUtils import listFilesReqStruct, getFileReqStruct, decodeMessageData
-from rtCommon.projectUtils import defaultPipeName, makeFifo, unpackDataMessage
+from rtCommon.projectUtils import decodeMessageData, defaultPipeName, makeFifo, unpackDataMessage
+from rtCommon.wsRequestStructs import listFilesReqStruct, getFileReqStruct
 from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.certsUtils import getCertPath, getKeyPath
 from rtCommon.utils import DebugLevels, writeFile, loadConfigFile
@@ -54,7 +54,6 @@ class Web():
     webBiofeedPage = 'biofeedback.html'
     # Synchronizing across threads
     ioLoopInst = None
-    filesremote = False
     fmriPyScript = None
     initScript = None
     finalizeScript = None
@@ -66,7 +65,7 @@ class Web():
     dataRequestHandler = RequestHandler('wsData')
 
     @staticmethod
-    def start(params, cfg, filesremote, testMode=False):
+    def start(params, cfg, testMode=False):
         if Web.app is not None:
             raise RuntimeError("Web Server already running.")
         Web.testMode = testMode
@@ -82,7 +81,6 @@ class Web():
         Web.fmriPyScript = params.fmriPyScript
         Web.initScript = params.initScript
         Web.finalizeScript = params.finalizeScript
-        Web.filesremote = filesremote
         if type(cfg) is str:
             Web.configFilename = cfg
             cfg = loadConfigFile(Web.configFilename)
@@ -307,7 +305,7 @@ def defaultBrowserMainCallback(client, message):
             Web.setUserError("{} script not set".format(cmd))
             return
         Web.runInfo.threadId = threading.Thread(name='sessionThread', target=runSession,
-                                                args=(Web.cfg, sessionScript, Web.filesremote, tag, logType))
+                                                args=(Web.cfg, sessionScript, tag, logType))
         Web.runInfo.threadId.setDaemon(True)
         Web.runInfo.threadId.start()
     elif cmd == "stop":
@@ -332,7 +330,7 @@ def defaultBrowserMainCallback(client, message):
         Web.setUserError("unknown command " + cmd)
 
 
-def runSession(cfg, pyScript, filesremote, tag, logType='run'):
+def runSession(cfg, pyScript, tag, logType='run'):
     # write out config file for use by pyScript
     if logType == 'run':
         configFileName = os.path.join(Web.confDir, 'cfg_sub{}_day{}_run{}.toml'.
@@ -345,9 +343,6 @@ def runSession(cfg, pyScript, filesremote, tag, logType='run'):
 
     # specify -u python option to disable buffering print commands
     cmdStr = 'python -u {} -c {}'.format(pyScript, configFileName)
-    # set option for remote file requests
-    if filesremote is True:
-        cmdStr += ' -x'
     # print(cmdStr)
     cmd = shlex.split(cmdStr)
     proc = subprocess.Popen(cmd, cwd=rootDir, stdout=subprocess.PIPE,
@@ -445,10 +440,10 @@ def processPyScriptRequest(request):
             # Check if need to continue to get more parts
             incomplete = response.get('incomplete', False)
             request['incomplete'] = incomplete
+        if savedError:
+            raise RequestError('processPyScriptRequest: dataroute {}'.format(savedError)) 
     else:
-        if cmd == 'webCommonDir':
-            response.filename = CommonOutputDir
-        elif cmd == 'resultValue':
+        if cmd == 'resultValue':
             try:
                 # forward to bioFeedback Display
                 Web.wsBioFeedbackSendMsg(json.dumps(request))
@@ -464,6 +459,8 @@ def processPyScriptRequest(request):
                 raise err
         elif cmd == 'subjectDisplay':
             logging.info('subjectDisplay projectInterface Callback')
+        else:
+            raise RequestError(f'processPyScriptRequest: Cmd: {cmd} not supported')      
     retVals = StructDict()
     retVals.statusCode = response.get('status', -1)
     retVals.error = response.get('error')

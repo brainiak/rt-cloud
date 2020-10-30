@@ -59,8 +59,6 @@ def main(argv=None):
 	# This parameter is used for projectInterface
 	argParser.add_argument('--commpipe', '-q', default=None, type=str,
 						   help='Named pipe to communicate with projectInterface')
-	argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
-						   help='retrieve files from the remote server')
 	argParser.add_argument('--addr', '-a', default='localhost', type=str, 
 			   help='server ip address')
 	argParser.add_argument('--runs', '-r', default='', type=str,
@@ -68,6 +66,11 @@ def main(argv=None):
 	argParser.add_argument('--scans', '-s', default='', type=str,
 					   help='Comma separated list of scan number')
 	args = argParser.parse_args(argv)
+
+	# establish the RPC connection to the projectInterface
+	clientRPC = projUtils.ClientRPC()
+	fileInterface = clientRPC.fileInterface
+	args.filesremote = fileInterface.areFilesremote()
 
 	# load the experiment configuration file
 	cfg = utils.loadConfigFile(args.config)
@@ -78,14 +81,11 @@ def main(argv=None):
 	# subject-specific folder
 	# everything in temp/convertedNiftis
 	if args.filesremote:
-
-		# establish the RPC connection to the projectInterface
-		clientRPC = projUtils.ClientRPC()
-
+		print('Files Remote Case')
 		# we don't need the tmp/convertedNiftis so first remove those
 		tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
 		if os.path.exists(tempNiftiDir):
-			projUtils.deleteFolder(tempNiftiDir)
+			utils.deleteFolder(tempNiftiDir)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('deleting temporary convertedNifti folder: ', tempNiftiDir)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
@@ -96,7 +96,7 @@ def main(argv=None):
 			runFolder = os.path.join(cfg.server.subject_full_day_path, runId, '*')
 			listOfFiles = glob.glob(runFolder)
 			runFolder_local = os.path.join(cfg.local.subject_full_day_path, runId)
-			projUtils.downloadFilesFromList(clientRPC.fileInterface, listOfFiles, runFolder_local)
+			fileInterface.downloadFilesFromList(listOfFiles, runFolder_local)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('downloading data to local computer: ', runFolder)
 		# next delete the entire subject folder on the cloud
@@ -109,7 +109,7 @@ def main(argv=None):
 			print('DELETING SUBJECT FOLDER ON CLOUD SERVER: ', subject_dir)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			if os.path.exists(subject_dir):
-				projUtils.deleteFolder(subject_dir)
+				utils.deleteFolder(subject_dir)
 
 	return 0
 

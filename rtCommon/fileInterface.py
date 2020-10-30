@@ -1,8 +1,11 @@
 import os
 import glob
-from rtCommon.fileWatcher import FileWatcher
-from rtCommon.utils import findNewestFile
+import logging
+from pathlib import Path
+import rtCommon.utils as utils
 import rtCommon.projectUtils as projUtils
+import rtCommon.wsRequestStructs as req
+from rtCommon.fileWatcher import FileWatcher
 from rtCommon.errors import StateError, RequestError
 from rtCommon.projectInterface import processPyScriptRequest
 
@@ -19,15 +22,20 @@ class FileInterface:
             self.fileWatcher.__del__()
             self.fileWatcher = None
 
+    def areFilesremote(self):
+        return not self.local
+
     def getFile(self, filename):
         data = None
         if self.local:
+            # TODO - BIDS Integration: with flag convert dicom to BIDS-I here?
             with open(filename, 'rb') as fp:
                 data = fp.read()
         else:
-            getFileCmd = projUtils.getFileReqStruct(filename)
+            getFileCmd = req.getFileReqStruct(filename)
             retVals = processPyScriptRequest(getFileCmd)
             data = retVals.data
+        # TODO - Add to BIDS archive here? And in the other file methods, or do this outside of fileInterface?
         return data
 
     def getNewestFile(self, filePattern):
@@ -37,7 +45,7 @@ class FileInterface:
             if not os.path.isabs(baseDir):
                 # TODO - handle relative paths
                 pass
-            filename = findNewestFile(baseDir, filePattern)
+            filename = utils.findNewestFile(baseDir, filePattern)
             if filename is None:
                 # No file matching pattern
                 raise FileNotFoundError('No file found matching pattern {}'.format(filePattern))
@@ -47,7 +55,7 @@ class FileInterface:
                 with open(filename, 'rb') as fp:
                     data = fp.read()
         else:
-            getNewestFileCmd = projUtils.getNewestFileReqStruct(filePattern)
+            getNewestFileCmd = req.getNewestFileReqStruct(filePattern)
             retVals = processPyScriptRequest(getNewestFileCmd)
             data = retVals.data
         return data
@@ -56,7 +64,7 @@ class FileInterface:
         if self.local:
             self.fileWatcher.initFileNotifier(dir, filePattern, minFileSize, demoStep)
         else:
-            initWatchCmd = projUtils.initWatchReqStruct(dir, filePattern, minFileSize, demoStep)
+            initWatchCmd = req.initWatchReqStruct(dir, filePattern, minFileSize, demoStep)
             _ = processPyScriptRequest(initWatchCmd)
         self.initWatchSet = True
         return
@@ -73,7 +81,7 @@ class FileInterface:
                 with open(filename, 'rb') as fp:
                     data = fp.read()
         else:
-            watchCmd = projUtils.watchFileReqStruct(filename, timeout=timeout)
+            watchCmd = req.watchFileReqStruct(filename, timeout=timeout)
             retVals = processPyScriptRequest(watchCmd)
             data = retVals.data
         return data
@@ -86,7 +94,7 @@ class FileInterface:
             with open(filename, 'w+') as textFile:
                 textFile.write(text)
         else:
-            putFileCmd = projUtils.putTextFileReqStruct(filename, text)
+            putFileCmd = req.putTextFileReqStruct(filename, text)
             _ = processPyScriptRequest(putFileCmd)
         return
 
@@ -100,7 +108,7 @@ class FileInterface:
         else:
             try:
                 fileHash = None
-                putFileCmd = projUtils.putBinaryFileReqStruct(filename)
+                putFileCmd = req.putBinaryFileReqStruct(filename)
                 for putFilePart in projUtils.generateDataParts(data, putFileCmd, compress):
                     fileHash = putFilePart.get('fileHash')
                     _ = processPyScriptRequest(putFilePart)
@@ -125,7 +133,7 @@ class FileInterface:
                     continue
                 fileList.append(filename)
         else:
-            listCmd = projUtils.listFilesReqStruct(filePattern)
+            listCmd = req.listFilesReqStruct(filePattern)
             retVals = processPyScriptRequest(listCmd)
             fileList = retVals.get('fileList')
             if type(fileList) is not list:
@@ -137,10 +145,85 @@ class FileInterface:
         if self.local:
             return ['*']
         else:
-            cmd = projUtils.allowedFileTypesReqStruct()
+            cmd = req.allowedFileTypesReqStruct()
             retVals = processPyScriptRequest(cmd)
             fileTypes = retVals.get('fileTypes')
             if type(fileTypes) is not list:
                 errStr = "Invalid fileTypes reponse type {}: expecting list".format(type(fileTypes))
                 raise StateError(errStr)
         return fileTypes
+
+    def uploadFolderToCloud(self, srcDir, outputDir):
+        allowedFileTypes = self.allowedFileTypes()
+        logging.info('Uploading folder {} to cloud'.format(srcDir))
+        logging.info('UploadFolder limited to file types: {}'.format(allowedFileTypes))
+        dirPattern = os.path.join(srcDir, '**')  # ** wildcard means include sub-directories
+        fileList = self.listFiles(dirPattern)
+        # The src prefix is the part of the path to eliminate in the destination path
+        # This will be everything except the last subdirectory in srcDir
+        srcPrefix = os.path.dirname(srcDir)
+        self.uploadFilesFromList(fileList, outputDir, srcDirPrefix=srcPrefix)
+
+    def uploadFilesToCloud(self, srcFilePattern, outputDir):
+        # get the list of files to upload
+        fileList = self.listFiles(srcFilePattern)
+        self.uploadFilesFromList(fileList, outputDir)
+
+    def uploadFilesFromList(self, fileList, outputDir, srcDirPrefix=None):
+        for file in fileList:
+            fileDir, filename = os.path.split(file)
+            if srcDirPrefix is not None and fileDir.startswith(srcDirPrefix):
+                # Get just the part of fileDir after the srcDirPrefix
+                subDir = fileDir.replace(srcDirPrefix, '')
+            else:
+                subDir = ''
+            try:
+                data = self.getFile(file)
+            except Exception as err:
+                if type(err) is IsADirectoryError or 'IsADirectoryError' in str(err):
+                    continue
+                raise(err)
+            outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
+            logging.info('upload: {} --> {}'.format(file, outputFilename))
+            utils.writeFile(outputFilename, data)
+
+    def downloadFolderFromCloud(self, srcDir, outputDir, deleteAfter=False):
+        allowedFileTypes = self.allowedFileTypes()
+        logging.info('Downloading folder {} from the cloud'.format(srcDir))
+        logging.info('DownloadFolder limited to file types: {}'.format(allowedFileTypes))
+        dirPattern = os.path.join(srcDir, '**')
+        fileList = [x for x in glob.iglob(dirPattern, recursive=True)]
+        filteredList = []
+        for filename in fileList:
+            fileExtension = Path(filename).suffix
+            if fileExtension in allowedFileTypes or '*' in allowedFileTypes:
+                filteredList.append(filename)
+        # The src prefix is the part of the path to eliminate in the destination path
+        # This will be everything except the last subdirectory in srcDir
+        srcPrefix = os.path.dirname(srcDir)
+        self.downloadFilesFromList(filteredList, outputDir, srcDirPrefix=srcPrefix)
+        if deleteAfter:
+            utils.deleteFilesFromList(filteredList)
+
+    def downloadFilesFromCloud(self, srcFilePattern, outputDir, deleteAfter=False):
+        fileList = [x for x in glob.iglob(srcFilePattern)]
+        self.downloadFilesFromList(fileList, outputDir)
+        if deleteAfter:
+            utils.deleteFilesFromList(fileList)
+
+    def downloadFilesFromList(self, fileList, outputDir, srcDirPrefix=None):
+        for file in fileList:
+            if os.path.isdir(file):
+                continue
+            with open(file, 'rb') as fp:
+                data = fp.read()
+            fileDir, filename = os.path.split(file)
+            if srcDirPrefix is not None and fileDir.startswith(srcDirPrefix):
+                # Get just the part of fileDir after the srcDirPrefix
+                subDir = fileDir.replace(srcDirPrefix, '')
+            else:
+                subDir = ''
+            outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
+            logging.info('download: {} --> {}'.format(file, outputFilename))
+            self.putBinaryFile(outputFilename, data)
+        return

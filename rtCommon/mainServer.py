@@ -16,4 +16,4 @@ def startMainServer(params, args):
         args.test = False
 
     web = Web()
-    web.start(params, args.config, args.filesremote, testMode=args.test)
+    web.start(params, args.config, testMode=args.test)

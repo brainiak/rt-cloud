@@ -8,11 +8,12 @@ import shutil
 import logging
 from base64 import b64decode
 import projects.sample.sample as sample
-from rtCommon.fileInterface import FileInterface
+import rtCommon.wsRequestStructs as req
 import rtCommon.utils as utils
+import rtCommon.projectUtils as projUtils
+from rtCommon.fileInterface import FileInterface
 from rtCommon.fileServer import WsFileWatcher
 from rtCommon.projectInterface import Web, handleDataRequest, CommonOutputDir
-import rtCommon.projectUtils as projUtils
 from rtCommon.structDict import StructDict
 from rtCommon.errors import RequestError
 from rtCommon.imageHandling import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
@@ -132,13 +133,13 @@ class TestServers:
         global fileData
         # assert Web.wsDataConn is not None
         # Try to initialize file watcher with non-allowed directory
-        cmd = projUtils.initWatchReqStruct('/', '*', 0)
+        cmd = req.initWatchReqStruct('/', '*', 0)
         response = Web.wsDataRequest(cmd)
         # we expect an error because '/' directory not allowed
         assert response['status'] == 400
 
         # Initialize with allowed directory
-        cmd = projUtils.initWatchReqStruct(testDir, '*.dcm', 0)
+        cmd = req.initWatchReqStruct(testDir, '*.dcm', 0)
         response = Web.wsDataRequest(cmd)
         assert response['status'] == 200
 
@@ -148,7 +149,7 @@ class TestServers:
         # with open(dicomTestFilename, 'rb') as fp:
         #     data = fp.read()
 
-        cmd = projUtils.watchFileReqStruct(dicomTestFilename)
+        cmd = req.watchFileReqStruct(dicomTestFilename)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
@@ -157,14 +158,14 @@ class TestServers:
         assert responseData == data
 
         # Try compressed version
-        cmd = projUtils.watchFileReqStruct(dicomTestFilename, compress=True)
+        cmd = req.watchFileReqStruct(dicomTestFilename, compress=True)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
             assert False, str(err)
         assert responseData == data
 
-        cmd = projUtils.getFileReqStruct(dicomTestFilename)
+        cmd = req.getFileReqStruct(dicomTestFilename)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
@@ -172,14 +173,14 @@ class TestServers:
         assert responseData == data
 
         # Try compressed version
-        cmd = projUtils.getFileReqStruct(dicomTestFilename, compress=True)
+        cmd = req.getFileReqStruct(dicomTestFilename, compress=True)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
             assert False, str(err)
         assert responseData == data
 
-        cmd = projUtils.getNewestFileReqStruct(dicomTestFilename)
+        cmd = req.getNewestFileReqStruct(dicomTestFilename)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
@@ -187,7 +188,7 @@ class TestServers:
         assert responseData == data
 
         # Try to get a non-allowed file
-        cmd = projUtils.getFileReqStruct('/tmp/file.nope')
+        cmd = req.getFileReqStruct('/tmp/file.nope')
         try:
             responseData = handleDataRequest(cmd)
         except RequestError as err:
@@ -197,7 +198,7 @@ class TestServers:
             pytest.fail('Expecting RequestError')
 
         # try from a non-allowed directory
-        cmd = projUtils.getFileReqStruct('/nope/file.dcm')
+        cmd = req.getFileReqStruct('/nope/file.dcm')
         try:
             responseData = handleDataRequest(cmd)
         except RequestError as err:
@@ -209,19 +210,19 @@ class TestServers:
         # Test putTextFile
         testText = 'hello2'
         textFileName = os.path.join(tmpDir, 'test2.txt')
-        cmd = projUtils.putTextFileReqStruct(textFileName, testText)
+        cmd = req.putTextFileReqStruct(textFileName, testText)
         response = Web.wsDataRequest(cmd)
         assert response['status'] == 200
 
         # Test putBinaryData function
         testData = b'\xFE\xED\x01\x23'
         dataFileName = os.path.join(tmpDir, 'test2.bin')
-        cmd = projUtils.putBinaryFileReqStruct(dataFileName)
+        cmd = req.putBinaryFileReqStruct(dataFileName)
         for putFilePart in projUtils.generateDataParts(testData, cmd, compress=True):
             response = Web.wsDataRequest(putFilePart)
         assert response['status'] == 200
         # read back an compare to original
-        cmd = projUtils.getFileReqStruct(dataFileName)
+        cmd = req.getFileReqStruct(dataFileName)
         response = Web.wsDataRequest(cmd)
         responseData = b64decode(response['data'])
         assert responseData == testData
@@ -233,7 +234,7 @@ class TestServers:
 
         # Read via fileClient
         startTime = time.time()
-        cmd = projUtils.getFileReqStruct(bigTestfile)
+        cmd = req.getFileReqStruct(bigTestfile)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
@@ -243,7 +244,7 @@ class TestServers:
 
         # Write bigFile Synchronous
         startTime = time.time()
-        cmd = projUtils.putBinaryFileReqStruct(bigTestfile)
+        cmd = req.putBinaryFileReqStruct(bigTestfile)
         for putFilePart in projUtils.generateDataParts(data, cmd, compress=False):
             response = Web.wsDataRequest(putFilePart)
             assert response['status'] == 200
@@ -251,7 +252,7 @@ class TestServers:
 
         # Write bigFile Asynchronous
         startTime = time.time()
-        cmd = projUtils.putBinaryFileReqStruct(bigTestfile)
+        cmd = req.putBinaryFileReqStruct(bigTestfile)
         callIds = []
         for putFilePart in projUtils.generateDataParts(data, cmd, compress=False):
             call_id, conn = Web.dataRequestHandler.prepare_request(putFilePart)
@@ -269,7 +270,7 @@ class TestServers:
         assert writtenData == data
 
     def test_runFromCommandLine(self):
-        argv = []
+        argv = []  # ['--filesremote']
         ret = sample.main(argv)
         assert ret == 0
 
@@ -332,11 +333,11 @@ class TestServers:
         utils.writeFile('/tmp/d1/test3.bin', bindata1)
         utils.writeFile('/tmp/d1/test4.bin', bindata2)
         # 2. download files from cloud
-        projUtils.downloadFilesFromCloud(fileInterface, '/tmp/d1/test*.txt', '/tmp/d2')
-        projUtils.downloadFilesFromCloud(fileInterface, '/tmp/d1/test*.bin', '/tmp/d2')
+        fileInterface.downloadFilesFromCloud('/tmp/d1/test*.txt', '/tmp/d2')
+        fileInterface.downloadFilesFromCloud('/tmp/d1/test*.bin', '/tmp/d2')
         # 3. upload files to cloud
-        projUtils.uploadFilesToCloud(fileInterface, '/tmp/d2/test*.txt', '/tmp/d3')
-        projUtils.uploadFilesToCloud(fileInterface, '/tmp/d2/test*.bin', '/tmp/d3')
+        fileInterface.uploadFilesToCloud('/tmp/d2/test*.txt', '/tmp/d3')
+        fileInterface.uploadFilesToCloud('/tmp/d2/test*.bin', '/tmp/d3')
         # check that all files in d1 are same as files in d3
         d3text1 = utils.readFile('/tmp/d3/test1.txt', binary=False)
         d3text2 = utils.readFile('/tmp/d3/test2.txt', binary=False)
@@ -355,18 +356,18 @@ class TestServers:
 
         # test delete files from list
         assert os.path.exists(fileList[-1])
-        projUtils.deleteFilesFromList(fileList)
+        utils.deleteFilesFromList(fileList)
         assert not os.path.exists(fileList[-1])
         assert os.path.isdir('/tmp/d1/d2/d3')
 
         # test delete folder
         for file in fileList:
             utils.writeFile(file, 'hello', binary=False)
-        projUtils.deleteFolder('/tmp/d1')
+        utils.deleteFolder('/tmp/d1')
         assert not os.path.isdir('/tmp/d1')
 
         # test delete files recursively in folders, but leave folders in place
         for file in fileList:
             utils.writeFile(file, 'hello', binary=False)
-        projUtils.deleteFolderFiles('/tmp/d1')
+        utils.deleteFolderFiles('/tmp/d1')
         assert os.path.isdir('/tmp/d1/d2/d3')

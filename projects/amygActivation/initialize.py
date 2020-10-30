@@ -163,8 +163,6 @@ def main(argv=None):
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment config file (.json or .toml)')
-    argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
-                           help='retrieve files from the remote server')
     argParser.add_argument('--addr', '-a', default='localhost', type=str, 
                help='server ip address')
     argParser.add_argument('--runs', '-r', default='', type=str,
@@ -175,27 +173,31 @@ def main(argv=None):
 
     print('Initializing directories and configurations')
 
+    # establish the RPC connection to the projectInterface
+    clientRPC = projUtils.ClientRPC()
+    fileInterface = clientRPC.fileInterface
+    args.filesremote = fileInterface.areFilesremote()
+
     # load the experiment configuration file
     cfg = utils.loadConfigFile(args.config)
     cfg = initialize(cfg, args)
 
     # build subject folders on server
     if args.filesremote:
+        print('Files Remote Case')
+
         buildSubjectFoldersOnServer(cfg)
 
-        # establish the RPC connection to the projectInterface
-        clientRPC = projUtils.ClientRPC()
-
         # next, transfer transformation files from local --> server for online processing
-        projUtils.uploadFolderToCloud(clientRPC.fileInterface, cfg.local.wf_dir, cfg.server.wf_dir)
+        fileInterface.uploadFolderToCloud(cfg.local.wf_dir, cfg.server.wf_dir)
 
         # upload ROI folder to cloud server - we would need to do this if we were using
         # a standard mask, but we're not in this case
-        #projUtils.uploadFolderToCloud(fileInterface,cfg.local.maskDir,cfg.server.maskDir)
+        #fileInterface.uploadFolderToCloud(cfg.local.maskDir, cfg.server.maskDir)
 
         # upload all transformed masks to the cloud
-        projUtils.uploadFilesFromList(clientRPC.fileInterface, cfg.local_MASK_transformed, cfg.subject_reg_dir)
-    
+        fileInterface.uploadFilesFromList(cfg.local_MASK_transformed, cfg.subject_reg_dir)
+
     print('Initialization Complete!')
     return 0
 

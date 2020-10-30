@@ -34,9 +34,11 @@ class FileWatcher():
 
     def initFileNotifier(self, dir, filePattern, minFileSize, demoStep=0):
         logging.log(logging.ERROR, "FileWatcher is abstract class. initFileNotifier not implemented")
+        return None
 
     def waitForFile(self, specificFileName, timeout=0):
         logging.log(logging.ERROR, "FileWatcher is abstract class. waitForFile not implemented")
+        return None
 
 
 if sys.platform in ("darwin", "win32"):

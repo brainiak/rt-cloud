@@ -1,5 +1,5 @@
 from rtCommon.projectInterface import processPyScriptRequest
-from rtCommon.projectUtils import resultStruct
+from rtCommon.wsRequestStructs import resultStruct
 
 
 class SubjectInterface:
@@ -9,3 +9,4 @@ class SubjectInterface:
 
     def sendResultToWeb(self, runId, trId, value):
         self.sendClassificationResult(runId, trId, value)
+

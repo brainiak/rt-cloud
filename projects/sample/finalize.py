@@ -103,7 +103,7 @@ def finalize(cfg, fileInterface):
     #               note that te default is False)
     srcDir = os.path.join(cloudDir,'tmp/')
     outputDir = os.path.join(stimulusDir,'tmp_files/')
-    projUtils.downloadFolderFromCloud(fileInterface, srcDir, outputDir, deleteAfter=True)
+    fileInterface.downloadFolderFromCloud(srcDir, outputDir, deleteAfter=True)
 
     print(""
     "-----------------------------------------------------------------------------\n"
