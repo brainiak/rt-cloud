@@ -27,10 +27,11 @@ defaultAllowedTypes = ['.dcm', '.mat', '.txt']
 
 
 class WsFileWatcher:
-    ''' A server that watches for files on the scanner computer and replies to
+    """
+    A server that watches for files on the scanner computer and replies to
         cloud service requests with the file data. The communication connection
         is made with webSockets (ws)
-    '''
+    """
     fileWatcher = FileWatcher()
     allowedDirs = []
     allowedTypes = []

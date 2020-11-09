@@ -1,3 +1,7 @@
+"""
+This module provides the callback handlers what the web server will utilize
+    when handling and rendering html page reqeusts.
+"""
 import os
 import time
 import threading
@@ -10,6 +14,7 @@ certsDir = 'certs'
 maxDaysLoginCookieValid = 0.5
 
 class HttpHandler(tornado.web.RequestHandler):
+    """Generic web handler object that is initialized with the page name to render when called."""
     def initialize(self, webObject, page):
         self.web = webObject
         self.page = page
@@ -30,6 +35,7 @@ class HttpHandler(tornado.web.RequestHandler):
 
 
 class LoginHandler(tornado.web.RequestHandler):
+    """Renders a login page and authenticates users. Sets a secure-cookie to remeber authenticated users."""
     loginAttempts = {}
     loginRetryDelay = 10
 
@@ -110,6 +116,7 @@ class LoginHandler(tornado.web.RequestHandler):
         return None
 
 class LogoutHandler(tornado.web.RequestHandler):
+    """Clears the secure-cookie so that users will need to re-authenticate."""
     def initialize(self, webObject):
         self.web = webObject
 

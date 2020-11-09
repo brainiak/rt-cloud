@@ -1,3 +1,4 @@
+"""This module provides the RPC server that provides communication services to the experiment script."""
 import rpyc
 from rpyc.utils.server import ThreadedServer
 from rpyc.utils.helpers import classpartial
@@ -6,6 +7,10 @@ from rtCommon.subjectInterface import SubjectInterface
 
 
 class ExpModelRPCService(rpyc.Service):
+    """
+    Experiment Model RPC service provides Remote Procedure Calls for the experimenter's script.
+    This service is run within the Project Server. It exports a FileInterface and SubjectInterface.
+    """
     exposed_FileInterface = None
     exposed_SubjectInterface = None
 
@@ -21,6 +26,7 @@ class ExpModelRPCService(rpyc.Service):
 
 
 def startExpModelRPCThread(filesRemote=False, hostname=None, port=12345):
+    """This function starts the ExpModelRPC server. It does not return."""
     safe_attrs = rpyc.core.protocol.DEFAULT_CONFIG.get('safe_attrs')
     safe_attrs.add('__format__')
     serviceWithArgs = classpartial(ExpModelRPCService, filesRemote=filesRemote)

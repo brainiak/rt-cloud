@@ -14,6 +14,7 @@ from rtCommon.expRPCServer import startExpModelRPCThread
 
 
 class ProjectServer:
+    """The main server for running a project. This server starts both the web server and an RPC server."""
     def __init__(self, args):
         if args is None:
             args = argparse.Namespace()
@@ -32,6 +33,7 @@ class ProjectServer:
             })
 
     def start(self):
+        """Start the servers. This function doesn't return."""
         # this will have both a web server and rpc servers to handle client requests
         rpcThread = threading.Thread(name='rpcThread',
                                     target=startExpModelRPCThread,

@@ -1,3 +1,5 @@
+"""Web Server module which provides the web user interface to control and monitor experiments"""
+
 import tornado.web
 import tornado.websocket
 import os
@@ -38,7 +40,7 @@ rootDir = os.path.dirname(moduleDir)
 
 
 class Web():
-    ''' Cloud service web-interface that is the front-end to the data processing. '''
+    """Cloud service web-interface that is the front-end to the data processing."""
     app = None
     httpServer = None
     httpPort = 8888
@@ -65,6 +67,7 @@ class Web():
 
     @staticmethod
     def start(params, cfg, testMode=False):
+        """Start the web server running. Function does not return."""
         if Web.app is not None:
             raise RuntimeError("Web Server already running.")
         Web.testMode = testMode
@@ -137,6 +140,7 @@ class Web():
 
     @staticmethod
     def stop():
+        """Stop the web server."""
         Web.ioLoopInst.add_callback(Web.ioLoopInst.stop)
         Web.app = None
 
@@ -186,6 +190,7 @@ class Web():
 
     @staticmethod
     def wsDataRequest(msg, timeout=None):
+        """Send a request over the data web socket, i.e. to the remote FileWatcher."""
         call_id, conn = Web.dataRequestHandler.prepare_request(msg)
         isNewRequest = not msg.get('incomplete', False)
         cmd = msg.get('cmd')
@@ -205,6 +210,7 @@ class Web():
 
     @staticmethod
     def addResultValue(request):
+        """Track classification result values, used to plot the results in the web browser."""
         cmd = request.get('cmd')
         if cmd != 'resultValue':
             logging.warn('addResultValue: wrong cmd type {}'.format(cmd))
@@ -232,6 +238,7 @@ class Web():
 
 
 def getCookieSecret(dir):
+    """Used to remember users who are currently logged in."""
     filename = os.path.join(dir, 'cookie-secret')
     if os.path.exists(filename):
         with open(filename, mode='rb') as fh:
@@ -248,6 +255,7 @@ def getCookieSecret(dir):
 #####################
 
 def defaultBrowserMainCallback(client, message):
+    """Handles messages/requests received over web sockets from the web interface javascript.""" 
     request = json.loads(message)
     logging.log(DebugLevels.L3, f'browserCallback: {request}')
     print(f'browserCallback: {request}')
@@ -330,6 +338,7 @@ def defaultBrowserMainCallback(client, message):
 
 
 def runSession(cfg, pyScript, tag, logType='run'):
+    """Run the experimenter provided python script as a separate process."""
     # write out config file for use by pyScript
     if logType == 'run':
         configFileName = os.path.join(Web.confDir, 'cfg_sub{}_day{}_run{}.toml'.
@@ -388,6 +397,7 @@ def runSession(cfg, pyScript, tag, logType='run'):
 
 
 def procOutputReader(proc, lineQueue):
+    """Read output from runSession process and queue into lineQueue for logging"""
     for bline in iter(proc.stdout.readline, b''):
         line = bline.decode('utf-8')
         # check if line has error in it and print to console
@@ -400,6 +410,7 @@ def procOutputReader(proc, lineQueue):
 
 
 def processPyScriptRequest(request):
+    """Process RPC requests from the runSession script. Comming either from FileInterface or SubjectInterface"""
     if 'cmd' not in request:
         raise StateError('processPyScriptRequest: cmd field not in request: {}'.format(request))
     cmd = request['cmd']
@@ -480,6 +491,7 @@ def processPyScriptRequest(request):
 
 
 def handleDataRequest(cmd):
+    """Process local data request, i.e. from uploadFiles() in WebServer module."""
     savedError = None
     incomplete = True
     while incomplete:
@@ -501,6 +513,7 @@ def handleDataRequest(cmd):
 
 
 def uploadFiles(request):
+    """Handle requests from the web interface to upload files to this computer."""
     if 'cmd' not in request or request['cmd'] != "uploadFiles":
         raise StateError('uploadFiles: incorrect cmd request: {}'.format(request))
     try:

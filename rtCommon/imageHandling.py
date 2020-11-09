@@ -268,7 +268,8 @@ def convertDicomFileToNifti(dicomFilename, niftiFilename):
     cmd = '{bin} -s y -b n -o {outdir} -f {outname} {inname}'.format(
         bin=dcm2niiCmd, outdir=outPath, outname=outName, inname=dicomFilename
         )
-    os.system(cmd)
+    # os.system(cmd)
+    subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL)
 
 
 def readNifti(niftiFilename):

@@ -4,7 +4,16 @@ from rtCommon.subjectInterface import SubjectInterface
 
 
 class ClientRPC:
+    """
+    This class provides the API that an experiment script can use to communicate with the 
+    project server. It provides both a FileInterface for reading or writing files, and a 
+    SubjectInterface for sending/receiving feedback and response to the subject in the MRI scanner.
+    """
     def __init__(self):
+        """
+        Establishes an RPC connection to a localhost projectServer on a predefined port. 
+        The projectServer must be running on the same computer as the script using this interface.
+        """
         try:
             rpcConn = rpyc.connect('localhost', 12345, 
                                    config={"allow_public_attrs": True,})

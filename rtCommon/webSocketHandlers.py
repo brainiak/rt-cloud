@@ -1,3 +1,4 @@
+"""This module provides classes for handling web socket communication in the web interface."""
 import time
 import json
 import threading
@@ -9,6 +10,7 @@ from rtCommon.errors import StateError
 
 # Maintain websocket local state (using class as a struct)
 class websocketState:
+    """A global static class (really a struct) for maintaining connection and callback information."""
     wsConnLock = threading.Lock()
     # map from wsName to list of connections, such as 'wsData': [conn1]
     wsConnectionLists = {}
@@ -16,6 +18,10 @@ class websocketState:
     wsCallbacks = {}
 
 class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
+    """
+    Generic web socket handler. Estabilishes and maintains a ws connection. Intitialized with 
+        a callback function that gets called when messages are received on this socket instance.
+    """
     def initialize(self, name, callback=None):
         self.name = name
         if websocketState.wsConnectionLists.get(name) is None:
@@ -67,6 +73,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
 
 
 class DataWebSocketHandler(BaseWebSocketHandler):
+    """Sub-class the base handler in order to clean up any outstanding requests on close."""
     def on_close(self):
         super().on_close()
         # get the corresponding RequestHandler object so we can clear any waiting threads
@@ -76,6 +83,7 @@ class DataWebSocketHandler(BaseWebSocketHandler):
 
 
 def sendWebSocketMessage(wsName, msg, conn=None):
+    """Send messages from the web server to all clients connected on the specified wsName socket."""
     websocketState.wsConnLock.acquire()
     try:
         connList = websocketState.wsConnectionLists.get(wsName)
@@ -120,6 +128,11 @@ Step 2: Send the request
 Step 3: Get replies, match the reply to the callback structure and signal a semaphore
 '''
 class RequestHandler:
+    """
+    Class for handling data requests (such with a remote FileInterface). Each data requests is
+    given a unique ID and callbacks from the client are matched to the original request and results
+    returned to the corresponding caller. 
+    """
     def __init__(self, name):
         self.dataCallbacks = {}
         self.dataSequenceNum = 0
@@ -130,6 +143,7 @@ class RequestHandler:
     # Step 1 - Prepare the request, record the callback struct and ID for when the reply comes
     # was sendDataMsgFromThreadAsync(msg):  - TODO remove
     def prepare_request(self, msg):
+        """Prepate a request to be sent, including creating a callback structure and unique ID."""
         # Get data server connection the request will be sent on
         websocketState.wsConnLock.acquire()
         try:
@@ -165,6 +179,7 @@ class RequestHandler:
     # Step 2: Receive a reply and match up the orig callback structure, 
     #   then call semaphore release on that callback struct to trigger waiting threads
     def callback(self, client, message):
+        """Recieve a callback from the client and match it to the original request that was sent."""
         response = json.loads(message)
         if 'cmd' not in response:
             raise StateError('dataCallback: cmd field missing from response: {}'.format(response))
@@ -205,6 +220,7 @@ class RequestHandler:
 
     # Step 3: Caller Wait for the semaphore signal indicating a reply has been received
     def get_response(self, callId, timeout=None):
+        """Client calls get_response() to wait for the callback results to be returned."""
         self.callbackLock.acquire()
         try:
             callbackStruct = self.dataCallbacks.get(callId, None)
@@ -245,6 +261,7 @@ class RequestHandler:
         return response
 
     def close_pending_requests(self):
+        """Close requests and signal any threads waiting for responses."""
         self.callbackLock.acquire()
         try:
             # signal the close to anyone waiting for replies
@@ -264,6 +281,7 @@ class RequestHandler:
             self.callbackLock.release()
 
     def pruneCallbacks(self):
+        """Remove any orphaned callback structures that never got a response back."""
         numWaitingCallbacks = len(self.dataCallbacks)
         if numWaitingCallbacks == 0:
             return
