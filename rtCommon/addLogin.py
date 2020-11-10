@@ -8,7 +8,7 @@ import argparse
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(currPath)
 sys.path.append(rootPath)
-from rtCommon.projectInterface import loadPasswdFile, storePasswdFile
+from rtCommon.webServer import loadPasswdFile, storePasswdFile
 
 passwordFile = 'certs/passwd'
 

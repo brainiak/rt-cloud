@@ -27,13 +27,14 @@ defaultAllowedTypes = ['.dcm', '.mat', '.txt']
 
 
 class WsFileWatcher:
-    ''' A server that watches for files on the scanner computer and replies to
+    """
+    A server that watches for files on the scanner computer and replies to
         cloud service requests with the file data. The communication connection
         is made with webSockets (ws)
-    '''
+    """
     fileWatcher = FileWatcher()
-    allowedDirs = None
-    allowedTypes = None
+    allowedDirs = []
+    allowedTypes = []
     serverAddr = None
     sessionCookie = None
     needLogin = True
@@ -61,6 +62,8 @@ class WsFileWatcher:
             try:
                 if WsFileWatcher.needLogin or WsFileWatcher.sessionCookie is None:
                     WsFileWatcher.sessionCookie = login(serverAddr, username, password, testMode=testMode)
+                    if WsFileWatcher.sessionCookie is None:
+                        logging.log(logging.ERROR, 'Login cookie is None')
                 wsAddr = os.path.join('wss://', serverAddr, 'wsData')
                 if testMode:
                     print("Warning: using non-encrypted connection for test mode")

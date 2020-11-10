@@ -32,14 +32,13 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 # import project modules from rt-cloud
 import rtCommon.utils as utils
-import rtCommon.projectUtils as projUtils
-from rtCommon.fileClient import FileInterface
+import rtCommon.clientInterface as clientInterface
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
-def initialize(cfg, fileInterface, projectComm):
+def initialize(cfg, fileInterface):
     """
     This function is called by 'main()' below. Here, we will do a demo of the
     types of things you can do in this 'initialize.py' script. For instance,
@@ -57,7 +56,6 @@ def initialize(cfg, fileInterface, projectComm):
         [1] cfg (configuration file with important variables)
         [2] fileInterface (this will allow a script from the cloud to access files 
                    from the stimulus computer)
-        [3] projectComm (communication pipe to talk with projectInterface)
     OUTPUT:
         None.
     """
@@ -102,7 +100,7 @@ def initialize(cfg, fileInterface, projectComm):
     #       [2] srcPattern (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
     srcPattern = os.path.join(stimulusDir,'**')
-    projUtils.uploadFilesToCloud(fileInterface,srcPattern,cloudDir)
+    fileInterface.uploadFilesToCloud(srcPattern, cloudDir)
 
     print(""
     "-----------------------------------------------------------------------------\n"
@@ -122,9 +120,6 @@ def main(argv=None):
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment config file (.json or .toml)')
-    # This parameter is used for projectInterface
-    argParser.add_argument('--commpipe', '-q', default=None, type=str,
-                           help='Named pipe to communicate with projectInterface')
     argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
                            help='retrieve files from the remote server')
     args = argParser.parse_args(argv)
@@ -132,15 +127,8 @@ def main(argv=None):
     # load the experiment configuration file
     cfg = utils.loadConfigFile(args.config)
 
-    # open up the communication pipe using 'projectInterface'
-    projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
-    
-    # initiate the 'fileInterface' class, which will allow you to read and write 
-    #   files and many other things using functions found in 'fileClient.py'
-    #   INPUT:
-    #       [1] args.filesremote (to retrieve dicom files from the remote server)
-    #       [2] projectComm (communication pipe that is set up above)
-    fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
+    # establish the RPC connection to the projectInterface
+    clientRPC = clientInterface.ClientRPC()
 
     # now that we have the necessary variables, call the function 'initialize' in
     #   order to actually start reading dicoms and doing your analyses of interest!
@@ -148,8 +136,7 @@ def main(argv=None):
     #       [1] cfg (configuration file with important variables)
     #       [2] fileInterface (this will allow a script from the cloud to access files 
     #               from the stimulus computer)
-    #       [3] projectComm (communication pipe to talk with projectInterface)
-    initialize(cfg, fileInterface, projectComm)
+    initialize(cfg, clientRPC.fileInterface)
     return 0
 
 

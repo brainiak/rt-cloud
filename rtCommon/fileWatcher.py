@@ -10,6 +10,7 @@ from rtCommon.errors import StateError
 
 
 class FileWatcher():
+    """Virtual class for watching for the arrival of new files and reading them."""
     def __new__(cls):
         if sys.platform in ("linux", "linux2"):
             # create linux version
@@ -34,9 +35,11 @@ class FileWatcher():
 
     def initFileNotifier(self, dir, filePattern, minFileSize, demoStep=0):
         logging.log(logging.ERROR, "FileWatcher is abstract class. initFileNotifier not implemented")
+        return None
 
     def waitForFile(self, specificFileName, timeout=0):
         logging.log(logging.ERROR, "FileWatcher is abstract class. waitForFile not implemented")
+        return None
 
 
 if sys.platform in ("darwin", "win32"):
@@ -45,6 +48,7 @@ if sys.platform in ("darwin", "win32"):
 
 # Version of FileWatcher for Mac and Windows
 class WatchdogFileWatcher():
+    """Version of FileWatcher for Mac and Windows using Watchdog toolkit."""
     def __init__(self):
         self.observer = None
         self.fileNotifyHandler = None
@@ -155,6 +159,7 @@ if sys.platform in ("linux", "linux2"):
 
 # Version of FileWatcher for Linux
 class InotifyFileWatcher():
+    """Version of FileWatcher for Linux using Inotify interface."""
     def __init__(self):
         self.watchDir = None
         self.minFileSize = 0

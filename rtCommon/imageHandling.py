@@ -12,11 +12,14 @@ import os
 import time
 import logging
 import subprocess
+import warnings
 import numpy as np  # type: ignore
 import nibabel as nib
 from rtCommon.errors import StateError, ValidationError, InvocationError
 from nilearn.image import new_img_like
-from nibabel.nicom import dicomreaders
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    from nibabel.nicom import dicomreaders
 try:
     import pydicom as dicom  # type: ignore
 except ModuleNotFoundError:
@@ -48,8 +51,8 @@ def getDicomFileName(cfg, scanNum, fileNum):
     if cfg.dicomNamePattern is None:
         raise InvocationError("Missing config settings dicomNamePattern")
 
-    if '{run' in cfg.dicomNamePattern:
-        fileName = cfg.dicomNamePattern.format(scan=scanNum, run=fileNum)
+    if '{TR' in cfg.dicomNamePattern:
+        fileName = cfg.dicomNamePattern.format(SCAN=scanNum, TR=fileNum)
     else:
         scanNumStr = str(scanNum).zfill(2)
         fileNumStr = str(fileNum).zfill(3)
@@ -265,7 +268,8 @@ def convertDicomFileToNifti(dicomFilename, niftiFilename):
     cmd = '{bin} -s y -b n -o {outdir} -f {outname} {inname}'.format(
         bin=dcm2niiCmd, outdir=outPath, outname=outName, inname=dicomFilename
         )
-    os.system(cmd)
+    # os.system(cmd)
+    subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL)
 
 
 def readNifti(niftiFilename):

@@ -18,10 +18,11 @@ from rtCommon.projectUtils import login, certFile, checkSSLCertAltName, makeSSLC
 
 
 class WsFeedbackReceiver:
-    ''' A client that receives classification results (feedback for the subject)
-        from the cloud service. The communication connection
-        is made with webSockets (ws)
-    '''
+    """
+    Feedback Receiver is a client that receives classification results (i.e. feedback for the subject)
+    from the cloud service. The communication connection is made with webSockets (wss).
+    MsgQueue is where the caller will receive the result values once the receiver is started.
+    """
     serverAddr = None
     sessionCookie = None
     needLogin = True
@@ -36,6 +37,7 @@ class WsFeedbackReceiver:
     def startReceiverThread(serverAddr, retryInterval=10,
                             username=None, password=None,
                             testMode=False):
+        """Starts the receiver in it's own thread."""
         WsFeedbackReceiver.recvThread = \
             threading.Thread(name='recvThread',
                              target=WsFeedbackReceiver.runReceiver,
@@ -51,6 +53,7 @@ class WsFeedbackReceiver:
     def runReceiver(serverAddr, retryInterval=10,
                     username=None, password=None,
                     testMode=False):
+        """Run the receiver loop. This function doesn't return."""
         WsFeedbackReceiver.serverAddr = serverAddr
         # go into loop trying to do webSocket connection periodically
         WsFeedbackReceiver.shouldExit = False
@@ -82,6 +85,7 @@ class WsFeedbackReceiver:
 
     @staticmethod
     def on_message(client, message):
+        """Queues feedback values as they arrive."""
         response = {'status': 400, 'error': 'unhandled request'}
         try:
             request = json.loads(message)

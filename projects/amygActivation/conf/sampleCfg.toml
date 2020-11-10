@@ -1,0 +1,69 @@
+# this version: organized into what is saved on cloud vs. saved on local
+
+## PROJECT SPECIFICATIONS FOR PLOTTING ##
+title = "Amygdala Control"
+plotTitle = 'Amygdala Activity'
+plotXLabel = 'TR #'
+plotYLabel = '% Increase'
+plotXRangeLow = 0
+plotXRangeHigh = 379
+plotYRangeLow = 0
+plotYRangeHigh = 1
+
+## SESSION INFORMATION ##
+rtData = true
+date = "2/19/19" # "2018-08-16"  # or "today", "now", "2018-03-01" or "03/01/2018" etc.
+subjectName = "0219191_amygActivation" # PATIENT ID NAME THAT YOU ENTER INTO THE SCANNER
+subjectNum = 1
+subjectDay = 2
+projectName = 'amygActivation'
+
+## RUN PARAMETERS ##
+nTR_skip = 10 # number of TRs to skip at the beginning of the run
+nTR_run = 379
+nTR_shift = 3 # number shift for HRF
+goal_percent_change = 1 # in units of percent
+nTR_block = 28 # how many TRs to include per block
+order_block = ['REST','HAPPY', 'MATH']
+REST = 0
+HAPPY = 1
+MATH = 2
+nReps = 4 # how many repetitions of the 3 blocks (not counting the block at the end)
+
+## ROI ##
+MASK=["L_AMYG_thrp5_bin_resampled.nii.gz"] # different mask options
+nVox = [242] # number of voxels for each mask
+MNI_ref_BOLD="mni_icbm152_t1_tal_nlin_asym_09c_BOLD_brain.nii.gz"
+useMask = 0 # index specifying index to use
+
+## EXP DESIGN ##
+buildImgPath = true
+findNewestPatterns = true
+watchFilePattern = "*.dcm"
+minExpectedDicomSize = 300000
+retrieveServerFiles = false
+enforceDeadlines = true
+calcClockSkewIters = 30
+dicomNamePattern = "001_0000{}_000{}.dcm" # depending on if you're using offline files, dicomNamePattern could be different
+# Specify default run numbers
+runNum = [1]
+scanNum = [9]
+totalNumberRuns = 1
+
+
+## DISPLAY PARAMETERS ##
+[display]
+debug = 1
+useButtonBox = 1
+rtData = 1
+
+## THIS IS WHERE YOU HAVE TO SET ALL ABSOLUTE PATHS AND USERNAMES FOR COPYING FILES ##
+[local]
+rtcloudDir = # ENTER FULL PATH TO rt-cloud folder here ""
+dicomDir = # ENTER FULL PATH TO DICOM FILES ""
+
+[server]
+rtcloudDir = # ENTER FULL PATH TO rt-cloud folder here ""
+serverDataDir = "data/server"
+maskDir = "data"
+deleteAfter = false

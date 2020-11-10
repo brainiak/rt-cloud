@@ -89,6 +89,18 @@ def loadConfigFile(filename):
     return cfg_struct
 
 
+def flatten_1Ds(M):
+    if 1 in M.shape:
+        newShape = [x for x in M.shape if x > 1]
+        M = M.reshape(newShape)
+    return M
+
+
+def dateStr30(timeval):
+    return time.strftime("%Y%m%dT%H%M%S", timeval)
+
+
+##### File and Directory Handling Utilities #####
 def findNewestFile(filepath, filepattern):
     '''Find newest file matching pattern according to filesystem creation time.
        Return the filename
@@ -110,17 +122,6 @@ def findNewestFile(filepath, filepattern):
         return max(glob.iglob(full_path_pattern), key=os.path.getctime)
     except ValueError:
         return None
-
-
-def flatten_1Ds(M):
-    if 1 in M.shape:
-        newShape = [x for x in M.shape if x > 1]
-        M = M.reshape(newShape)
-    return M
-
-
-def dateStr30(timeval):
-    return time.strftime("%Y%m%dT%H%M%S", timeval)
 
 
 def copyFileWildcard(src, dst):
@@ -158,6 +159,26 @@ def readFile(filename, binary=True):
     with open(filename, mode) as fp:
         data = fp.read()
     return data
+
+
+def deleteFilesFromList(fileList):
+    for filename in fileList:
+        os.remove(filename)
+
+
+def deleteFolder(dir):
+    shutil.rmtree(dir)
+
+
+# Function to delete all files but leave the directory structure intact
+def deleteFolderFiles(dir, recursive=True):
+    dirPattern = os.path.join(dir, '**')
+    fileList = [x for x in glob.iglob(dirPattern, recursive=recursive)]
+    filteredList = []
+    for filename in fileList:
+        if not os.path.isdir(filename):
+            filteredList.append(filename)
+    deleteFilesFromList(filteredList)
 
 
 def runCmdCheckOutput(cmd, outputRegex):

@@ -25,8 +25,7 @@ sys.path.append(rootPath)
 #sys.path.append('/jukebox/norman/amennen/github/brainiak/rt-cloud/')
 
 import rtCommon.utils as utils
-from rtCommon.fileClient import FileInterface
-import rtCommon.projectUtils as projUtils
+import rtCommon.clientInterface as clientInterface
 from rtCommon.structDict import StructDict
 #from rtCommon.dicomNiftiHandler import getTransform
 from rtCommon.imageHandling import getTransform
@@ -60,8 +59,6 @@ def main(argv=None):
 	# This parameter is used for projectInterface
 	argParser.add_argument('--commpipe', '-q', default=None, type=str,
 						   help='Named pipe to communicate with projectInterface')
-	argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
-						   help='retrieve files from the remote server')
 	argParser.add_argument('--addr', '-a', default='localhost', type=str, 
 			   help='server ip address')
 	argParser.add_argument('--runs', '-r', default='', type=str,
@@ -69,6 +66,11 @@ def main(argv=None):
 	argParser.add_argument('--scans', '-s', default='', type=str,
 					   help='Comma separated list of scan number')
 	args = argParser.parse_args(argv)
+
+	# establish the RPC connection to the projectInterface
+	clientRPC = clientInterface.ClientRPC()
+	fileInterface = clientRPC.fileInterface
+	args.filesremote = fileInterface.areFilesremote()
 
 	# load the experiment configuration file
 	cfg = utils.loadConfigFile(args.config)
@@ -79,21 +81,11 @@ def main(argv=None):
 	# subject-specific folder
 	# everything in temp/convertedNiftis
 	if args.filesremote:
-
-		# open up the communication pipe using 'projectInterface'
-		projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
-
-		# initiate the 'fileInterface' class, which will allow you to read and write 
-		#   files and many other things using functions found in 'fileClient.py'
-		#   INPUT:
-		#       [1] args.filesremote (to retrieve dicom files from the remote server)
-		#       [2] projectComm (communication pipe that is set up above)
-		fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
-
+		print('Files Remote Case')
 		# we don't need the tmp/convertedNiftis so first remove those
 		tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
 		if os.path.exists(tempNiftiDir):
-			projUtils.deleteFolder(tempNiftiDir)
+			utils.deleteFolder(tempNiftiDir)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('deleting temporary convertedNifti folder: ', tempNiftiDir)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
@@ -104,20 +96,20 @@ def main(argv=None):
 			runFolder = os.path.join(cfg.server.subject_full_day_path, runId, '*')
 			listOfFiles = glob.glob(runFolder)
 			runFolder_local = os.path.join(cfg.local.subject_full_day_path, runId)
-			projUtils.downloadFilesFromList(fileInterface, listOfFiles, runFolder_local)
+			fileInterface.downloadFilesFromList(listOfFiles, runFolder_local)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('downloading data to local computer: ', runFolder)
 		# next delete the entire subject folder on the cloud
 		# MAKE SURE THIS IS CORRECT FOR YOUR EXPERIMENT BEFORE YOU RUN
 		subject_dir = os.path.join(cfg.server.dataDir, cfg.bids_id)
 		print('FOLDER TO DELETE ON CLOUD SERVER: ', subject_dir)
-		print('IF THIS IS CORRECT, GO BACK TO THE CONFIG FILE USED ON THE WEB SERBER COMPUTER AND CHANGE THE FLAG FROM false --> true IN [server] deleteAfter')
+		print('IF THIS IS CORRECT, GO BACK TO THE CONFIG FILE USED ON THE WEB SERVER COMPUTER AND CHANGE THE FLAG FROM false --> true IN [server] deleteAfter')
 		if cfg.server.deleteAfter:
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('DELETING SUBJECT FOLDER ON CLOUD SERVER: ', subject_dir)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			if os.path.exists(subject_dir):
-				projUtils.deleteFolder(subject_dir)
+				utils.deleteFolder(subject_dir)
 
 	return 0
 

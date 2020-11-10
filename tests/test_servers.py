@@ -3,18 +3,22 @@ import os
 import threading
 import time
 import glob
+import json
 import shutil
 import logging
 from base64 import b64decode
 import projects.sample.sample as sample
-from rtCommon.fileClient import FileInterface
+import rtCommon.wsRequestStructs as req
 import rtCommon.utils as utils
-from rtCommon.fileServer import WsFileWatcher
-from rtCommon.projectInterface import Web, handleDataRequest, CommonOutputDir
 import rtCommon.projectUtils as projUtils
+from rtCommon.fileInterface import FileInterface
+from rtCommon.fileServer import WsFileWatcher
+from rtCommon.webServer import Web, handleDataRequest, CommonOutputDir
 from rtCommon.structDict import StructDict
 from rtCommon.errors import RequestError
 from rtCommon.imageHandling import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
+from rtCommon.webSocketHandlers import sendWebSocketMessage
+from rtCommon.projectServer import ProjectServer
 
 
 testDir = os.path.dirname(__file__)
@@ -40,25 +44,27 @@ def bigTestfile():  # type: ignore
 
 
 class TestServers:
-    webThread = None
+    mainThread = None
     fileThread = None
     pingCount = 0
 
     def setup_class(cls):
         utils.installLoggers(logging.DEBUG, logging.DEBUG, filename='logs/tests.log')
-        # Start a projectInterface thread running
-        params = StructDict({'fmriPyScript': 'projects/sample/sample.py',
-                             'filesremote': True,
-                             'port': 8921,
-                            })
+        # Start a projectServer thread running
         cfg = StructDict({'sessionId': "test",
                           'subjectName': "test_sample",
                           'subjectNum': 1,
                           'subjectDay': 1,
                           'sessionNum': 1})
-        cls.webThread = threading.Thread(name='webThread', target=Web.start, args=(params, cfg, True))
-        cls.webThread.setDaemon(True)
-        cls.webThread.start()
+        args = StructDict({'config': cfg,
+                           'mainScript': 'projects/sample/sample.py',
+                           'filesremote': True,
+                           'port': 8921, 
+                           'test': True})
+        projectServer = ProjectServer(args)
+        cls.mainThread = threading.Thread(name='mainThread', target=projectServer.start)
+        cls.mainThread.setDaemon(True)
+        cls.mainThread.start()
         time.sleep(.1)
 
         # Start a fileWatcher thread running
@@ -89,9 +95,9 @@ class TestServers:
         print("test_ping")
         global pingCallbackEvent
         # Send a ping request from projectInterface to fileWatcher
-        assert Web.wsDataConn is not None
+        # assert Web.wsDataConn is not None
         cmd = {'cmd': 'ping'}
-        response = Web.sendDataMsgFromThread(cmd, timeout=2)
+        response = Web.wsDataRequest(cmd, timeout=2)
         if response['status'] != 200:
             print("Ping error: {}".format(response))
         assert response['status'] == 200
@@ -125,16 +131,16 @@ class TestServers:
     def test_getFile(self, dicomTestFilename):
         print("test_getFile")
         global fileData
-        assert Web.wsDataConn is not None
+        # assert Web.wsDataConn is not None
         # Try to initialize file watcher with non-allowed directory
-        cmd = projUtils.initWatchReqStruct('/', '*', 0)
-        response = Web.sendDataMsgFromThread(cmd)
+        cmd = req.initWatchReqStruct('/', '*', 0)
+        response = Web.wsDataRequest(cmd)
         # we expect an error because '/' directory not allowed
         assert response['status'] == 400
 
         # Initialize with allowed directory
-        cmd = projUtils.initWatchReqStruct(testDir, '*.dcm', 0)
-        response = Web.sendDataMsgFromThread(cmd)
+        cmd = req.initWatchReqStruct(testDir, '*.dcm', 0)
+        response = Web.wsDataRequest(cmd)
         assert response['status'] == 200
 
         dcmImg = readDicomFromFile(dicomTestFilename)
@@ -143,7 +149,7 @@ class TestServers:
         # with open(dicomTestFilename, 'rb') as fp:
         #     data = fp.read()
 
-        cmd = projUtils.watchFileReqStruct(dicomTestFilename)
+        cmd = req.watchFileReqStruct(dicomTestFilename)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
@@ -152,14 +158,14 @@ class TestServers:
         assert responseData == data
 
         # Try compressed version
-        cmd = projUtils.watchFileReqStruct(dicomTestFilename, compress=True)
+        cmd = req.watchFileReqStruct(dicomTestFilename, compress=True)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
             assert False, str(err)
         assert responseData == data
 
-        cmd = projUtils.getFileReqStruct(dicomTestFilename)
+        cmd = req.getFileReqStruct(dicomTestFilename)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
@@ -167,14 +173,14 @@ class TestServers:
         assert responseData == data
 
         # Try compressed version
-        cmd = projUtils.getFileReqStruct(dicomTestFilename, compress=True)
+        cmd = req.getFileReqStruct(dicomTestFilename, compress=True)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
             assert False, str(err)
         assert responseData == data
 
-        cmd = projUtils.getNewestFileReqStruct(dicomTestFilename)
+        cmd = req.getNewestFileReqStruct(dicomTestFilename)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
@@ -182,42 +188,42 @@ class TestServers:
         assert responseData == data
 
         # Try to get a non-allowed file
-        cmd = projUtils.getFileReqStruct('/tmp/file.nope')
+        cmd = req.getFileReqStruct('/tmp/file.nope')
         try:
             responseData = handleDataRequest(cmd)
         except RequestError as err:
             # Expecting a status not 200 error to be raised
             assert 'status' in str(err)
         else:
-            self.fail('Expecting RequestError')
+            pytest.fail('Expecting RequestError')
 
         # try from a non-allowed directory
-        cmd = projUtils.getFileReqStruct('/nope/file.dcm')
+        cmd = req.getFileReqStruct('/nope/file.dcm')
         try:
             responseData = handleDataRequest(cmd)
         except RequestError as err:
             # Expecting a status not 200 error to be raised
             assert 'status' in str(err)
         else:
-            self.fail('Expecting RequestError')
+            pytest.fail('Expecting RequestError')
 
         # Test putTextFile
         testText = 'hello2'
         textFileName = os.path.join(tmpDir, 'test2.txt')
-        cmd = projUtils.putTextFileReqStruct(textFileName, testText)
-        response = Web.sendDataMsgFromThread(cmd)
+        cmd = req.putTextFileReqStruct(textFileName, testText)
+        response = Web.wsDataRequest(cmd)
         assert response['status'] == 200
 
         # Test putBinaryData function
         testData = b'\xFE\xED\x01\x23'
         dataFileName = os.path.join(tmpDir, 'test2.bin')
-        cmd = projUtils.putBinaryFileReqStruct(dataFileName)
+        cmd = req.putBinaryFileReqStruct(dataFileName)
         for putFilePart in projUtils.generateDataParts(testData, cmd, compress=True):
-            response = Web.sendDataMsgFromThread(putFilePart)
+            response = Web.wsDataRequest(putFilePart)
         assert response['status'] == 200
         # read back an compare to original
-        cmd = projUtils.getFileReqStruct(dataFileName)
-        response = Web.sendDataMsgFromThread(cmd)
+        cmd = req.getFileReqStruct(dataFileName)
+        response = Web.wsDataRequest(cmd)
         responseData = b64decode(response['data'])
         assert responseData == testData
 
@@ -228,7 +234,7 @@ class TestServers:
 
         # Read via fileClient
         startTime = time.time()
-        cmd = projUtils.getFileReqStruct(bigTestfile)
+        cmd = req.getFileReqStruct(bigTestfile)
         try:
             responseData = handleDataRequest(cmd)
         except Exception as err:
@@ -238,21 +244,22 @@ class TestServers:
 
         # Write bigFile Synchronous
         startTime = time.time()
-        cmd = projUtils.putBinaryFileReqStruct(bigTestfile)
+        cmd = req.putBinaryFileReqStruct(bigTestfile)
         for putFilePart in projUtils.generateDataParts(data, cmd, compress=False):
-            response = Web.sendDataMsgFromThread(putFilePart)
+            response = Web.wsDataRequest(putFilePart)
             assert response['status'] == 200
         print('Write Bigfile sync time: {}'.format(time.time() - startTime))
 
         # Write bigFile Asynchronous
         startTime = time.time()
-        cmd = projUtils.putBinaryFileReqStruct(bigTestfile)
+        cmd = req.putBinaryFileReqStruct(bigTestfile)
         callIds = []
         for putFilePart in projUtils.generateDataParts(data, cmd, compress=False):
-            callId = Web.sendDataMsgFromThreadAsync(putFilePart)
-            callIds.append(callId)
+            call_id, conn = Web.dataRequestHandler.prepare_request(putFilePart)
+            Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsData', msg=json.dumps(putFilePart), conn=conn)
+            callIds.append(call_id)
         for callId in callIds:
-            response = Web.getDataMsgResponse(callId)
+            response = Web.dataRequestHandler.get_response(callId)
             assert response['status'] == 200
         print('Write Bigfile async time: {}'.format(time.time() - startTime))
 
@@ -263,13 +270,12 @@ class TestServers:
         assert writtenData == data
 
     def test_runFromCommandLine(self):
-        argv = ['--filesremote']
+        argv = []  # ['--filesremote']
         ret = sample.main(argv)
         assert ret == 0
 
     def test_fileInterface(self, bigTestfile):
-        projectComm = projUtils.initProjectComm(None, True)
-        fileInterface = FileInterface(filesremote=True, commPipes=projectComm)
+        fileInterface = FileInterface(filesremote=True)
 
         # Read in original data
         with open(bigTestfile, 'rb') as fp:
@@ -327,11 +333,11 @@ class TestServers:
         utils.writeFile('/tmp/d1/test3.bin', bindata1)
         utils.writeFile('/tmp/d1/test4.bin', bindata2)
         # 2. download files from cloud
-        projUtils.downloadFilesFromCloud(fileInterface, '/tmp/d1/test*.txt', '/tmp/d2')
-        projUtils.downloadFilesFromCloud(fileInterface, '/tmp/d1/test*.bin', '/tmp/d2')
+        fileInterface.downloadFilesFromCloud('/tmp/d1/test*.txt', '/tmp/d2')
+        fileInterface.downloadFilesFromCloud('/tmp/d1/test*.bin', '/tmp/d2')
         # 3. upload files to cloud
-        projUtils.uploadFilesToCloud(fileInterface, '/tmp/d2/test*.txt', '/tmp/d3')
-        projUtils.uploadFilesToCloud(fileInterface, '/tmp/d2/test*.bin', '/tmp/d3')
+        fileInterface.uploadFilesToCloud('/tmp/d2/test*.txt', '/tmp/d3')
+        fileInterface.uploadFilesToCloud('/tmp/d2/test*.bin', '/tmp/d3')
         # check that all files in d1 are same as files in d3
         d3text1 = utils.readFile('/tmp/d3/test1.txt', binary=False)
         d3text2 = utils.readFile('/tmp/d3/test2.txt', binary=False)
@@ -350,18 +356,18 @@ class TestServers:
 
         # test delete files from list
         assert os.path.exists(fileList[-1])
-        projUtils.deleteFilesFromList(fileList)
+        utils.deleteFilesFromList(fileList)
         assert not os.path.exists(fileList[-1])
         assert os.path.isdir('/tmp/d1/d2/d3')
 
         # test delete folder
         for file in fileList:
             utils.writeFile(file, 'hello', binary=False)
-        projUtils.deleteFolder('/tmp/d1')
+        utils.deleteFolder('/tmp/d1')
         assert not os.path.isdir('/tmp/d1')
 
         # test delete files recursively in folders, but leave folders in place
         for file in fileList:
             utils.writeFile(file, 'hello', binary=False)
-        projUtils.deleteFolderFiles('/tmp/d1')
+        utils.deleteFolderFiles('/tmp/d1')
         assert os.path.isdir('/tmp/d1/d2/d3')
