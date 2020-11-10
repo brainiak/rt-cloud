@@ -6,17 +6,18 @@ from rtCommon.fileInterface import FileInterface
 from rtCommon.subjectInterface import SubjectInterface
 
 
-class ExpModelRPCService(rpyc.Service):
+class ExperimentRPCService(rpyc.Service):
     """
-    Experiment Model RPC service provides Remote Procedure Calls for the experimenter's script.
-    This service is run within the Project Server. It exports a FileInterface and SubjectInterface.
+    Provides Remote Procedure Call service for the experimenter's script. This service runs
+    in the projectServer to receive and handle RPC requests from the experimenter script.
+    It exports a FileInterface and SubjectInterface.
     """
     exposed_FileInterface = None
     exposed_SubjectInterface = None
 
     def __init__(self, filesRemote = False):
-        ExpModelRPCService.exposed_FileInterface = FileInterface(filesRemote)
-        ExpModelRPCService.exposed_SubjectInterface = SubjectInterface()
+        ExperimentRPCService.exposed_FileInterface = FileInterface(filesRemote)
+        ExperimentRPCService.exposed_SubjectInterface = SubjectInterface()
 
     def on_connect(self, conn):
         pass
@@ -25,11 +26,14 @@ class ExpModelRPCService(rpyc.Service):
         pass
 
 
-def startExpModelRPCThread(filesRemote=False, hostname=None, port=12345):
-    """This function starts the ExpModelRPC server. It does not return."""
+def startExperimentRPCThread(filesRemote=False, hostname=None, port=12345):
+    """
+    This function starts the Experiment RPC server for communication between the projectServer
+        and the experiment script. It does not return.
+    """
     safe_attrs = rpyc.core.protocol.DEFAULT_CONFIG.get('safe_attrs')
     safe_attrs.add('__format__')
-    serviceWithArgs = classpartial(ExpModelRPCService, filesRemote=filesRemote)
+    serviceWithArgs = classpartial(ExperimentRPCService, filesRemote=filesRemote)
     threadId = ThreadedServer(serviceWithArgs, hostname=hostname, port=port,
                               protocol_config={
                                   "allow_public_attrs": True,

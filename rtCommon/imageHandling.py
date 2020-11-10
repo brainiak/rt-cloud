@@ -51,8 +51,8 @@ def getDicomFileName(cfg, scanNum, fileNum):
     if cfg.dicomNamePattern is None:
         raise InvocationError("Missing config settings dicomNamePattern")
 
-    if '{run' in cfg.dicomNamePattern:
-        fileName = cfg.dicomNamePattern.format(scan=scanNum, run=fileNum)
+    if '{TR' in cfg.dicomNamePattern:
+        fileName = cfg.dicomNamePattern.format(SCAN=scanNum, TR=fileNum)
     else:
         scanNumStr = str(scanNum).zfill(2)
         fileNumStr = str(fileNum).zfill(3)

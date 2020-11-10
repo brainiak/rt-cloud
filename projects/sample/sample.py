@@ -16,7 +16,7 @@ Finally, this script is called from 'projectMain.py', which is called from
 
 -----------------------------------------------------------------------------"""
 
-verbose = False
+verbose = True
 
 if verbose:
     # print a short introduction on the internet window
@@ -25,7 +25,7 @@ if verbose:
         "The purpose of this sample project is to demonstrate different ways you can\n"
         "implement functions, structures, etc. that we have developed for your use.\n"
         "You will find some comments printed on this html browser. However, if you want\n"
-        "more information about how things work please talk a look at ‘sample.py’.\n"
+        "more information about how things work please take a look at ‘sample.py’.\n"
         "Good luck!\n"
         "-----------------------------------------------------------------------------")
 

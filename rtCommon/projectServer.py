@@ -10,7 +10,7 @@ from rtCommon.structDict import StructDict
 from rtCommon.utils import installLoggers
 from rtCommon.errors import InvocationError
 from rtCommon.webServer import Web
-from rtCommon.expRPCServer import startExpModelRPCThread
+from rtCommon.experimentRPCService import startExperimentRPCThread
 
 
 class ProjectServer:
@@ -36,7 +36,7 @@ class ProjectServer:
         """Start the servers. This function doesn't return."""
         # this will have both a web server and rpc servers to handle client requests
         rpcThread = threading.Thread(name='rpcThread',
-                                    target=startExpModelRPCThread,
+                                    target=startExperimentRPCThread,
                                     kwargs={'filesRemote': self.args.filesremote,
                                             'hostname': 'localhost',
                                             'port': 12345})
