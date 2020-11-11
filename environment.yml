@@ -26,6 +26,7 @@ dependencies:
   - brainiak
   - dcm2niix
   - nodejs
+  - rpyc
   - pip:
     - watchdog
     - inotify
