@@ -15,7 +15,7 @@ import subprocess
 import warnings
 import numpy as np  # type: ignore
 import nibabel as nib
-from rtCommon.errors import StateError, ValidationError, InvocationError
+from rtCommon.errors import StateError, ValidationError, InvocationError, RequestError
 from nilearn.image import new_img_like
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -153,9 +153,12 @@ def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
             dicomImg.convert_pixel_data()
             # successful
             return dicomImg
-        except Exception as err:
-            logging.warning("LoadImage error, retry in 100 ms: {} ".format(err))
+        except TimeoutError as err:
+            logging.warning(f"Timeout waiting for {filename}. Retry in 100 ms")
             time.sleep(0.1)
+        except Exception as err:
+            logging.error(f"ReadRetryDicom Error, filename {filename} err: {err}")
+            return None
     return None
 
 

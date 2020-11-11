@@ -108,7 +108,7 @@ class FileInterface:
         if self.local:
             retVal = self.fileWatcher.waitForFile(filename, timeout=timeout)
             if retVal is None:
-                raise FileNotFoundError("WatchFile: Timeout {}s: {}".format(timeout, filename))
+                raise TimeoutError("WatchFile: Timeout {}s: {}".format(timeout, filename))
             else:
                 with open(filename, 'rb') as fp:
                     data = fp.read()

@@ -258,7 +258,7 @@ def defaultBrowserMainCallback(client, message):
     """Handles messages/requests received over web sockets from the web interface javascript.""" 
     request = json.loads(message)
     logging.log(DebugLevels.L3, f'browserCallback: {request}')
-    print(f'browserCallback: {request}')
+    # print(f'browserCallback: {request}')
     if 'config' in request:
         # Common code for any command that sends config information - retrieve the config info
         cfgData = request['config']

@@ -48,7 +48,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             wsConnections.append(self)
         finally:
             websocketState.wsConnLock.release()
-        print(f'{self.name} WebSocket: connected {self.request.remote_ip}')
+        # print(f'{self.name} WebSocket: connected {self.request.remote_ip}')
 
     def on_close(self):
         logging.log(DebugLevels.L1, f"{self.name} WebSocket closed")
