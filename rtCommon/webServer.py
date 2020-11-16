@@ -410,7 +410,7 @@ def procOutputReader(proc, lineQueue):
 
 
 def processPyScriptRequest(request):
-    """Process RPC requests from the runSession script. Comming either from FileInterface or SubjectInterface"""
+    """Process RPC requests from the runSession script. Comming either from DataInterface or SubjectInterface"""
     if 'cmd' not in request:
         raise StateError('processPyScriptRequest: cmd field not in request: {}'.format(request))
     cmd = request['cmd']

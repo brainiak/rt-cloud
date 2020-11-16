@@ -11,7 +11,7 @@ import projects.sample.sample as sample
 import rtCommon.wsRequestStructs as req
 import rtCommon.utils as utils
 import rtCommon.projectUtils as projUtils
-from rtCommon.fileInterface import FileInterface
+from rtCommon.dataInterface import DataInterface
 from rtCommon.fileServer import WsFileWatcher
 from rtCommon.webServer import Web, handleDataRequest, CommonOutputDir
 from rtCommon.structDict import StructDict
@@ -58,7 +58,7 @@ class TestServers:
                           'sessionNum': 1})
         args = StructDict({'config': cfg,
                            'mainScript': 'projects/sample/sample.py',
-                           'filesremote': True,
+                           'dataremote': True,
                            'port': 8921, 
                            'test': True})
         projectServer = ProjectServer(args)
@@ -210,14 +210,20 @@ class TestServers:
         # Test putTextFile
         testText = 'hello2'
         textFileName = os.path.join(tmpDir, 'test2.txt')
-        cmd = req.putTextFileReqStruct(textFileName, testText)
-        response = Web.wsDataRequest(cmd)
+        cmd = req.putFileReqStruct(textFileName)
+        for putFilePart in projUtils.generateDataParts(testText.encode(), cmd, compress=True):
+            response = Web.wsDataRequest(putFilePart)
         assert response['status'] == 200
+        # read back an compare to original
+        cmd = req.getFileReqStruct(textFileName)
+        response = Web.wsDataRequest(cmd)
+        responseData = b64decode(response['data'])
+        assert responseData.decode() == testText
 
         # Test putBinaryData function
         testData = b'\xFE\xED\x01\x23'
         dataFileName = os.path.join(tmpDir, 'test2.bin')
-        cmd = req.putBinaryFileReqStruct(dataFileName)
+        cmd = req.putFileReqStruct(dataFileName)
         for putFilePart in projUtils.generateDataParts(testData, cmd, compress=True):
             response = Web.wsDataRequest(putFilePart)
         assert response['status'] == 200
@@ -244,7 +250,7 @@ class TestServers:
 
         # Write bigFile Synchronous
         startTime = time.time()
-        cmd = req.putBinaryFileReqStruct(bigTestfile)
+        cmd = req.putFileReqStruct(bigTestfile)
         for putFilePart in projUtils.generateDataParts(data, cmd, compress=False):
             response = Web.wsDataRequest(putFilePart)
             assert response['status'] == 200
@@ -252,7 +258,7 @@ class TestServers:
 
         # Write bigFile Asynchronous
         startTime = time.time()
-        cmd = req.putBinaryFileReqStruct(bigTestfile)
+        cmd = req.putFileReqStruct(bigTestfile)
         callIds = []
         for putFilePart in projUtils.generateDataParts(data, cmd, compress=False):
             call_id, conn = Web.dataRequestHandler.prepare_request(putFilePart)
@@ -270,12 +276,12 @@ class TestServers:
         assert writtenData == data
 
     def test_runFromCommandLine(self):
-        argv = []  # ['--filesremote']
+        argv = []  # ['--dataremote']
         ret = sample.main(argv)
         assert ret == 0
 
-    def test_fileInterface(self, bigTestfile):
-        fileInterface = FileInterface(filesremote=True)
+    def test_dataInterface(self, bigTestfile):
+        dataInterface = DataInterface(dataremote=True)
 
         # Read in original data
         with open(bigTestfile, 'rb') as fp:
@@ -284,7 +290,7 @@ class TestServers:
         # Read via fileClient
         startTime = time.time()
         try:
-            responseData = fileInterface.getFile(bigTestfile)
+            responseData = dataInterface.getFile(bigTestfile)
         except Exception as err:
             assert False, str(err)
         assert responseData == data
@@ -293,7 +299,7 @@ class TestServers:
         # Write bigFile
         startTime = time.time()
         try:
-            fileInterface.putBinaryFile(bigTestfile, data)
+            dataInterface.putFile(bigTestfile, data)
         except Exception as err:
             assert False, str(err)
         print('Write Bigfile time: {}'.format(time.time() - startTime))
@@ -304,13 +310,13 @@ class TestServers:
         assert writtenData == data
 
         # test get allowedFileTypes
-        allowedTypes = fileInterface.allowedFileTypes()
+        allowedTypes = dataInterface.allowedFileTypes()
         assert allowedTypes == fileTypeList
 
         # test list files
         filepattern = os.path.join(testDir, 'test_input', '*.dcm')
         try:
-            filelist = fileInterface.listFiles(filepattern)
+            filelist = dataInterface.listFiles(filepattern)
         except Exception as err:
             assert False, str(err)
         # get list locally
@@ -333,11 +339,11 @@ class TestServers:
         utils.writeFile('/tmp/d1/test3.bin', bindata1)
         utils.writeFile('/tmp/d1/test4.bin', bindata2)
         # 2. download files from cloud
-        fileInterface.downloadFilesFromCloud('/tmp/d1/test*.txt', '/tmp/d2')
-        fileInterface.downloadFilesFromCloud('/tmp/d1/test*.bin', '/tmp/d2')
+        dataInterface.downloadFilesFromCloud('/tmp/d1/test*.txt', '/tmp/d2')
+        dataInterface.downloadFilesFromCloud('/tmp/d1/test*.bin', '/tmp/d2')
         # 3. upload files to cloud
-        fileInterface.uploadFilesToCloud('/tmp/d2/test*.txt', '/tmp/d3')
-        fileInterface.uploadFilesToCloud('/tmp/d2/test*.bin', '/tmp/d3')
+        dataInterface.uploadFilesToCloud('/tmp/d2/test*.txt', '/tmp/d3')
+        dataInterface.uploadFilesToCloud('/tmp/d2/test*.bin', '/tmp/d3')
         # check that all files in d1 are same as files in d3
         d3text1 = utils.readFile('/tmp/d3/test1.txt', binary=False)
         d3text2 = utils.readFile('/tmp/d3/test2.txt', binary=False)

@@ -38,7 +38,7 @@ defaultConfig = os.path.join(currPath, 'conf/amygActivation.toml')
 def finalize(cfg, args):
 	# first find the number of runs completed
 	run_path = os.path.join(cfg.local.subject_full_day_path, 'run*')
-	if args.filesremote:
+	if args.dataremote:
 		run_path = os.path.join(cfg.server.subject_full_day_path, 'run*')
 	nRuns_completed = len(glob.glob(run_path))
 	return nRuns_completed
@@ -48,7 +48,7 @@ def main(argv=None):
 	This is the main function that is called when you run 'finialize.py'.
 
 	Here, you will load the configuration settings specified in the toml configuration 
-	file, initiate the class fileInterface, and set up some directories and other 
+	file, initiate the class dataInterface, and set up some directories and other 
 	important things through 'finalize()'
 	"""
 
@@ -69,8 +69,8 @@ def main(argv=None):
 
 	# establish the RPC connection to the projectInterface
 	clientRPC = clientInterface.ClientRPC()
-	fileInterface = clientRPC.fileInterface
-	args.filesremote = fileInterface.areFilesremote()
+	dataInterface = clientRPC.dataInterface
+	args.dataremote = dataInterface.isDataRemote()
 
 	# load the experiment configuration file
 	cfg = utils.loadConfigFile(args.config)
@@ -80,7 +80,7 @@ def main(argv=None):
 	# copy subject folders from server to local
 	# subject-specific folder
 	# everything in temp/convertedNiftis
-	if args.filesremote:
+	if args.dataremote:
 		print('Files Remote Case')
 		# we don't need the tmp/convertedNiftis so first remove those
 		tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
@@ -96,7 +96,7 @@ def main(argv=None):
 			runFolder = os.path.join(cfg.server.subject_full_day_path, runId, '*')
 			listOfFiles = glob.glob(runFolder)
 			runFolder_local = os.path.join(cfg.local.subject_full_day_path, runId)
-			fileInterface.downloadFilesFromList(listOfFiles, runFolder_local)
+			dataInterface.downloadFilesFromList(listOfFiles, runFolder_local)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('downloading data to local computer: ', runFolder)
 		# next delete the entire subject folder on the cloud

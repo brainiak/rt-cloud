@@ -134,11 +134,11 @@ def readDicomFromBuffer(data):
     return dicomImg
 
 
-def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
+def readRetryDicomFromDataInterface(dataInterface, filename, timeout=5):
     """
     This function is waiting and watching for a dicom file to be sent to the cloud
     from the scanner. It dodes this by calling the 'watchFile()' function in the
-    'fileInterface.py'
+    'dataInterface.py'
 
     Used externally (and internally).
     """
@@ -146,7 +146,7 @@ def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
     while retries < 5:
         retries += 1
         try:
-            data = fileInterface.watchFile(filename, timeout)
+            data = dataInterface.watchFile(filename, timeout)
             # TODO - Inject error here and see if commpipe remains open
             dicomImg = readDicomFromBuffer(data)
             # check that pixel array is complete

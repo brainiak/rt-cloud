@@ -58,19 +58,9 @@ def initWatchReqStruct(dir, filePattern, minFileSize, demoStep=0):
     return cmd
 
 
-def putTextFileReqStruct(filename, str):
+def putFileReqStruct(filename):
     cmd = {
-        'cmd': 'putTextFile',
-        'route': 'dataserver',
-        'filename': filename,
-        'text': str,
-    }
-    return cmd
-
-
-def putBinaryFileReqStruct(filename):
-    cmd = {
-        'cmd': 'putBinaryFile',
+        'cmd': 'putFile',
         'route': 'dataserver',
         'filename': filename,
     }

@@ -4,26 +4,34 @@ Can also be used in local-mode accessing local files without a FileWatcher.
 """
 import os
 import glob
+import chardet
 import logging
 from pathlib import Path
+from typing import List
 import rtCommon.utils as utils
 import rtCommon.projectUtils as projUtils
 import rtCommon.wsRequestStructs as req
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.errors import StateError, RequestError
 from rtCommon.webServer import processPyScriptRequest
+from rtCommon.types import StrOrBytes
 
 
+# def initScannerStream(self, imgDir: str, filePattern: str) -> int: {}  // returns streamId
+# def initOpenNeuroStream(self, dataset: str, subject: str, session: str, run: str, task: str) -> int: {}  // returns streamId
+# def getImageData(self, streamId: int, imageIndex: int=None) -> bytes: {}
+# def getBidsIncremental(self, streamId: int, imageIndex: int=None) -> Any: {}  // return a BIDS-I image (typed as Any for now)
 
-class FileInterface:
+
+class DataInterface:
     """
     Provides functions for accessing remote or local files depending on configuration
     """
-    def __init__(self, filesremote=False):
+    def __init__(self, dataremote=False):
         """
-        if filesremote is true requests will be sent to a remote FileWatcher
+        if dataremote is true requests will be sent to a remote FileWatcher
         """
-        self.local = not filesremote
+        self.local = not dataremote
         self.fileWatcher = None
         self.initWatchSet = False
         if self.local:
@@ -34,11 +42,16 @@ class FileInterface:
             self.fileWatcher.__del__()
             self.fileWatcher = None
 
-    def areFilesremote(self):
+    def isDataRemote(self):
         """Indicates whether operating in remote or local mode."""
         return not self.local
 
-    def getFile(self, filename):
+    # def initScannerStream(self, imgDir: str, filePattern: str) -> int: {}  // returns streamId
+    # def initOpenNeuroStream(self, dataset: str, subject: str, session: str, run: str, task: str) -> int: {}  // returns streamId
+    # def getImageData(self, streamId: int, imageIndex: int=None) -> bytes: {}
+    # def getBidsIncremental(self, streamId: int, imageIndex: int=None) -> Any: {}  // return a BIDS-I image (typed as Any for now)
+    
+    def getFile(self, filename: str) -> bytes:
         """Returns a file's data immediately or fails if the file doesn't exist."""
         data = None
         if self.local:
@@ -49,14 +62,18 @@ class FileInterface:
             getFileCmd = req.getFileReqStruct(filename)
             retVals = processPyScriptRequest(getFileCmd)
             data = retVals.data
-        # TODO - Add to BIDS archive here? And in the other file methods, or do this outside of fileInterface?
+        # Consider - detect string encoding - but this could be computationally expenise on large data
+        # encoding = chardet.detect(data)['encoding']
+        # if encoding == 'ascii':
+        #     data = data.decode(encoding)
+        # TODO - Add to BIDS archive here? And in the other file methods, or do this outside of dataInterface?
         return data
 
-    def getNewestFile(self, filePattern):
+    def getNewestFile(self, filepattern: str) -> bytes:
         """Searches for files matching filePattern and returns the most recently created one."""
         data = None
         if self.local:
-            baseDir, filePattern = os.path.split(filePattern)
+            baseDir, filePattern = os.path.split(filepattern)
             if not os.path.isabs(baseDir):
                 # TODO - handle relative paths
                 pass
@@ -104,7 +121,7 @@ class FileInterface:
         """
         data = None
         if not self.initWatchSet:
-            raise StateError("FileInterface: watchFile() called without an initWatch()")
+            raise StateError("DataInterface: watchFile() called without an initWatch()")
         if self.local:
             retVal = self.fileWatcher.waitForFile(filename, timeout=timeout)
             if retVal is None:
@@ -118,30 +135,19 @@ class FileInterface:
             data = retVals.data
         return data
 
-    def putTextFile(self, filename, text):
+    def putFile(self, filename: str, data: StrOrBytes, compress: bool=False) -> None:
         """
-        Writes text to file filename. In remote mode the file is written at the remote.
-        """
-        if self.local:
-            outputDir = os.path.dirname(filename)
-            if not os.path.exists(outputDir):
-                os.makedirs(outputDir)
-            with open(filename, 'w+') as textFile:
-                textFile.write(text)
-        else:
-            putFileCmd = req.putTextFileReqStruct(filename, text)
-            _ = processPyScriptRequest(putFileCmd)
-        return
-
-    def putBinaryFile(self, filename, data, compress=False):
-        """
-        Writes data to file filename. In remote mode the file is written at the remote.
+        Writes bytes or text file filename. In remote mode the file is written at the remote.
 
         Args:
             filename: Name of file to create
-            data: Binary data to write to the file
-            compress: Whether to compress the data in transit (not when written to file)
+            data: data to write to the file
+            compress: Whether to compress the data in transit (not within the file),
+                only has affect in remote mode.
         """
+        if type(data) == str:
+            data = data.encode()
+
         if self.local:
             outputDir = os.path.dirname(filename)
             if not os.path.exists(outputDir):
@@ -151,7 +157,7 @@ class FileInterface:
         else:
             try:
                 fileHash = None
-                putFileCmd = req.putBinaryFileReqStruct(filename)
+                putFileCmd = req.putFileReqStruct(filename)
                 for putFilePart in projUtils.generateDataParts(data, putFileCmd, compress):
                     fileHash = putFilePart.get('fileHash')
                     _ = processPyScriptRequest(putFilePart)
@@ -165,19 +171,19 @@ class FileInterface:
                 raise err
         return
 
-    def listFiles(self, filePattern):
+    def listFiles(self, filepattern: str) -> List[str]:
         """Lists files matching regex filePattern from the remote filesystem"""
         if self.local:
-            if not os.path.isabs(filePattern):
-                errStr = "listFiles must have an absolute path: {}".format(filePattern)
+            if not os.path.isabs(filepattern):
+                errStr = "listFiles must have an absolute path: {}".format(filepattern)
                 raise RequestError(errStr)
             fileList = []
-            for filename in glob.iglob(filePattern, recursive=True):
+            for filename in glob.iglob(filepattern, recursive=True):
                 if os.path.isdir(filename):
                     continue
                 fileList.append(filename)
         else:
-            listCmd = req.listFilesReqStruct(filePattern)
+            listCmd = req.listFilesReqStruct(filepattern)
             retVals = processPyScriptRequest(listCmd)
             fileList = retVals.get('fileList')
             if type(fileList) is not list:
@@ -185,7 +191,7 @@ class FileInterface:
                 raise StateError(errStr)
         return fileList
 
-    def allowedFileTypes(self):
+    def allowedFileTypes(self) -> List[str]:
         """Returns file extensions which remote filesystem will allow to read and write"""
         if self.local:
             return ['*']
@@ -285,5 +291,5 @@ class FileInterface:
                 subDir = ''
             outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
             logging.info('download: {} --> {}'.format(file, outputFilename))
-            self.putBinaryFile(outputFilename, data)
+            self.putFile(outputFilename, data)
         return

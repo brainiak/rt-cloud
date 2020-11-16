@@ -61,22 +61,22 @@ sys.path.append(rootPath)
 # import project modules from rt-cloud
 from rtCommon.utils import loadConfigFile
 import rtCommon.clientInterface as clientInterface
-from rtCommon.imageHandling import readRetryDicomFromFileInterface, getDicomFileName, convertDicomImgToNifti
+from rtCommon.imageHandling import readRetryDicomFromDataInterface, getDicomFileName, convertDicomImgToNifti
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
-def doRuns(cfg, fileInterface, subjInterface):
+def doRuns(cfg, dataInterface, subjInterface):
     """
-    This function is called by 'main()' below. Here, we use the 'fileInterface'
+    This function is called by 'main()' below. Here, we use the 'dataInterface'
     to read in dicoms (presumably from the scanner, but here it's from a folder
     with previously collected dicom files), doing some sort of analysis in the
     cloud, and then sending the info to the web browser.
 
     INPUT:
         [1] cfg (configuration file with important variables)
-        [2] fileInterface (this will allow a script from the cloud to access files
+        [2] dataInterface (this will allow a script from the cloud to access files
                from the stimulus computer, which receives dicom files directly
                from the Siemens console computer)
         [3] projectComm (communication pipe to talk with projectInterface)
@@ -85,7 +85,7 @@ def doRuns(cfg, fileInterface, subjInterface):
 
     This is the main function that is called when you run 'sample.py'.
     Here, you will set up an important argument parser (mostly provided by
-    the toml configuration file), initiate the class fileInterface, and then
+    the toml configuration file), initiate the class dataInterface, and then
     call the function 'doRuns' to actually start doing the experiment.
     """
 
@@ -101,7 +101,7 @@ def doRuns(cfg, fileInterface, subjInterface):
     #   OUTPUT:
     #       [1] allowedFileTypes (list of allowed file types)
 
-    allowedFileTypes = fileInterface.allowedFileTypes()
+    allowedFileTypes = dataInterface.allowedFileTypes()
     if verbose:
         print(""
         "-----------------------------------------------------------------------------\n"
@@ -128,7 +128,7 @@ def doRuns(cfg, fileInterface, subjInterface):
     #               accidentally grab a dicom before it's fully acquired)
     if verbose:
         print("• initalize a watch for the dicoms using 'initWatch'")
-    fileInterface.initWatch(cfg.dicomDir, cfg.dicomNamePattern,
+    dataInterface.initWatch(cfg.dicomDir, cfg.dicomNamePattern,
         cfg.minExpectedDicomSize)
 
     # we will use the function 'sendResultToWeb' in 'projectUtils.py' whenever we
@@ -159,9 +159,9 @@ def doRuns(cfg, fileInterface, subjInterface):
         "we can highlight the functionality of rt-cloud, which is the purpose of\n"
         "this sample project.\n"
         ".............................................................................\n"
-        "NOTE: We will use the function 'readRetryDicomFromFileInterface' to retrieve\n"
+        "NOTE: We will use the function 'readRetryDicomFromDataInterface' to retrieve\n"
         "specific dicom files from the subject's dicom folder. This function calls\n"
-        "'fileInterface.watchFile' to look for the next dicom from the scanner.\n"
+        "'dataInterface.watchFile' to look for the next dicom from the scanner.\n"
         "Since we're using previously collected dicom data, this is functionality is\n"
         "not particularly relevant for this sample project but it is very important\n"
         "when running real-time experiments.\n"
@@ -172,7 +172,7 @@ def doRuns(cfg, fileInterface, subjInterface):
         num_total_TRs = cfg.numSynthetic
     all_avg_activations = np.zeros((num_total_TRs, 1))
     for this_TR in np.arange(num_total_TRs):
-        # declare variables that are needed to use 'readRetryDicomFromFileInterface'
+        # declare variables that are needed to use 'readRetryDicomFromDataInterface'
         timeout_file = 5 # small number because of demo, can increase for real-time
 
         # use 'getDicomFileName' from 'readDicom.py' to obtain the filename structure
@@ -186,11 +186,11 @@ def doRuns(cfg, fileInterface, subjInterface):
         #       [1] fullFileName (the filename of the dicom that should be grabbed)
         fileName = getDicomFileName(cfg, scanNum, this_TR)
 
-        # use 'readRetryDicomFromFileInterface' in 'readDicom.py' to wait for dicom
+        # use 'readRetryDicomFromDataInterface' in 'readDicom.py' to wait for dicom
         #   files to come in (by using 'watchFile' in 'fileClient.py') and then
         #   reading the dicom file once it receives it detected having received it
         #   INPUT:
-        #       [1] fileInterface (this will allow a script from the cloud to access files
+        #       [1] dataInterface (this will allow a script from the cloud to access files
         #               from the stimulus computer that receives dicoms from the Siemens
         #               console computer)
         #       [2] filename (for the dicom file we're watching for and want to load)
@@ -199,9 +199,9 @@ def doRuns(cfg, fileInterface, subjInterface):
         #       [1] dicomData (with class 'pydicom.dataset.FileDataset')
         print(f'Processing TR {this_TR}')
         if verbose:
-            print("• use 'readRetryDicomFromFileInterface' to read dicom file for",
+            print("• use 'readRetryDicomFromDataInterface' to read dicom file for",
                 "TR %d, %s" %(this_TR, fileName))
-        dicomData = readRetryDicomFromFileInterface(fileInterface, fileName,
+        dicomData = readRetryDicomFromDataInterface(dataInterface, fileName,
             timeout_file)
 
         if cfg.isSynthetic:
@@ -238,7 +238,7 @@ def doRuns(cfg, fileInterface, subjInterface):
     output_textFilename = '/tmp/cloud_directory/tmp/avg_activations.txt'
     output_matFilename = os.path.join('/tmp/cloud_directory/tmp/avg_activations.mat')
 
-    # use 'putTextFile' from 'fileClient.py' to save the .txt file
+    # use 'putFile' from 'fileClient.py' to save the .txt file
     #   INPUT:
     #       [1] filename (full path!)
     #       [2] data (that you want to write into the file)
@@ -246,7 +246,7 @@ def doRuns(cfg, fileInterface, subjInterface):
         print(""
         "-----------------------------------------------------------------------------\n"
         "• save activation value as a text file to tmp folder")
-    fileInterface.putTextFile(output_textFilename,str(all_avg_activations))
+    dataInterface.putFile(output_textFilename,str(all_avg_activations))
 
     # use sio.save mat from scipy to save the matlab file
     if verbose:
@@ -266,7 +266,7 @@ def main(argv=None):
     This is the main function that is called when you run 'sample.py'.
 
     Here, you will load the configuration settings specified in the toml configuration
-    file, initiate the class fileInterface, and then call the function 'doRuns' to
+    file, initiate the class dataInterface, and then call the function 'doRuns' to
     actually start doing the experiment.
     """
 
@@ -282,10 +282,10 @@ def main(argv=None):
     args = argParser.parse_args(argv)
 
     # Initialize the RPC connection to the projectInterface
-    # This will give us a fileInterface for retrieving files and
+    # This will give us a dataInterface for retrieving files and
     # a subjectInterface for giving feedback
     clientRPC = clientInterface.ClientRPC()
-    fileInterface = clientRPC.fileInterface
+    dataInterface = clientRPC.dataInterface
     subjInterface = clientRPC.subjInterface
 
     # load the experiment configuration file
@@ -302,11 +302,11 @@ def main(argv=None):
     #   to actually start reading dicoms and doing your analyses of interest!
     #   INPUT:
     #       [1] cfg (configuration file with important variables)
-    #       [2] fileInterface (this will allow a script from the cloud to access files
+    #       [2] dataInterface (this will allow a script from the cloud to access files
     #               from the stimulus computer that receives dicoms from the Siemens
     #               console computer)
     #       [3] subjInterface (to send/receive feedback to the subject in the scanner)
-    doRuns(cfg, fileInterface, subjInterface)
+    doRuns(cfg, dataInterface, subjInterface)
 
     return 0
 

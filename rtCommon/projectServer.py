@@ -20,8 +20,8 @@ class ProjectServer:
             args = argparse.Namespace()
         if not hasattr(args, 'test'):
             args.test = False
-        if not hasattr(args, 'filesremote'):
-            args.filesremote = False
+        if not hasattr(args, 'dataremote'):
+            args.dataremote = False
         if not hasattr(args, 'port'):
             args.port = 8888
         self.args = args
@@ -37,7 +37,7 @@ class ProjectServer:
         # this will have both a web server and rpc servers to handle client requests
         rpcThread = threading.Thread(name='rpcThread',
                                     target=startExperimentRPCThread,
-                                    kwargs={'filesRemote': self.args.filesremote,
+                                    kwargs={'dataremote': self.args.dataremote,
                                             'hostname': 'localhost',
                                             'port': 12345})
         rpcThread.setDaemon(True)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
                            help='project initialization script')
     argParser.add_argument('--finalizeScript', '-f', default=None, type=str,
                            help='project finalization script')
-    argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
+    argParser.add_argument('--dataremote', '-x', default=False, action='store_true',
                            help='dicom files retrieved from remote server')
     argParser.add_argument('--test', '-t', default=False, action='store_true',
                            help='start webServer in test mode, unsecure')

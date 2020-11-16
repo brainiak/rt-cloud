@@ -1,8 +1,8 @@
 import pytest
 import os
-from rtCommon.fileInterface import FileInterface
+from rtCommon.dataInterface import DataInterface
 
-# Note these tests will test the local version of FileInterface (not remote)
+# Note these tests will test the local version of DataInterface (not remote)
 
 testDir = os.path.dirname(__file__)
 tmpDir = os.path.join(testDir, 'tmp/')
@@ -13,15 +13,15 @@ def dicomTestFilename():  # type: ignore
     return os.path.join(testDir, 'test_input/001_000005_000100.dcm')
 
 
-class TestFileInterface:
+class TestDataInterface:
     fileWatcher = None
 
     def setup_class(cls):
-        TestFileInterface.fileWatcher = FileInterface()
+        TestDataInterface.fileWatcher = DataInterface()
 
     def teardown_class(cls):
         print('teardown')
-        TestFileInterface.fileWatcher = None
+        TestDataInterface.fileWatcher = None
 
     def test_funcs(cls, dicomTestFilename):
         with open(dicomTestFilename, 'rb') as fp:
@@ -29,27 +29,27 @@ class TestFileInterface:
 
         # Test getFile
         print('test getFile')
-        data2 = TestFileInterface.fileWatcher.getFile(dicomTestFilename)
+        data2 = TestDataInterface.fileWatcher.getFile(dicomTestFilename)
         assert data1 == data2, 'getFile data assertion'
 
         # Test getNewestFile
         print('test getNewestFile')
         filePattern = os.path.splitext(dicomTestFilename)[0] + '*'
-        data3 = TestFileInterface.fileWatcher.getNewestFile(filePattern)
+        data3 = TestDataInterface.fileWatcher.getNewestFile(filePattern)
         assert data1 == data3, 'getNewestFile data assertion'
 
         # Test watch file
         print('test watchFile')
         watchDir = os.path.join(testDir, 'test_input')
-        TestFileInterface.fileWatcher.initWatch(watchDir, filePattern, 0)
-        data4 = TestFileInterface.fileWatcher.watchFile(dicomTestFilename, timeout=5)
+        TestDataInterface.fileWatcher.initWatch(watchDir, filePattern, 0)
+        data4 = TestDataInterface.fileWatcher.watchFile(dicomTestFilename, timeout=5)
         assert data1 == data4, 'watchFile data assertion'
 
         # Test put text file
         print('test putTextFile')
         text = 'hello world'
         textFilename = os.path.join(tmpDir, 'test1.txt')
-        TestFileInterface.fileWatcher.putTextFile(textFilename, text)
+        TestDataInterface.fileWatcher.putFile(textFilename, text)
         with open(textFilename, 'r') as fp:
             text1 = fp.read()
         assert text1 == text, 'putTextFile assertion'
@@ -58,7 +58,7 @@ class TestFileInterface:
         print('test putBinaryFile')
         data = b'\xAB\xCD\xFE\xED\x01\x23\x45\x67'
         binFilename = os.path.join(tmpDir, 'test1.bin')
-        TestFileInterface.fileWatcher.putBinaryFile(binFilename, data)
+        TestDataInterface.fileWatcher.putFile(binFilename, data)
         # read back data and compare to original
         with open(binFilename, 'rb') as fp:
             data1 = fp.read()
@@ -66,10 +66,10 @@ class TestFileInterface:
 
         # Test list files
         filePattern = os.path.join(tmpDir, 'test1*')
-        fileList = TestFileInterface.fileWatcher.listFiles(filePattern)
+        fileList = TestDataInterface.fileWatcher.listFiles(filePattern)
         assert len(fileList) == 2
 
         # Test allowedFileTypes
-        allowedTypes = TestFileInterface.fileWatcher.allowedFileTypes()
+        allowedTypes = TestDataInterface.fileWatcher.allowedFileTypes()
         assert allowedTypes == ['*']
         return

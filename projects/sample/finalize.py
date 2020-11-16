@@ -44,7 +44,7 @@ import rtCommon.clientInterface as clientInterface
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
-def finalize(cfg, fileInterface):
+def finalize(cfg, dataInterface):
     """
     This function is called my 'main()' below. Here, we will do a demo of the
     types of things that you can do in this 'finalize.py' script. For instance,
@@ -58,7 +58,7 @@ def finalize(cfg, fileInterface):
 
     INPUT:
         [1] cfg (configuration file with important variables)
-        [2] fileInterface (this will allow a script from the cloud to access files 
+        [2] dataInterface (this will allow a script from the cloud to access files 
                    from the stimulus computer)
         [3] projectComm (communication pipe to talk with projectInterface)
     OUTPUT:
@@ -81,13 +81,13 @@ def finalize(cfg, fileInterface):
     #       [1] file pattern (which includes relative path)
     checking_filePattern = os.path.join(cloudDir,'*.mat')
     print(checking_filePattern)
-    checking_fileList = fileInterface.listFiles(checking_filePattern)
+    checking_fileList = dataInterface.listFiles(checking_filePattern)
     for i in np.arange(np.shape(checking_fileList)[0]):
         print('• %s'%checking_fileList[i])
 
     print("List of .txt files:")
     checking_filePattern = os.path.join(cloudDir,'*.txt')
-    checking_fileList = fileInterface.listFiles(checking_filePattern)
+    checking_fileList = dataInterface.listFiles(checking_filePattern)
     for i in np.arange(np.shape(checking_fileList)[0]):
         print('• %s'%checking_fileList[i])
 
@@ -95,7 +95,7 @@ def finalize(cfg, fileInterface):
     #   files from the cloud directory to the stimulus computer ...to do this,
     #   use 'downloadFolderFromCloud' from 'projectUtils'
     #   INPUT: 
-    #       [1] fileInterface (this will allow a script from the cloud to access files 
+    #       [1] dataInterface (this will allow a script from the cloud to access files 
     #               from the stimulus computer)
     #       [2] srcDir (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
@@ -103,7 +103,7 @@ def finalize(cfg, fileInterface):
     #               note that te default is False)
     srcDir = os.path.join(cloudDir,'tmp/')
     outputDir = os.path.join(stimulusDir,'tmp_files/')
-    fileInterface.downloadFolderFromCloud(srcDir, outputDir, deleteAfter=False)
+    dataInterface.downloadFolderFromCloud(srcDir, outputDir, deleteAfter=False)
 
     print(""
     "-----------------------------------------------------------------------------\n"
@@ -115,7 +115,7 @@ def main(argv=None):
     This is the main function that is called when you run 'finalize.py'.
     
     Here, you will load the configuration settings specified in the toml configuration 
-    file, initiate the class fileInterface, and set up some directories and other 
+    file, initiate the class dataInterface, and set up some directories and other 
     important things through 'finalize()'
     """
 
@@ -123,7 +123,7 @@ def main(argv=None):
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment config file (.json or .toml)')
-    argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
+    argParser.add_argument('--dataremote', '-x', default=False, action='store_true',
                            help='retrieve files from the remote server')
     args = argParser.parse_args(argv)
 
@@ -137,10 +137,10 @@ def main(argv=None):
     #   order to actually start reading dicoms and doing your analyses of interest!
     #   INPUT:
     #       [1] cfg (configuration file with important variables)
-    #       [2] fileInterface (this will allow a script from the cloud to access files 
+    #       [2] dataInterface (this will allow a script from the cloud to access files 
     #               from the stimulus computer)
     #       [3] projectComm (communication pipe to talk with projectInterface)
-    finalize(cfg, clientRPC.fileInterface)
+    finalize(cfg, clientRPC.dataInterface)
     return 0
 
 

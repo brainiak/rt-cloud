@@ -118,7 +118,7 @@ class WsFileWatcher:
                 if WsFileWatcher.validateRequestedFile(dir, filename, cmd) is False:
                     errStr = '{}: {}'.format(cmd, WsFileWatcher.validationError)
                     return send_error_response(client, response, errStr)
-                if cmd in ('putTextFile', 'putBinaryFile', 'dataLog'):
+                if cmd in ('putFile', 'dataLog'):
                     if not os.path.exists(dir):
                         os.makedirs(dir)
                 if not os.path.exists(dir):
@@ -179,24 +179,11 @@ class WsFileWatcher:
             elif cmd == 'getAllowedFileTypes':
                 response.update({'status': 200, 'fileTypes': WsFileWatcher.allowedTypes})
                 return send_response(client, response)
-            elif cmd == 'putTextFile':
-                text = request.get('text')
-                if text is None:
-                    errStr = 'PutTextFile: Missing text field'
-                    return send_error_response(client, response, errStr)
-                elif type(text) is not str:
-                    errStr = "PutTextFile: Only text data allowed"
-                    return send_error_response(client, response, errStr)
-                fullPath = os.path.join(dir, filename)
-                with open(fullPath, 'w') as volFile:
-                    volFile.write(text)
-                response.update({'status': 200})
-                return send_response(client, response)
-            elif cmd == 'putBinaryFile':
+            elif cmd == 'putFile':
                 try:
                     data = unpackDataMessage(request)
                 except Exception as err:
-                    errStr = 'putBinaryFile: {}'.format(err)
+                    errStr = 'putFile: {}'.format(err)
                     return send_error_response(client, response, errStr)
                 # If data is None - Incomplete multipart data, more will follow
                 if data is not None:

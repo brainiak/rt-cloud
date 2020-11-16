@@ -38,7 +38,7 @@ import rtCommon.clientInterface as clientInterface
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
-def initialize(cfg, fileInterface):
+def initialize(cfg, dataInterface):
     """
     This function is called by 'main()' below. Here, we will do a demo of the
     types of things you can do in this 'initialize.py' script. For instance,
@@ -54,7 +54,7 @@ def initialize(cfg, fileInterface):
 
     INPUT:
         [1] cfg (configuration file with important variables)
-        [2] fileInterface (this will allow a script from the cloud to access files 
+        [2] dataInterface (this will allow a script from the cloud to access files 
                    from the stimulus computer)
     OUTPUT:
         None.
@@ -82,7 +82,7 @@ def initialize(cfg, fileInterface):
     #   OUTPUT:
     #       [1] allowedFileTypes (list of allowed file types)
     
-    allowedFileTypes = fileInterface.allowedFileTypes()
+    allowedFileTypes = dataInterface.allowedFileTypes()
     print(""
     "-----------------------------------------------------------------------------\n"
     "Before continuing, we should check to see the file types that are allowed.\n"
@@ -95,12 +95,12 @@ def initialize(cfg, fileInterface):
     # Use 'uploadFilesToCloud' from 'projectUtils' to allow you to access files on the
     #   stimulus computer from the scripts running on the cloud.
     #   INPUT: 
-    #       [1] fileInterface (this will allow a script from the cloud to access files 
+    #       [1] dataInterface (this will allow a script from the cloud to access files 
     #               from the stimulus computer)
     #       [2] srcPattern (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
     srcPattern = os.path.join(stimulusDir,'**')
-    fileInterface.uploadFilesToCloud(srcPattern, cloudDir)
+    dataInterface.uploadFilesToCloud(srcPattern, cloudDir)
 
     print(""
     "-----------------------------------------------------------------------------\n"
@@ -112,7 +112,7 @@ def main(argv=None):
     This is the main function that is called when you run 'intialize.py'.
     
     Here, you will load the configuration settings specified in the toml configuration 
-    file, initiate the class fileInterface, and set up some directories and other 
+    file, initiate the class dataInterface, and set up some directories and other 
     important things through 'initialize()'
     """
 
@@ -120,7 +120,7 @@ def main(argv=None):
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment config file (.json or .toml)')
-    argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
+    argParser.add_argument('--dataremote', '-x', default=False, action='store_true',
                            help='retrieve files from the remote server')
     args = argParser.parse_args(argv)
 
@@ -134,9 +134,9 @@ def main(argv=None):
     #   order to actually start reading dicoms and doing your analyses of interest!
     #   INPUT:
     #       [1] cfg (configuration file with important variables)
-    #       [2] fileInterface (this will allow a script from the cloud to access files 
+    #       [2] dataInterface (this will allow a script from the cloud to access files 
     #               from the stimulus computer)
-    initialize(cfg, clientRPC.fileInterface)
+    initialize(cfg, clientRPC.dataInterface)
     return 0
 
 

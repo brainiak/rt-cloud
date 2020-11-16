@@ -129,7 +129,7 @@ Step 3: Get replies, match the reply to the callback structure and signal a sema
 '''
 class RequestHandler:
     """
-    Class for handling data requests (such with a remote FileInterface). Each data requests is
+    Class for handling data requests (such with a remote DataInterface). Each data requests is
     given a unique ID and callbacks from the client are matched to the original request and results
     returned to the corresponding caller. 
     """
