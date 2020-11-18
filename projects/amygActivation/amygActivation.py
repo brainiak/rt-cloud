@@ -27,12 +27,11 @@ currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 import rtCommon.utils as utils
-#from rtCommon.readDicom import readDicomFromBuffer, readRetryDicomFromDataInterface
-from rtCommon.imageHandling import readDicomFromBuffer, readRetryDicomFromDataInterface
 import rtCommon.clientInterface as clientInterface
 from rtCommon.structDict import StructDict
 #import rtCommon.dicomNiftiHandler as dnh
 import rtCommon.imageHandling as ihd
+from rtCommon.errors import ValidationError, InvocationError
 from initialize import initialize
 logLevel = logging.INFO
 
@@ -91,9 +90,7 @@ def findConditionTR(regressor, condition):
 
 def convertToNifti(cfg, args, TRnum, scanNum, dicomData):
     #anonymizedDicom = anonymizeDicom(dicomData) # should be anonymized already
-    scanNumStr = str(scanNum).zfill(2)
-    fileNumStr = str(TRnum).zfill(3)
-    expected_dicom_name = cfg.dicomNamePattern.format(scanNumStr, fileNumStr)
+    expected_dicom_name = cfg.dicomNamePattern.format(SCAN=scanNum, TR=TRnum)
     if args.dataremote:
         tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
     else:
@@ -363,9 +360,6 @@ def main():
 
     createTmpFolder(cfg,args)
 
-    # intialize watching in particular directory
-    dataInterface.initWatch(cfg.dicomDir, cfg.dicomNamePattern, cfg.minExpectedDicomSize) 
-
     #### MAIN PROCESSING ###
     nRuns = len(cfg.runNum)
     for runIndex in np.arange(nRuns):
@@ -385,6 +379,12 @@ def main():
         runFolder = createRunFolder(cfg, args, runNum)
         scanNum = cfg.scanNum[runIndex]
         regressor = makeRunReg(cfg, args, dataInterface, runNum, runFolder, saveMat=1)
+
+        # intialize data stream 
+        dicomScanNamePattern = utils.stringPartialFormat(cfg.dicomNamePattern, 'SCAN', scanNum)
+        streamId = dataInterface.initScannerStream(cfg.dicomDir, 
+                                                   dicomScanNamePattern,
+                                                   cfg.minExpectedDicomSize)
 
         happy_TRs = findConditionTR(regressor,int(cfg.HAPPY))
         happy_TRs_shifted = happy_TRs  + cfg.nTR_shift
@@ -409,9 +409,9 @@ def main():
             else:
                 timeout_file = 5
             A = time.time()
-            dicomFilename = getDicomFileName(cfg, scanNum, TRFilenum)
+            dicomFilename = dicomScanNamePattern.format(TR=TRFilenum)
             print(f'Get Dicom: {dicomFilename}')
-            dicomData = readRetryDicomFromDataInterface(dataInterface, dicomFilename, timeout=timeout_file)
+            dicomData = dataInterface.getImageData(streamId, TRFilenum, timeout_file)
             full_nifti_name = convertToNifti(cfg, args, TRFilenum, scanNum, dicomData)
             print(full_nifti_name)
             print(cfg.MASK_transformed[cfg.useMask])

@@ -15,9 +15,19 @@ class ClientRPC:
         The projectServer must be running on the same computer as the script using this interface.
         """
         try:
+            safe_attrs = rpyc.core.protocol.DEFAULT_CONFIG.get('safe_attrs')
+            safe_attrs.add('__format__')
             rpcConn = rpyc.connect('localhost', 12345, 
-                                   config={"allow_public_attrs": True,})
-            self.dataInterface = rpcConn.root.DataInterface
+                                   config={
+                                            "allow_public_attrs": True,
+                                            "safe_attrs": safe_attrs,
+                                            "allow_pickle" : True,
+                                            # "allow_getattr": True,
+                                            # "allow_setattr": True,
+                                            # "allow_delattr": True,
+                                            # "allow_all_attrs": True,
+                                           })
+            self.dataInterface = DataInterfaceOverrides(rpcConn.root.DataInterface)
             self.subjInterface = rpcConn.root.SubjectInterface
             self.rpcConn = rpcConn
         except ConnectionRefusedError as err:
@@ -28,3 +38,37 @@ class ClientRPC:
                 self.subjInterface = SubjectInterface(detached=True)
             else:
                 raise err
+
+
+class DataInterfaceOverrides(object):
+    def __init__(self, remoteDataInterface):
+        self.remote = remoteDataInterface
+
+    def __getattribute__(self, name):
+        try:
+            attr = object.__getattribute__(self, name)
+        except AttributeError:
+            return getattr(self.remote, name)
+        return attr
+
+    # Override getImageData to return by value rather than by reference
+    def getImageData(self, streamId: int, imageIndex: int=None, timeout: int=5):
+        ref = self.remote.getImageData(streamId, imageIndex, timeout)
+        val = rpyc.classic.obtain(ref)
+        return val
+
+
+
+# Generic override of getattribute that can be sub-classed and modify call behavior
+# class Foo(object):
+#     def __getattribute__(self,name):
+#         attr = object.__getattribute__(self, name)
+#         if hasattr(attr, '__call__'):
+#             def newfunc(*args, **kwargs):
+#                 print('before calling %s' %attr.__name__)
+#                 result = attr(*args, **kwargs)
+#                 print('done calling %s' %attr.__name__)
+#                 return result
+#             return newfunc
+#         else:
+#             return attr

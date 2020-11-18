@@ -3,18 +3,22 @@ Client module for receiving and sending files to/from a remote FileWatcher.
 Can also be used in local-mode accessing local files without a FileWatcher.
 """
 import os
+import re
+import time
 import glob
 import chardet
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Any
 import rtCommon.utils as utils
 import rtCommon.projectUtils as projUtils
 import rtCommon.wsRequestStructs as req
 from rtCommon.fileWatcher import FileWatcher
-from rtCommon.errors import StateError, RequestError
+from rtCommon.errors import StateError, RequestError, InvocationError, ValidationError, NotImplementedError
 from rtCommon.webServer import processPyScriptRequest
+from rtCommon.structDict import StructDict
 from rtCommon.types import StrOrBytes
+from rtCommon.imageHandling import readDicomFromBuffer
 
 
 # def initScannerStream(self, imgDir: str, filePattern: str) -> int: {}  // returns streamId
@@ -34,6 +38,8 @@ class DataInterface:
         self.local = not dataremote
         self.fileWatcher = None
         self.initWatchSet = False
+        self.currentStreamId = 0
+        self.streamInfo = None
         if self.local:
             self.fileWatcher = FileWatcher()
 
@@ -42,15 +48,140 @@ class DataInterface:
             self.fileWatcher.__del__()
             self.fileWatcher = None
 
-    def isDataRemote(self):
+    def isDataRemote(self) -> bool:
         """Indicates whether operating in remote or local mode."""
         return not self.local
 
-    # def initScannerStream(self, imgDir: str, filePattern: str) -> int: {}  // returns streamId
-    # def initOpenNeuroStream(self, dataset: str, subject: str, session: str, run: str, task: str) -> int: {}  // returns streamId
-    # def getImageData(self, streamId: int, imageIndex: int=None) -> bytes: {}
-    # def getBidsIncremental(self, streamId: int, imageIndex: int=None) -> Any: {}  // return a BIDS-I image (typed as Any for now)
-    
+    def initScannerStream(self, imgDir: str, filePattern: str,
+                          minFileSize: int, demoStep: int=0) -> int:
+        """
+        Initialize a data stream context with image directory and filepattern.
+        Once the stream is initialized call getImageData() to retrieve image data.
+        NOTE: currently only one stream at a time is supported.
+
+        Args:
+            imgDir: the directory where the images are or will be written from the MRI scanner.
+            filePattern: a pattern of the image file names that has a TR tag which will be used
+                to index the images, for example 'scan01_{TR:03d}.dcm'. In this example a call to
+                getImageData(imgIndex=6) would look for dicom file 'scan01_006.dcm'.
+
+        Returns:
+            streamId: An identifier used when calling getImageData()
+        """
+        # check that filePattern has {TR} in it
+        if not re.match(r'.*{TR.*', filePattern):
+            raise InvocationError(r"initScannerStream filePattern must have a {TR} pattern")
+        self.currentStreamId = self.currentStreamId + 1
+        self.streamInfo = StructDict({
+            'streamId': self.currentStreamId,
+            'type': 'scanner',
+            'imgDir': imgDir,
+            'filePattern': filePattern,
+            'minFileSize': minFileSize,
+            'demoStep': demoStep,
+            'imgIndex': 0,
+        })
+        _, file_ext = os.path.splitext(filePattern)
+        if self.local:
+            self._initWatch(imgDir, '*' + file_ext, minFileSize, demoStep)
+        else:
+            # make remote call
+            # self.currentStreamId = remotecall()
+            # return self.currentStreamId
+            self._initWatch(imgDir, '*' + file_ext, minFileSize, demoStep)
+            # raise NotImplementedError("Remote initScannerStream not implemented yet")
+        return self.currentStreamId
+
+    def getImageData(self, streamId: int, imageIndex: int=None, timeout: int=5):
+        """
+        Get data from a stream initialized with initScannerStream or initOpenNeuroStream
+
+        Args:
+            streamId: Id of a previously opened stream.
+            imageIndex: Which image from the stream to retrieve. If left blank it will
+                retrieve the next image in the stream (next after either the last request or 
+                starting from 0 if no previous requests)
+        Returns:
+            The bytes array representing the image data
+            returns pydicom.dataset.FileDataset
+        """
+        if self.currentStreamId == 0 or self.currentStreamId != streamId:
+            raise ValidationError(f"StreamID mismatch {self.currentStreamId} : {streamId}")
+
+        if imageIndex is None:
+            imageIndex = self.currentStreamId.imgIndex
+        filename = self.streamInfo.filePattern.format(TR=imageIndex)
+
+        retries = 0
+        while retries < 5:
+            retries += 1
+            try:
+                if self.local:
+                    data = self._watchFile(filename, timeout)
+                else:
+                    # raise NotImplementedError("Remote getImageData not implemented yet")
+                    data = self._watchFile(filename, timeout)
+                # TODO - Inject error here and see if commpipe remains open
+                dicomImg = readDicomFromBuffer(data)
+                # check that pixel array is complete
+                dicomImg.convert_pixel_data()
+                # successful
+                self.streamInfo.imgIndex = imageIndex + 1
+                return dicomImg
+            except TimeoutError as err:
+                logging.warning(f"Timeout waiting for {filename}. Retry in 100 ms")
+                time.sleep(0.1)
+            except Exception as err:
+                logging.error(f"getImageData Error, filename {filename} err: {err}")
+                return None
+        return None
+
+    def initOpenNeuroStream(self, dataset: str, subject: str, 
+                            session: str, run: str, task: str,
+                            demoStep: int=0) -> int:
+        """
+        Intialize a data stream from an OpenNeuro dataset
+
+        Returns: streamId - An identifier used when calling getImageData()
+        """
+        if self.local:
+            self.currentStreamId = self.currentStreamId + 1
+            # TODO create an openNeuro client object
+            openNeuroClient = None
+            self.streamInfo = StructDict({
+                'streamId': self.currentStreamId,
+                'type': 'openneuro',
+                'dataset': dataset,
+                'subject': subject,
+                'session': session,
+                'run': run,
+                'task': task,
+                'demoStep': demoStep,
+                'imgIndex': 0,
+                'client': openNeuroClient,
+
+            })
+            # return self.currentStreamId
+            raise NotImplementedError("initOpenNeuroStream not implemented yet")
+        else:
+            raise NotImplementedError("Remote initOpenNeuroStream not implemented yet")
+
+    def getBidsIncremental(self, streamId: int, imageIndex: int=None) -> Any:
+        """
+        Returns:
+            a BIDS-Incremental image (typed as Any for now)
+        """
+        if self.local:
+            if self.streamInfo.type == 'scanner':
+                # TODO: convert Dicom matching pattern to Bids-I and return Bids-I
+                pass
+            elif self.streamInfo.type == 'openneuro':
+                # TODO: call openneuro client to get next image and return it
+                pass
+            else:
+                raise RequestError(f"Stream type {self.streamInfo.type} not supported")
+        raise NotImplementedError("getBidsIncremental")
+
     def getFile(self, filename: str) -> bytes:
         """Returns a file's data immediately or fails if the file doesn't exist."""
         data = None
@@ -92,7 +223,7 @@ class DataInterface:
             data = retVals.data
         return data
 
-    def initWatch(self, dir, filePattern, minFileSize, demoStep=0):
+    def _initWatch(self, dir: str, filePattern: str, minFileSize: int, demoStep: int=0) -> None:
         """Initialize a watch directory for files matching filePattern.
 
         No data is returned by this function, but a filesystem watch is established.
@@ -113,7 +244,7 @@ class DataInterface:
         self.initWatchSet = True
         return
 
-    def watchFile(self, filename, timeout=5):
+    def _watchFile(self, filename: str, timeout: int=5) -> bytes:
         """Watches for a specific file to be created and returns the file data.
 
         InitWatch() must be called first, before watching for specific files.
@@ -123,11 +254,11 @@ class DataInterface:
         if not self.initWatchSet:
             raise StateError("DataInterface: watchFile() called without an initWatch()")
         if self.local:
-            retVal = self.fileWatcher.waitForFile(filename, timeout=timeout)
-            if retVal is None:
+            foundFilename = self.fileWatcher.waitForFile(filename, timeout=timeout)
+            if foundFilename is None:
                 raise TimeoutError("WatchFile: Timeout {}s: {}".format(timeout, filename))
             else:
-                with open(filename, 'rb') as fp:
+                with open(foundFilename, 'rb') as fp:
                     data = fp.read()
         else:
             watchCmd = req.watchFileReqStruct(filename, timeout=timeout)

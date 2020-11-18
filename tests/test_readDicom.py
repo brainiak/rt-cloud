@@ -23,7 +23,7 @@ def test_readDicom():
     assert (vol1 == vol2).all()
 
     dataInterface = DataInterface()
-    dataInterface.initWatch(dicomDir, '*.dcm', 0)
+    dataInterface._initWatch(dicomDir, '*.dcm', 0)
     dicomImg3 = rd.readRetryDicomFromDataInterface(dataInterface, dicomFile)
     vol3 = rd.parseDicomVolume(dicomImg3, 64)
     assert vol3 is not None

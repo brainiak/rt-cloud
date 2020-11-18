@@ -59,9 +59,9 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 #   project modules from rt-cloud
 sys.path.append(rootPath)
 # import project modules from rt-cloud
-from rtCommon.utils import loadConfigFile
+from rtCommon.utils import loadConfigFile, stringPartialFormat
 import rtCommon.clientInterface as clientInterface
-from rtCommon.imageHandling import readRetryDicomFromDataInterface, getDicomFileName, convertDicomImgToNifti
+from rtCommon.imageHandling import convertDicomImgToNifti
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
@@ -128,9 +128,10 @@ def doRuns(cfg, dataInterface, subjInterface):
     #               accidentally grab a dicom before it's fully acquired)
     if verbose:
         print("• initalize a watch for the dicoms using 'initWatch'")
-    dataInterface.initWatch(cfg.dicomDir, cfg.dicomNamePattern,
-        cfg.minExpectedDicomSize)
-
+    dicomScanNamePattern = stringPartialFormat(cfg.dicomNamePattern, 'SCAN', scanNum)
+    streamId = dataInterface.initScannerStream(cfg.dicomDir, 
+                                               dicomScanNamePattern,
+                                               cfg.minExpectedDicomSize)
     # we will use the function 'sendResultToWeb' in 'projectUtils.py' whenever we
     #   want to send values to the web browser so that they can be plotted in the
     #   --Data Plots-- tab
@@ -159,7 +160,7 @@ def doRuns(cfg, dataInterface, subjInterface):
         "we can highlight the functionality of rt-cloud, which is the purpose of\n"
         "this sample project.\n"
         ".............................................................................\n"
-        "NOTE: We will use the function 'readRetryDicomFromDataInterface' to retrieve\n"
+        "NOTE: We will use the function dataInterface.getImageData() to retrieve\n"
         "specific dicom files from the subject's dicom folder. This function calls\n"
         "'dataInterface.watchFile' to look for the next dicom from the scanner.\n"
         "Since we're using previously collected dicom data, this is functionality is\n"
@@ -172,37 +173,27 @@ def doRuns(cfg, dataInterface, subjInterface):
         num_total_TRs = cfg.numSynthetic
     all_avg_activations = np.zeros((num_total_TRs, 1))
     for this_TR in np.arange(num_total_TRs):
-        # declare variables that are needed to use 'readRetryDicomFromDataInterface'
+        # declare variables that are needed to use dataInterface.getImageData()
         timeout_file = 5 # small number because of demo, can increase for real-time
+        dicomFilename = dicomScanNamePattern.format(TR=this_TR)
 
-        # use 'getDicomFileName' from 'readDicom.py' to obtain the filename structure
-        #   of the dicom data you want to get... which is useful considering how
-        #   complicated these filenames can be!
-        #   INPUT:
-        #       [1] cfg (config parameters)
-        #       [2] scanNum (scan number)
-        #       [3] fileNum (TR number, which will reference the correct file)
-        #   OUTPUT:
-        #       [1] fullFileName (the filename of the dicom that should be grabbed)
-        fileName = getDicomFileName(cfg, scanNum, this_TR)
-
-        # use 'readRetryDicomFromDataInterface' in 'readDicom.py' to wait for dicom
+        # use dataInterface.getImageData() to wait for dicom
         #   files to come in (by using 'watchFile' in 'fileClient.py') and then
         #   reading the dicom file once it receives it detected having received it
         #   INPUT:
         #       [1] dataInterface (this will allow a script from the cloud to access files
         #               from the stimulus computer that receives dicoms from the Siemens
         #               console computer)
-        #       [2] filename (for the dicom file we're watching for and want to load)
+        #       [2] streamId - from initScannerStream() called above
+        #       [3] TR number - the scan number to retrieve
         #       [3] timeout (time spent waiting for a file before timing out)
         #   OUTPUT:
         #       [1] dicomData (with class 'pydicom.dataset.FileDataset')
         print(f'Processing TR {this_TR}')
         if verbose:
-            print("• use 'readRetryDicomFromDataInterface' to read dicom file for",
-                "TR %d, %s" %(this_TR, fileName))
-        dicomData = readRetryDicomFromDataInterface(dataInterface, fileName,
-            timeout_file)
+            print("• use dataInterface.getImageData() to read dicom file for",
+                "TR %d, %s" %(this_TR, dicomFilename))
+        dicomData = dataInterface.getImageData(streamId, this_TR, timeout_file)
 
         if cfg.isSynthetic:
             niftiObject = convertDicomImgToNifti(dicomData)

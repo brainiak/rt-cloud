@@ -37,9 +37,9 @@ class FileWatcher():
         logging.log(logging.ERROR, "FileWatcher is abstract class. initFileNotifier not implemented")
         return None
 
-    def waitForFile(self, specificFileName, timeout=0):
+    def waitForFile(self, filename, timeout=0):
         logging.log(logging.ERROR, "FileWatcher is abstract class. waitForFile not implemented")
-        return None
+        return ''
 
 
 if sys.platform in ("darwin", "win32"):
@@ -81,13 +81,19 @@ class WatchdogFileWatcher():
         self.observer.schedule(self.fileNotifyHandler, dir, recursive=False)
         self.observer.start()
 
-    def waitForFile(self, specificFileName, timeout=0):
-        fileExists = os.path.exists(specificFileName)
+    def waitForFile(self, filename, timeout=0):
+        _filedir, _filename = os.path.split(filename)
+        if _filedir in (None, ''):
+            filename = os.path.join(self.watchDir, filename)
+        elif _filedir != self.watchDir:
+            raise StateError(f"FileWatcher: file path doesn't match watch directory: {_filedir}, {self.watchDir}")
+
+        fileExists = os.path.exists(filename)
         if not fileExists:
             if self.observer is None:
-                raise FileNotFoundError("No fileNotifier and dicom file not found %s" % (specificFileName))
+                raise FileNotFoundError("No fileNotifier and dicom file not found %s" % (filename))
             else:
-                logStr = "FileWatcher: Waiting for file {}, timeout {}s ".format(specificFileName, timeout)
+                logStr = "FileWatcher: Waiting for file {}, timeout {}s ".format(filename, timeout)
                 logging.log(DebugLevels.L6, logStr)
         eventLoopCount = 0
         exitWithFileEvent = False
@@ -101,16 +107,16 @@ class WatchdogFileWatcher():
             eventLoopCount += 1
             try:
                 event, ts = self.fileNotifyQ.get(block=True, timeout=1.0)
-            except Empty as err:
+            except Empty:
                 # The timeout occured on fileNotifyQ.get()
-                fileExists = os.path.exists(specificFileName)
+                fileExists = os.path.exists(filename)
                 continue
             if event is None:
                 raise StateError('waitForFile: event is None')
             # We may have a stale event from a previous file if multiple events
             #   are created per file or if the previous file eventloop
             #   timed out and then the event arrived later.
-            if event.src_path == specificFileName:
+            if event.src_path == filename:
                 fileExists = True
                 exitWithFileEvent = True
                 eventTimeStamp = ts
@@ -118,25 +124,25 @@ class WatchdogFileWatcher():
             if time.time() > timeToCheckForFile:
                 # periodically check if file exists, can occur if we get
                 #   swamped with unrelated events
-                fileExists = os.path.exists(specificFileName)
+                fileExists = os.path.exists(filename)
                 timeToCheckForFile = time.time() + 1
 
         # wait for the full file to be written, wait at most 300 ms
         waitIncrement = 0.1
         totalWriteWait = 0.0
-        fileSize = os.path.getsize(specificFileName)
+        fileSize = os.path.getsize(filename)
         while fileSize < self.minFileSize and totalWriteWait < 0.3:
             time.sleep(waitIncrement)
             totalWriteWait += waitIncrement
-            fileSize = os.path.getsize(specificFileName)
+            fileSize = os.path.getsize(filename)
         logging.log(DebugLevels.L6,
                     "File avail: eventLoopCount %d, writeWaitTime %.3f, "
                     "fileEventCaptured %s, fileName %s, eventTimeStamp %.5f",
                     eventLoopCount, totalWriteWait,
-                    exitWithFileEvent, specificFileName, eventTimeStamp)
+                    exitWithFileEvent, filename, eventTimeStamp)
         if self.demoStep is not None and self.demoStep > 0:
             self.prevEventTime = demoDelay(self.demoStep, self.prevEventTime)
-        return specificFileName
+        return filename
 
 
 class FileNotifyHandler(PatternMatchingEventHandler):  # type: ignore
@@ -191,13 +197,19 @@ class InotifyFileWatcher():
             self.watchDir = dir
             self.notifier.add_watch(self.watchDir, mask=inotify.constants.IN_CLOSE_WRITE)
 
-    def waitForFile(self, specificFileName, timeout=0):
-        fileExists = os.path.exists(specificFileName)
+    def waitForFile(self, filename, timeout=0):
+        _filedir, _filename = os.path.split(filename)
+        if _filedir in (None, ''):
+            filename = os.path.join(self.watchDir, filename)
+        elif _filedir != self.watchDir:
+            raise StateError(f"FileWatcher: file path doesn't match watch directory: {_filedir}, {self.watchDir}")
+
+        fileExists = os.path.exists(filename)
         if not fileExists:
             if self.notify_thread is None:
-                raise FileNotFoundError("No fileNotifier and dicom file not found %s" % (specificFileName))
+                raise FileNotFoundError("No fileNotifier and dicom file not found %s" % (filename))
             else:
-                logStr = "FileWatcher: Waiting for file {}, timeout {}s ".format(specificFileName, timeout)
+                logStr = "FileWatcher: Waiting for file {}, timeout {}s ".format(filename, timeout)
                 logging.log(DebugLevels.L6, logStr)
         eventLoopCount = 0
         exitWithFileEvent = False
@@ -211,16 +223,16 @@ class InotifyFileWatcher():
             eventLoopCount += 1
             try:
                 eventfile, ts = self.fileNotifyQ.get(block=True, timeout=1.0)
-            except Empty as err:
+            except Empty:
                 # The timeout occured on fileNotifyQ.get()
-                fileExists = os.path.exists(specificFileName)
+                fileExists = os.path.exists(filename)
                 continue
             if eventfile is None:
                 raise StateError('waitForFile: eventfile is None')
             # We may have a stale event from a previous file if multiple events
             #   are created per file or if the previous file eventloop
             #   timed out and then the event arrived later.
-            if eventfile == specificFileName:
+            if eventfile == filename:
                 fileExists = True
                 exitWithFileEvent = True
                 eventTimeStamp = ts
@@ -228,25 +240,25 @@ class InotifyFileWatcher():
             if time.time() > timeToCheckForFile:
                 # periodically check if file exists, can occur if we get
                 #   swamped with unrelated events
-                fileExists = os.path.exists(specificFileName)
+                fileExists = os.path.exists(filename)
                 timeToCheckForFile = time.time() + 1
         if exitWithFileEvent is False:
             # We didn't get a file-close event because the file already existed.
             # Check the file size and sleep up to 300 ms waitig for full size
             waitIncrement = 0.1
             totalWriteWait = 0.0
-            fileSize = os.path.getsize(specificFileName)
+            fileSize = os.path.getsize(filename)
             while fileSize < self.minFileSize and totalWriteWait < 0.3:
                 time.sleep(waitIncrement)
                 totalWriteWait += waitIncrement
-                fileSize = os.path.getsize(specificFileName)
+                fileSize = os.path.getsize(filename)
         logging.log(DebugLevels.L6,
                     "File avail: eventLoopCount %d, fileEventCaptured %s, "
                     "fileName %s, eventTimeStamp %d", eventLoopCount,
-                    exitWithFileEvent, specificFileName, eventTimeStamp)
+                    exitWithFileEvent, filename, eventTimeStamp)
         if self.demoStep is not None and self.demoStep > 0:
             self.prevEventTime = demoDelay(self.demoStep, self.prevEventTime)
-        return specificFileName
+        return filename
 
     def notifyEventLoop(self):
         for event in self.notifier.event_gen():

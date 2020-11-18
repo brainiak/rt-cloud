@@ -276,6 +276,17 @@ def getGitCodeId():
     return gitCodeId
 
 
+def stringPartialFormat(text, tag, val) -> str:
+    # define a private function (a closure)
+    def formatMatch(matchObj):
+        matchStr = matchObj.group(0)
+        matchStr = matchStr.replace(tag, '')
+        replStr = matchStr.format(val)
+        return replStr
+    pattern = '{' + tag + '.*?}'
+    result = re.sub(pattern, formatMatch, text)
+    return result
+
 '''
 import inspect  # type: ignore
 def xassert(bool_val, message):

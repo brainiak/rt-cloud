@@ -38,10 +38,11 @@ def startExperimentRPCThread(dataremote=False, hostname=None, port=12345):
                               protocol_config={
                                   "allow_public_attrs": True,
                                   "safe_attrs": safe_attrs,
-                                  # "allow_all_attrs": True,
+                                  "allow_pickle" : True,
                                   # "allow_getattr": True,
                                   # "allow_setattr": True,
-                                  # "allow_pickle" : True,
+                                  # "allow_delattr": True,
+                                  # "allow_all_attrs": True,
                                   })
     threadId.start()
 

@@ -23,6 +23,7 @@ from rtCommon.projectServer import ProjectServer
 
 testDir = os.path.dirname(__file__)
 rootPath = os.path.dirname(testDir)
+testDataPath = os.path.join(testDir, 'test_input')
 samplePath = os.path.join(rootPath,'projects/sample')
 tmpDir = os.path.join(testDir, 'tmp/')
 fileTypeList = ['.dcm', '.mat', '.bin', '.txt']
@@ -30,15 +31,15 @@ fileTypeList = ['.dcm', '.mat', '.bin', '.txt']
 
 @pytest.fixture(scope="module")
 def dicomTestFilename():  # type: ignore
-    return os.path.join(testDir, 'test_input/001_000005_000100.dcm')
+    return os.path.join(testDataPath, '001_000005_000100.dcm')
 
 
 @pytest.fixture(scope="module")
 def bigTestfile():  # type: ignore
-    filename = os.path.join(testDir, 'test_input/bigfile.bin')
+    filename = os.path.join(testDataPath, 'bigfile.bin')
     if not os.path.exists(filename):
         with open(filename, 'wb') as fout:
-            for i in range(101):
+            for _ in range(101):
                 fout.write(os.urandom(1024*1024))
     return filename
 
@@ -49,6 +50,7 @@ class TestServers:
     pingCount = 0
 
     def setup_class(cls):
+        global testDir, samplePath, fileTypeList
         utils.installLoggers(logging.DEBUG, logging.DEBUG, filename='logs/tests.log')
         # Start a projectServer thread running
         cfg = StructDict({'sessionId': "test",
@@ -93,7 +95,6 @@ class TestServers:
 
     def test_ping(self):
         print("test_ping")
-        global pingCallbackEvent
         # Send a ping request from projectInterface to fileWatcher
         # assert Web.wsDataConn is not None
         cmd = {'cmd': 'ping'}
@@ -129,8 +130,8 @@ class TestServers:
         assert res is True
 
     def test_getFile(self, dicomTestFilename):
+        global testDataPath, tmpDir
         print("test_getFile")
-        global fileData
         # assert Web.wsDataConn is not None
         # Try to initialize file watcher with non-allowed directory
         cmd = req.initWatchReqStruct('/', '*', 0)
@@ -139,7 +140,7 @@ class TestServers:
         assert response['status'] == 400
 
         # Initialize with allowed directory
-        cmd = req.initWatchReqStruct(testDir, '*.dcm', 0)
+        cmd = req.initWatchReqStruct(testDataPath, '*.dcm', 0)
         response = Web.wsDataRequest(cmd)
         assert response['status'] == 200
 
@@ -221,17 +222,17 @@ class TestServers:
         assert responseData.decode() == testText
 
         # Test putBinaryData function
-        testData = b'\xFE\xED\x01\x23'
+        binaryData = b'\xFE\xED\x01\x23'
         dataFileName = os.path.join(tmpDir, 'test2.bin')
         cmd = req.putFileReqStruct(dataFileName)
-        for putFilePart in projUtils.generateDataParts(testData, cmd, compress=True):
+        for putFilePart in projUtils.generateDataParts(binaryData, cmd, compress=True):
             response = Web.wsDataRequest(putFilePart)
         assert response['status'] == 200
         # read back an compare to original
         cmd = req.getFileReqStruct(dataFileName)
         response = Web.wsDataRequest(cmd)
         responseData = b64decode(response['data'])
-        assert responseData == testData
+        assert responseData == binaryData
 
     def test_getBigFile(self, bigTestfile):
         # Read in original data
@@ -281,6 +282,7 @@ class TestServers:
         assert ret == 0
 
     def test_dataInterface(self, bigTestfile):
+        global fileTypeList
         dataInterface = DataInterface(dataremote=True)
 
         # Read in original data
@@ -314,7 +316,7 @@ class TestServers:
         assert allowedTypes == fileTypeList
 
         # test list files
-        filepattern = os.path.join(testDir, 'test_input', '*.dcm')
+        filepattern = os.path.join(testDataPath, '*.dcm')
         try:
             filelist = dataInterface.listFiles(filepattern)
         except Exception as err:

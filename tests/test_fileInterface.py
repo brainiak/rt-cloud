@@ -41,8 +41,8 @@ class TestDataInterface:
         # Test watch file
         print('test watchFile')
         watchDir = os.path.join(testDir, 'test_input')
-        TestDataInterface.fileWatcher.initWatch(watchDir, filePattern, 0)
-        data4 = TestDataInterface.fileWatcher.watchFile(dicomTestFilename, timeout=5)
+        TestDataInterface.fileWatcher._initWatch(watchDir, filePattern, 0)
+        data4 = TestDataInterface.fileWatcher._watchFile(dicomTestFilename, timeout=5)
         assert data1 == data4, 'watchFile data assertion'
 
         # Test put text file
