@@ -30,6 +30,6 @@ dependencies:
   - websocket-client
   - wsaccel
   - pip:
+    - inotify
     - pybids
     - watchdog
-    - inotify
