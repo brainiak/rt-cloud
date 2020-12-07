@@ -13,13 +13,13 @@ import toml
 import shlex
 import uuid
 import bcrypt
+import pickle
 import numbers
 import asyncio
 import threading
 import subprocess
 from pathlib import Path
-from rtCommon.projectUtils import decodeMessageData, unpackDataMessage
-from rtCommon.wsRequestStructs import listFilesReqStruct, getFileReqStruct
+from rtCommon.projectUtils import unpackDataMessage
 from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.certsUtils import getCertPath, getKeyPath
 from rtCommon.utils import DebugLevels, writeFile, loadConfigFile
@@ -27,6 +27,9 @@ from rtCommon.errors import StateError, RequestError, RTError
 from rtCommon.webHttpHandlers import HttpHandler, LoginHandler, LogoutHandler, certsDir
 from rtCommon.webSocketHandlers import BaseWebSocketHandler, DataWebSocketHandler, \
     RequestHandler, sendWebSocketMessage, closeAllConnections
+from rtCommon.wsRemoteService import encodeByteTypeArgs, decodeByteTypeArgs
+from rtCommon.projectServerRPC import ProjectRPCService
+from rtCommon.dataInterface import uploadFilesFromList
 
 sslCertFile = 'rtcloud.crt'
 sslPrivateKey = 'rtcloud_private.key'
@@ -62,8 +65,9 @@ class Web():
     cfg = None
     testMode = False
     runInfo = StructDict({'threadId': None, 'stopRun': False})
-    resultVals = [[{'x': 0, 'y': 0}]]
+    # resultVals = [[{'x': 0, 'y': 0}]]
     dataRequestHandler = RequestHandler('wsData')
+    subjectRequestHandler = RequestHandler('wsSubject')
 
     @staticmethod
     def start(params, cfg, testMode=False):
@@ -108,7 +112,7 @@ class Web():
             (r'/login', LoginHandler, dict(webObject=Web)),
             (r'/logout', LogoutHandler, dict(webObject=Web)),
             (r'/wsUser', BaseWebSocketHandler, dict(name='wsUser', callback=Web.browserMainCallback)),
-            (r'/wsSubject', BaseWebSocketHandler, dict(name='wsBioFeedback', callback=params.browserBiofeedCallback)),
+            (r'/wsSubject', DataWebSocketHandler, dict(name='wsSubject', callback=Web.subjectRequestHandler.callback)),
             (r'/wsEvents', BaseWebSocketHandler, dict(name='wsEvent', callback=params.eventCallback)),  # gets signal to change image
             (r'/wsData', DataWebSocketHandler, dict(name='wsData', callback=Web.dataRequestHandler.callback)),
             (r'/src/(.*)', tornado.web.StaticFileHandler, {'path': src_root}),
@@ -148,20 +152,21 @@ class Web():
     def close():
         # Currently this should never be called
         raise StateError("Web close() called")
-        closeAllConnections()
+        # closeAllConnections()
 
-    @staticmethod
-    def dataLog(filename, logStr):
-        cmd = {'cmd': 'dataLog', 'logLine': logStr, 'filename': filename}
-        try:
-            response = Web.wsDataRequest(cmd, timeout=5)
-            if response.get('status') != 200:
-                logging.warning('Web: dataLog: error {}'.format(response.get('error')))
-                return False
-        except Exception as err:
-            logging.warning('Web: dataLog: error {}'.format(err))
-            return False
-        return True
+    # TODO - add this as a method in the DataInterface class
+    # @staticmethod
+    # def dataLog(filename, logStr):
+    #     cmd = {'cmd': 'dataLog', 'logLine': logStr, 'filename': filename}
+    #     try:
+    #         response = Web.wsDataRequest(cmd, timeout=5)
+    #         if response.get('status') != 200:
+    #             logging.warning('Web: dataLog: error {}'.format(response.get('error')))
+    #             return False
+    #     except Exception as err:
+    #         logging.warning('Web: dataLog: error {}'.format(err))
+    #         return False
+    #     return True
 
     @staticmethod
     def userLog(logStr):
@@ -188,6 +193,7 @@ class Web():
         response = {'cmd': 'dataPoints', 'value': dataPoints}
         Web.wsUserSendMsg(json.dumps(response))
 
+    # TODO - move to RequestHandler and give requestHandler an reference to ioLoopInst
     @staticmethod
     def wsDataRequest(msg, timeout=None):
         """Send a request over the data web socket, i.e. to the remote FileWatcher."""
@@ -200,41 +206,54 @@ class Web():
         response = Web.dataRequestHandler.get_response(call_id, timeout=timeout)
         return response
 
+    # TODO - move to RequestHandler and give requestHandler an reference to ioLoopInst
+    @staticmethod
+    def wsSubjectRequest(msg, timeout=None):
+        """Send a request over the subject web socket, i.e. to the remote subjectInterface."""
+        call_id, conn = Web.subjectRequestHandler.prepare_request(msg)
+        isNewRequest = not msg.get('incomplete', False)
+        cmd = msg.get('cmd')
+        logging.log(DebugLevels.L6, f'wsSubjectRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
+        if isNewRequest is True:
+            Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsSubject', msg=json.dumps(msg), conn=conn)
+        response = Web.subjectRequestHandler.get_response(call_id, timeout=timeout)
+        return response
+
     @staticmethod
     def wsUserSendMsg(msg):
         Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsUser', msg=msg)
 
     @staticmethod
-    def wsBioFeedbackSendMsg(msg):
-        Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsBioFeedback', msg=msg)
+    def wsSubjectSendMsg(msg):
+        Web.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsSubject', msg=msg)
 
-    @staticmethod
-    def addResultValue(request):
-        """Track classification result values, used to plot the results in the web browser."""
-        cmd = request.get('cmd')
-        if cmd != 'resultValue':
-            logging.warn('addResultValue: wrong cmd type {}'.format(cmd))
-            return
-        runId = request.get('runId')
-        x = request.get('trId')
-        y = request.get('value')
-        if not isinstance(runId, numbers.Number) or runId <= 0:
-            logging.warn('addResultValue: runId wrong val {}'.format(cmd))
-            return
-        # Make sure resultVals has at least as many arrays as runIds
-        for i in range(len(Web.resultVals), runId):
-            Web.resultVals.append([])
-        if not isinstance(x, numbers.Number):
-            # clear plot for this runId
-            Web.resultVals[runId-1] = []
-            return
-        # logging.info("Add resultVal {}, {}".format(x, y))
-        runVals = Web.resultVals[runId-1]
-        for i, val in enumerate(runVals):
-            if val['x'] == x:
-                runVals[i] = {'x': x, 'y': y}
-                return
-        runVals.append({'x': x, 'y': y})
+    # @staticmethod
+    # def addResultValue(request):
+    #     """Track classification result values, used to plot the results in the web browser."""
+    #     cmd = request.get('cmd')
+    #     if cmd != 'resultValue':
+    #         logging.warn('addResultValue: wrong cmd type {}'.format(cmd))
+    #         return
+    #     runId = request.get('runId')
+    #     x = request.get('trId')
+    #     y = request.get('value')
+    #     if not isinstance(runId, numbers.Number) or runId <= 0:
+    #         logging.warn('addResultValue: runId wrong val {}'.format(cmd))
+    #         return
+    #     # Make sure resultVals has at least as many arrays as runIds
+    #     for i in range(len(Web.resultVals), runId):
+    #         Web.resultVals.append([])
+    #     if not isinstance(x, numbers.Number):
+    #         # clear plot for this runId
+    #         Web.resultVals[runId-1] = []
+    #         return
+    #     # logging.info("Add resultVal {}, {}".format(x, y))
+    #     runVals = Web.resultVals[runId-1]
+    #     for i, val in enumerate(runVals):
+    #         if val['x'] == x:
+    #             runVals[i] = {'x': x, 'y': y}
+    #             return
+    #     runVals.append({'x': x, 'y': y})
 
 
 def getCookieSecret(dir):
@@ -285,9 +304,11 @@ def defaultBrowserMainCallback(client, message):
             cfg = Web.cfg
         Web.sendUserConfig(cfg, filename=Web.configFilename)
     elif cmd == "getDataPoints":
-        Web.sendUserDataVals(Web.resultVals)
+        resultVals = ProjectRPCService.exposed_WebDisplayInterface.getResultValues()
+        Web.sendUserDataVals(resultVals)
     elif cmd == "clearDataPoints":
-        Web.resultVals = [[{'x': 0, 'y': 0}]]
+        ProjectRPCService.exposed_WebDisplayInterface.clearResultValues()
+        # Web.resultVals = [[{'x': 0, 'y': 0}]]
     elif cmd == "run" or cmd == "initSession" or cmd == "finalizeSession":
         if Web.runInfo.threadId is not None:
             Web.runInfo.threadId.join(timeout=1)
@@ -408,96 +429,104 @@ def procOutputReader(proc, lineQueue):
         if line == '':
             break
 
+# # TODO - Remove this function
+# def processPyScriptRequest(request):
+#     """Process RPC requests from the runSession script. Comming either from DataInterface or SubjectInterface"""
+#     if 'cmd' not in request:
+#         raise StateError('processPyScriptRequest: cmd field not in request: {}'.format(request))
+#     cmd = request['cmd']
+#     route = request.get('route')
+#     localtimeout = request.get('timeout', 10) + 5
+#     response = StructDict({'status': 200})
+#     data = None
+#     if route == 'dataserver':
+#         savedError = None
+#         incomplete = True
+#         while incomplete:
+#             try:
+#                 response = Web.wsDataRequest(request, timeout=localtimeout)
+#                 if response is None:
+#                     raise StateError('processPyScriptRequest: Response None from sendDataMessage')
+#                 if 'status' not in response:
+#                     raise StateError('processPyScriptRequest: status field missing from response: {}'.format(response))
+#                 if response['status'] not in (200, 408):
+#                     if 'error' not in response:
+#                         raise StateError('processPyScriptRequest: error field missing from response: {}'.format(response))
+#                     Web.setUserError(response['error'])
+#                     logging.error('processPyScriptRequest status {}: {}'.format(response['status'], response['error']))
+#                     raise RequestError('processPyScriptRequest: Cmd: {} status {}: error {}'.
+#                                format(cmd, response.get('status'), response.get('error')))
+#             except Exception as err:
+#                 errStr = 'SendDataMessage Exception type {}: error {}:'.format(type(err), str(err))
+#                 response = {'status': 400, 'error': errStr}
+#                 Web.setUserError(errStr)
+#                 logging.error('processPyScriptRequest Excpetion: {}'.format(errStr))
+#                 raise err
+#             if 'data' in response:
+#                 try:
+#                     data = unpackDataMessage(response)
+#                 except Exception as err:
+#                     # The call may be incomplete, save the error and keep receiving as needed
+#                     logging.error('processPyScriptRequest: {}'.format(err))
+#                     if savedError is None:
+#                         savedError = err
+#                 request['callId'] = response.get('callId', -1)
+#             # Check if need to continue to get more parts
+#             incomplete = response.get('incomplete', False)
+#             request['incomplete'] = incomplete
+#         if savedError:
+#             raise RequestError('processPyScriptRequest: dataroute {}'.format(savedError)) 
+#     else:
+#         if cmd == 'resultValue':
+#             try:
+#                 # forward to bioFeedback Display
+#                 Web.wsSubjectSendMsg(json.dumps(request))
+#                 # forward to main browser window
+#                 Web.wsUserSendMsg(json.dumps(request))
+#                 # Accumulate results locally to resend to browser as needed
+#                 Web.addResultValue(request)
+#             except Exception as err:
+#                 errStr = 'SendClassification Exception type {}: error {}:'.format(type(err), str(err))
+#                 response = {'status': 400, 'error': errStr}
+#                 Web.setUserError(errStr)
+#                 logging.error('handleFifo Excpetion: {}'.format(errStr))
+#                 raise err
+#         elif cmd == 'subjectDisplay':
+#             logging.info('subjectDisplay webServer Callback')
+#         else:
+#             raise RequestError(f'processPyScriptRequest: Cmd: {cmd} not supported')      
+#     retVals = StructDict()
+#     retVals.statusCode = response.get('status', -1)
+#     retVals.error = response.get('error')
+#     if 'filename' in response:
+#         retVals.filename = response['filename']
+#     if 'fileList' in response:
+#         retVals.fileList = response['fileList']
+#     if 'fileTypes' in response:
+#         retVals.fileTypes = response['fileTypes']
+#     if data:
+#         retVals.data = data
+#         if retVals.filename is None:
+#             raise StateError('clientSendCmd: filename field is None')
+#     return retVals
 
-def processPyScriptRequest(request):
-    """Process RPC requests from the runSession script. Comming either from DataInterface or SubjectInterface"""
-    if 'cmd' not in request:
-        raise StateError('processPyScriptRequest: cmd field not in request: {}'.format(request))
-    cmd = request['cmd']
-    route = request.get('route')
-    localtimeout = request.get('timeout', 10) + 5
-    response = StructDict({'status': 200})
-    data = None
-    if route == 'dataserver':
-        savedError = None
-        incomplete = True
-        while incomplete:
-            try:
-                response = Web.wsDataRequest(request, timeout=localtimeout)
-                if response is None:
-                    raise StateError('processPyScriptRequest: Response None from sendDataMessage')
-                if 'status' not in response:
-                    raise StateError('processPyScriptRequest: status field missing from response: {}'.format(response))
-                if response['status'] not in (200, 408):
-                    if 'error' not in response:
-                        raise StateError('processPyScriptRequest: error field missing from response: {}'.format(response))
-                    Web.setUserError(response['error'])
-                    logging.error('processPyScriptRequest status {}: {}'.format(response['status'], response['error']))
-                    raise RequestError('processPyScriptRequest: Cmd: {} status {}: error {}'.
-                               format(cmd, response.get('status'), response.get('error')))
-            except Exception as err:
-                errStr = 'SendDataMessage Exception type {}: error {}:'.format(type(err), str(err))
-                response = {'status': 400, 'error': errStr}
-                Web.setUserError(errStr)
-                logging.error('processPyScriptRequest Excpetion: {}'.format(errStr))
-                raise err
-            if 'data' in response:
-                try:
-                    data = unpackDataMessage(response)
-                except Exception as err:
-                    # The call may be incomplete, save the error and keep receiving as needed
-                    logging.error('processPyScriptRequest: {}'.format(err))
-                    if savedError is None:
-                        savedError = err
-                request['callId'] = response.get('callId', -1)
-            # Check if need to continue to get more parts
-            incomplete = response.get('incomplete', False)
-            request['incomplete'] = incomplete
-        if savedError:
-            raise RequestError('processPyScriptRequest: dataroute {}'.format(savedError)) 
-    else:
-        if cmd == 'resultValue':
-            try:
-                # forward to bioFeedback Display
-                Web.wsBioFeedbackSendMsg(json.dumps(request))
-                # forward to main browser window
-                Web.wsUserSendMsg(json.dumps(request))
-                # Accumulate results locally to resend to browser as needed
-                Web.addResultValue(request)
-            except Exception as err:
-                errStr = 'SendClassification Exception type {}: error {}:'.format(type(err), str(err))
-                response = {'status': 400, 'error': errStr}
-                Web.setUserError(errStr)
-                logging.error('handleFifo Excpetion: {}'.format(errStr))
-                raise err
-        elif cmd == 'subjectDisplay':
-            logging.info('subjectDisplay webServer Callback')
-        else:
-            raise RequestError(f'processPyScriptRequest: Cmd: {cmd} not supported')      
-    retVals = StructDict()
-    retVals.statusCode = response.get('status', -1)
-    retVals.error = response.get('error')
-    if 'filename' in response:
-        retVals.filename = response['filename']
-    if 'fileList' in response:
-        retVals.fileList = response['fileList']
-    if 'fileTypes' in response:
-        retVals.fileTypes = response['fileTypes']
-    if data:
-        retVals.data = data
-        if retVals.filename is None:
-            raise StateError('clientSendCmd: filename field is None')
-    return retVals
-
-
-def handleDataRequest(cmd):
-    """Process local data request, i.e. from uploadFiles() in WebServer module."""
+# TODO - move this to a different file?
+def handleRPCRequest(sendRequestFunc, cmd, timeout=60):
+    """Process RPC requests using sendRequestFunc to send the request"""
     savedError = None
     incomplete = True
+    # print(f'handle request {cmd}')
+    if cmd.get('cmd') == 'rpc':
+        # if cmd is rpc, check and encode any byte args as base64
+        cmd = encodeByteTypeArgs(cmd)
+        # TODO - also encode numpy ints and floats as python ints and floats
     while incomplete:
-        response = Web.wsDataRequest(cmd, timeout=60)
+        response = sendRequestFunc(cmd, timeout)
         if response.get('status') != 200:
-            raise RequestError('handleDataRequest: status not 200: {}'.format(response.get('status')))
+            errStr = 'handleDataRequest: status {}, err {}'.format(
+                        response.get('status'), response.get('error'))
+            Web.setUserError(response.get('error'))
+            raise RequestError(errStr)
         try:
             data = unpackDataMessage(response)
         except Exception as err:
@@ -508,61 +537,55 @@ def handleDataRequest(cmd):
         cmd['callId'] = response.get('callId', -1)
         cmd['incomplete'] = incomplete
     if savedError:
-        raise RequestError('handleDataRequest: unpackDataMessage: {}'.format(savedError))
+        errStr = 'handleDataRequest: unpackDataMessage: {}'.format(savedError)
+        Web.setUserError(savedError)
+        raise RequestError(errStr)
+    serializationType = response.get('dataSerialization')
+    if serializationType == 'json':
+        if type(data) is bytes:
+            data = data.decode()
+        data = json.loads(data)
+    elif serializationType == 'pickle':
+        data = pickle.loads(data)    
     return data
+
+
+def handleDataRequest(cmd, timeout=60):
+    """Process RPC requests over the wsData channel, e.g. for DataInterface"""
+    return handleRPCRequest(Web.wsDataRequest, cmd, timeout)
+
+
+# TODO - move this to a different file?
+def handleSubjectRequest(cmd, timeout=60):
+    """Process RPC requests over the wsSubject channel, e.g. for SubjectInterface"""
+    return handleRPCRequest(Web.wsSubjectRequest, cmd, timeout)
 
 
 def uploadFiles(request):
     """Handle requests from the web interface to upload files to this computer."""
+    global CommonOutputDir
     if 'cmd' not in request or request['cmd'] != "uploadFiles":
         raise StateError('uploadFiles: incorrect cmd request: {}'.format(request))
     try:
         srcFile = request['srcFile']
-        compress = request['compress']
+        compress = request['compress']  # TODO use compress parameter
     except KeyError as err:
         Web.setUserError("UploadFiles request missing a parameter: {}".format(err))
         return
+
+    # get handle to dataInterface
+    dataInterface = ProjectRPCService.exposed_DataInterface
+
     # get the list of file to upload
-    cmd = listFilesReqStruct(srcFile)
-    # TODO - add a try catch for this request in case the fileWatcher isn't connected?
-    response = Web.wsDataRequest(cmd, timeout=10)
-    if response.get('status') != 200:
-        Web.setUserError("Error listing files {}: {}".
-                         format(srcFile, response.get('error')))
-        return
-    fileList = response.get('fileList')
-    if type(fileList) is not list:
-        Web.setUserError("Invalid fileList reponse type {}: expecting list".
-                         format(type(fileList)))
-        return
+    fileList = dataInterface.listFiles(srcFile)
     if len(fileList) == 0:
         response = {'cmd': 'uploadProgress', 'file': 'No Matching Files'}
         Web.wsUserSendMsg(json.dumps(response))
         return
-    for file in fileList:
-        try:
-            cmd = getFileReqStruct(file, compress=compress)
-            data = handleDataRequest(cmd)
-            # write the returned data out to a file
-            filename = response.get('filename')
-            if filename is None:
-                if 'data' in response: del response['data']
-                raise StateError('sendDataRequestToFile: filename field not in response: {}'.format(response))
-            # prepend with common output path and write out file
-            # note: can't just use os.path.join() because if two or more elements
-            #   have an aboslute path it discards the earlier elements
-            global CommonOutputDir
-            outputFilename = os.path.normpath(CommonOutputDir + filename)
-            dirName = os.path.dirname(outputFilename)
-            if not os.path.exists(dirName):
-                os.makedirs(dirName)
-            writeFile(outputFilename, data)
-            response['filename'] = outputFilename
-        except Exception as err:
-            Web.setUserError(
-                "Error uploading file {}: {}".format(file, str(err)))
-            return
-        response = {'cmd': 'uploadProgress', 'file': file}
-        Web.wsUserSendMsg(json.dumps(response))
+    
+    uploadFilesFromList(dataInterface, fileList, CommonOutputDir)
+    # TODO - break long fileList into parts and provide periodic progress message
+    # response = {'cmd': 'uploadProgress', 'file': file}
+    # Web.wsUserSendMsg(json.dumps(response))
     response = {'cmd': 'uploadProgress', 'file': '------upload complete------'}
     Web.wsUserSendMsg(json.dumps(response))

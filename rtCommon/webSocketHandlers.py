@@ -48,7 +48,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             wsConnections.append(self)
         finally:
             websocketState.wsConnLock.release()
-        # print(f'{self.name} WebSocket: connected {self.request.remote_ip}')
+        print(f'{self.name} WebSocket: connected {self.request.remote_ip}')
 
     def on_close(self):
         logging.log(DebugLevels.L1, f"{self.name} WebSocket closed")
@@ -119,6 +119,64 @@ def defaultWebsocketCallback(client, message):
     # print(f'{client.name} Callback: {cmd}')
 
 
+# class RtWebSocketHandler:
+#     def __init__(self, ioLoopInst):
+#         self.ioLoopInst = ioLoopInst
+#         self.dataRequestHandler = RequestHandler('wsData')
+#         self.subjectRequestHandler = RequestHandler('wsSubject')
+    
+#     def wsUserSendMsg(self, msg):
+#         self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsUser', msg=msg)
+
+#     def wsSubjectSendMsg(self, msg):
+#         self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsSubject', msg=msg)
+
+#     def userLog(self, logStr):
+#         cmd = {'cmd': 'userLog', 'value': logStr}
+#         self.wsUserSendMsg(json.dumps(cmd))
+
+#     def sessionLog(self, logStr):
+#         cmd = {'cmd': 'sessionLog', 'value': logStr}
+#         self.wsUserSendMsg(json.dumps(cmd))
+
+#     def setUserError(self, errStr):
+#         response = {'cmd': 'error', 'error': errStr}
+#         self.wsUserSendMsg(json.dumps(response))
+
+#     def sendUserConfig(self, config, filename=''):
+#         response = {'cmd': 'config', 'value': config, 'filename': filename}
+#         self.wsUserSendMsg(json.dumps(response))
+
+#     def sendUserDataVals(self, dataPoints):
+#         response = {'cmd': 'dataPoints', 'value': dataPoints}
+#         self.wsUserSendMsg(json.dumps(response))
+
+#     # TODO - move to RequestHandler and give requestHandler an reference to ioLoopInst
+#     def wsDataRequest(self, msg, timeout=None):
+#         """Send a request over the data web socket, i.e. to the remote FileWatcher."""
+#         call_id, conn = self.dataRequestHandler.prepare_request(msg)
+#         isNewRequest = not msg.get('incomplete', False)
+#         cmd = msg.get('cmd')
+#         logging.log(DebugLevels.L6, f'wsDataRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
+#         if isNewRequest is True:
+#             self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsData', msg=json.dumps(msg), conn=conn)
+#         response = self.dataRequestHandler.get_response(call_id, timeout=timeout)
+#         return response
+
+#     # TODO - move to RequestHandler and give requestHandler an reference to ioLoopInst
+#     def wsSubjectRequest(self, msg, timeout=None):
+#         """Send a request over the subject web socket, i.e. to the remote subjectInterface."""
+#         call_id, conn = self.subjectRequestHandler.prepare_request(msg)
+#         isNewRequest = not msg.get('incomplete', False)
+#         cmd = msg.get('cmd')
+#         logging.log(DebugLevels.L6, f'wsSubjectRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
+#         if isNewRequest is True:
+#             self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsSubject', msg=json.dumps(msg), conn=conn)
+#         response = self.subjectRequestHandler.get_response(call_id, timeout=timeout)
+#         return response
+
+
+
 ###################
 '''
 Data Mesage Handler:
@@ -173,7 +231,7 @@ class RequestHandler:
                 self.dataCallbacks[callId] = callbackStruct
             finally:
                 self.callbackLock.release()
-            # Web.ioLoopInst.add_callback(Web.sendDataMessage, msg)
+            # self.ioLoopInst.add_callback(Web.sendDataMessage, msg)
         return callId, reqConn
 
     # Step 2: Receive a reply and match up the orig callback structure, 
@@ -191,8 +249,8 @@ class RequestHandler:
         callId = response.get('callId', -1)
         origCmd = response.get('cmd', 'NoCommand')
         logging.log(DebugLevels.L6, "callback {}: {} {}".format(callId, origCmd, status))
-        numParts = response.get('numParts')
-        partId = response.get('partId')
+        # numParts = response.get('numParts')
+        # partId = response.get('partId')
         # print(f'callback {callId}: {origCmd} {status} numParts {numParts} partId {partId}')
         # Thread Synchronized Section
         self.callbackLock.acquire()

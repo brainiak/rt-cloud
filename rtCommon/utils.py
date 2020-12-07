@@ -19,10 +19,6 @@ from .structDict import MatlabStructDict, isStructuredArray, recurseCreateStruct
 from .errors import InvocationError
 
 
-class TooManySubStructsError(ValueError):
-    pass
-
-
 def parseMatlabStruct(top_struct) -> MatlabStructDict:
     '''Load matlab data file and convert it to a MatlabStructDict object for
        easier python access. Expect only one substructure array, and use that
@@ -32,7 +28,7 @@ def parseMatlabStruct(top_struct) -> MatlabStructDict:
     substruct_names = [key for key in top_struct.keys() if isStructuredArray(top_struct[key])]
     # if len(substruct_names) > 1:
     #     # Currently we only support one sub structured array
-    #     raise TooManySubStructsError(
+    #     raise ValueError(
     #         "Too many substructs: {}".format(substruct_names))
     substruct_name = substruct_names[0] if len(substruct_names) > 0 else None
     matstruct = MatlabStructDict(top_struct, substruct_name)

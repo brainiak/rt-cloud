@@ -1,9 +1,11 @@
 import rpyc
 from rtCommon.dataInterface import DataInterface
 from rtCommon.subjectInterface import SubjectInterface
+from rtCommon.webDisplayInterface import WebDisplayInterface
+from rtCommon.bidsInterface import BidsInterface
 
 
-class ClientRPC:
+class ClientInterface:
     """
     This class provides the API that an experiment script can use to communicate with the 
     project server. It provides both a DataInterface for reading or writing files, and a 
@@ -27,24 +29,48 @@ class ClientRPC:
                                             # "allow_delattr": True,
                                             # "allow_all_attrs": True,
                                            })
+            # Need to provide an override class of DataInstance to return data from getImage
             self.dataInterface = DataInterfaceOverrides(rpcConn.root.DataInterface)
             self.subjInterface = rpcConn.root.SubjectInterface
+            self.bidsInterface = rpcConn.root.BidsInterface
+            # WebDisplay is always run within the projectServer (i.e. not a remote service)
+            self.webInterface = rpcConn.root.WebDisplayInterface
             self.rpcConn = rpcConn
         except ConnectionRefusedError as err:
             reply = input('Unable to connect to projectServer, continue using localfiles? ' + '(y/n): ')
             reply.lower().strip()
             if reply[0] == 'y':
+                # These will be run in the same process as the experiment script
                 self.dataInterface = DataInterface(dataremote=False)
-                self.subjInterface = SubjectInterface(detached=True)
+                self.subjInterface = SubjectInterface(dataremote=False)
+                self.bidsInterface = BidsInterface(dataremote=False)
+                # TODO: this can't run locally? There is no remote option for webDisplayService because it always runs local within the projectServer
+                self.webInterface = WebDisplayInterface()
             else:
                 raise err
+    
+    def isDataRemote(self):
+        if self.rpcConn is not None:
+            return self.rpcConn.root.isDataRemote()
+        else:
+            return False
 
 
 class DataInterfaceOverrides(object):
+    '''Override the getImageData function of DataInterface 
+       to return the actual data rather than an RPC reference
+    '''
+
     def __init__(self, remoteDataInterface):
         self.remote = remoteDataInterface
 
     def __getattribute__(self, name):
+        """
+        If this override class implements a function, then return it.
+        Otherwise return the remoteInstance verion of the function.
+        Note: __getattribute__ is called for every reference whereas
+            __getattr__ is only called for missing references
+        """
         try:
             attr = object.__getattribute__(self, name)
         except AttributeError:
@@ -58,8 +84,7 @@ class DataInterfaceOverrides(object):
         return val
 
 
-
-# Generic override of getattribute that can be sub-classed and modify call behavior
+# Example of generic override of getattribute to modify call behavior
 # class Foo(object):
 #     def __getattribute__(self,name):
 #         attr = object.__getattribute__(self, name)

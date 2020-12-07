@@ -27,7 +27,7 @@ currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 import rtCommon.utils as utils
-import rtCommon.clientInterface as clientInterface
+from rtCommon.clientInterface import ClientInterface
 from rtCommon.structDict import StructDict
 #import rtCommon.dicomNiftiHandler as dnh
 import rtCommon.imageHandling as ihd
@@ -341,10 +341,11 @@ def main():
     # Initialize the RPC connection to the projectInterface
     # This will give us a dataInterface for retrieving files and
     # a subjectInterface for giving feedback
-    clientRPC = clientInterface.ClientRPC()
-    dataInterface = clientRPC.dataInterface
-    subjInterface = clientRPC.subjInterface
-    args.dataremote = dataInterface.isDataRemote()
+    clientInterface = ClientInterface()
+    dataInterface = clientInterface.dataInterface
+    subjInterface = clientInterface.subjInterface
+    webInterface = clientInterface.webInterface
+    args.dataremote = dataInterface.dataremote
 
     cfg = utils.loadConfigFile(args.config)
     cfg = initialize(cfg, args)
@@ -411,7 +412,7 @@ def main():
             A = time.time()
             dicomFilename = dicomScanNamePattern.format(TR=TRFilenum)
             print(f'Get Dicom: {dicomFilename}')
-            dicomData = dataInterface.getImageData(streamId, TRFilenum, timeout_file)
+            dicomData = dataInterface.getImageData(streamId, int(TRFilenum), timeout_file)
             full_nifti_name = convertToNifti(cfg, args, TRFilenum, scanNum, dicomData)
             print(full_nifti_name)
             print(cfg.MASK_transformed[cfg.useMask])
@@ -434,7 +435,8 @@ def main():
                 # Send classification result back to the console computer
                 dataInterface.putFile(full_file_name_to_save, text_to_save)
                 # JUST TO PLOT ON WEB SERVER
-                subjInterface.sendClassificationResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
+                subjInterface.setResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
+                webInterface.graphResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
             TRheader = makeTRHeader(cfg, runIndex, TRFilenum, TRindex, runData.percent_change[TRindex])
             TRindex += 1
 

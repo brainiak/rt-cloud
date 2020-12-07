@@ -7,50 +7,41 @@ import re
 import time
 import glob
 import chardet
+import threading
 import logging
 from pathlib import Path
 from typing import List, Any
 import rtCommon.utils as utils
-import rtCommon.projectUtils as projUtils
-import rtCommon.wsRequestStructs as req
+from rtCommon.remoteable import RemoteableExtensible
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.errors import StateError, RequestError, InvocationError, ValidationError, NotImplementedError
-from rtCommon.webServer import processPyScriptRequest
 from rtCommon.structDict import StructDict
-from rtCommon.types import StrOrBytes
+from rtCommon.rtTypes import StrOrBytes
 from rtCommon.imageHandling import readDicomFromBuffer
 
 
-# def initScannerStream(self, imgDir: str, filePattern: str) -> int: {}  // returns streamId
-# def initOpenNeuroStream(self, dataset: str, subject: str, session: str, run: str, task: str) -> int: {}  // returns streamId
-# def getImageData(self, streamId: int, imageIndex: int=None) -> bytes: {}
-# def getBidsIncremental(self, streamId: int, imageIndex: int=None) -> Any: {}  // return a BIDS-I image (typed as Any for now)
-
-
-class DataInterface:
+# This is the most general purpose one (for example used in the control room file server)
+class DataInterface(RemoteableExtensible):
     """
     Provides functions for accessing remote or local files depending on configuration
     """
-    def __init__(self, dataremote=False):
-        """
-        if dataremote is true requests will be sent to a remote FileWatcher
-        """
-        self.local = not dataremote
-        self.fileWatcher = None
+    def __init__(self, dataremote=False, allowedDirs=None, allowedFileTypes=None):
+        super().__init__(dataremote)
+        if dataremote is True:
+            return
         self.initWatchSet = False
         self.currentStreamId = 0
         self.streamInfo = None
-        if self.local:
-            self.fileWatcher = FileWatcher()
+        self.allowedDirs = allowedDirs
+        self.allowedFileTypes = allowedFileTypes
+        self.fileWatchLock = threading.Lock()
+        # instantiate local FileWatcher
+        self.fileWatcher = FileWatcher()
 
     def __del__(self):
         if self.fileWatcher is not None:
             self.fileWatcher.__del__()
             self.fileWatcher = None
-
-    def isDataRemote(self) -> bool:
-        """Indicates whether operating in remote or local mode."""
-        return not self.local
 
     def initScannerStream(self, imgDir: str, filePattern: str,
                           minFileSize: int, demoStep: int=0) -> int:
@@ -68,6 +59,9 @@ class DataInterface:
         Returns:
             streamId: An identifier used when calling getImageData()
         """
+        self.checkAllowedDirs(imgDir)
+        self.checkAllowedFileTypes(filePattern)
+        
         # check that filePattern has {TR} in it
         if not re.match(r'.*{TR.*', filePattern):
             raise InvocationError(r"initScannerStream filePattern must have a {TR} pattern")
@@ -82,15 +76,9 @@ class DataInterface:
             'imgIndex': 0,
         })
         _, file_ext = os.path.splitext(filePattern)
-        if self.local:
-            self._initWatch(imgDir, '*' + file_ext, minFileSize, demoStep)
-        else:
-            # make remote call
-            # self.currentStreamId = remotecall()
-            # return self.currentStreamId
-            self._initWatch(imgDir, '*' + file_ext, minFileSize, demoStep)
-            # raise NotImplementedError("Remote initScannerStream not implemented yet")
+        self._initWatch(imgDir, '*' + file_ext, minFileSize, demoStep)
         return self.currentStreamId
+
 
     def getImageData(self, streamId: int, imageIndex: int=None, timeout: int=5):
         """
@@ -116,15 +104,12 @@ class DataInterface:
         while retries < 5:
             retries += 1
             try:
-                if self.local:
-                    data = self._watchFile(filename, timeout)
-                else:
-                    # raise NotImplementedError("Remote getImageData not implemented yet")
-                    data = self._watchFile(filename, timeout)
+                data = self._watchFile(filename, timeout)
                 # TODO - Inject error here and see if commpipe remains open
                 dicomImg = readDicomFromBuffer(data)
-                # check that pixel array is complete
-                dicomImg.convert_pixel_data()
+                # Convert pixel data to a numpy.ndarray internally.
+                # Note: the conversion cause error in pickle encoding
+                # dicomImg.convert_pixel_data()
                 # successful
                 self.streamInfo.imgIndex = imageIndex + 1
                 return dicomImg
@@ -136,91 +121,41 @@ class DataInterface:
                 return None
         return None
 
-    def initOpenNeuroStream(self, dataset: str, subject: str, 
-                            session: str, run: str, task: str,
-                            demoStep: int=0) -> int:
-        """
-        Intialize a data stream from an OpenNeuro dataset
-
-        Returns: streamId - An identifier used when calling getImageData()
-        """
-        if self.local:
-            self.currentStreamId = self.currentStreamId + 1
-            # TODO create an openNeuro client object
-            openNeuroClient = None
-            self.streamInfo = StructDict({
-                'streamId': self.currentStreamId,
-                'type': 'openneuro',
-                'dataset': dataset,
-                'subject': subject,
-                'session': session,
-                'run': run,
-                'task': task,
-                'demoStep': demoStep,
-                'imgIndex': 0,
-                'client': openNeuroClient,
-
-            })
-            # return self.currentStreamId
-            raise NotImplementedError("initOpenNeuroStream not implemented yet")
-        else:
-            raise NotImplementedError("Remote initOpenNeuroStream not implemented yet")
-
-    def getBidsIncremental(self, streamId: int, imageIndex: int=None) -> Any:
-        """
-        Returns:
-            a BIDS-Incremental image (typed as Any for now)
-        """
-        if self.local:
-            if self.streamInfo.type == 'scanner':
-                # TODO: convert Dicom matching pattern to Bids-I and return Bids-I
-                pass
-            elif self.streamInfo.type == 'openneuro':
-                # TODO: call openneuro client to get next image and return it
-                pass
-            else:
-                raise RequestError(f"Stream type {self.streamInfo.type} not supported")
-        raise NotImplementedError("getBidsIncremental")
-
     def getFile(self, filename: str) -> bytes:
         """Returns a file's data immediately or fails if the file doesn't exist."""
+        fileDir, fileCheck = os.path.split(filename)
+        self.checkAllowedDirs(fileDir)
+        self.checkAllowedFileTypes(fileCheck)
+
         data = None
-        if self.local:
-            # TODO - BIDS Integration: with flag convert dicom to BIDS-I here?
-            with open(filename, 'rb') as fp:
-                data = fp.read()
-        else:
-            getFileCmd = req.getFileReqStruct(filename)
-            retVals = processPyScriptRequest(getFileCmd)
-            data = retVals.data
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f'File not found {filename}')
+        with open(filename, 'rb') as fp:
+            data = fp.read()
         # Consider - detect string encoding - but this could be computationally expenise on large data
         # encoding = chardet.detect(data)['encoding']
         # if encoding == 'ascii':
         #     data = data.decode(encoding)
-        # TODO - Add to BIDS archive here? And in the other file methods, or do this outside of dataInterface?
         return data
 
     def getNewestFile(self, filepattern: str) -> bytes:
         """Searches for files matching filePattern and returns the most recently created one."""
         data = None
-        if self.local:
-            baseDir, filePattern = os.path.split(filepattern)
-            if not os.path.isabs(baseDir):
-                # TODO - handle relative paths
-                pass
-            filename = utils.findNewestFile(baseDir, filePattern)
-            if filename is None:
-                # No file matching pattern
-                raise FileNotFoundError('No file found matching pattern {}'.format(filePattern))
-            elif not os.path.exists(filename):
-                raise FileNotFoundError('File missing after match {}'.format(filePattern))
-            else:
-                with open(filename, 'rb') as fp:
-                    data = fp.read()
+        baseDir, filePattern = os.path.split(filepattern)
+        self.checkAllowedDirs(baseDir)
+        if not os.path.isabs(baseDir):
+            # TODO - handle relative paths
+            pass
+        filename = utils.findNewestFile(baseDir, filePattern)
+        self.checkAllowedFileTypes(filename)
+        if filename is None:
+            # No file matching pattern
+            raise FileNotFoundError('No file found matching pattern {}'.format(filePattern))
+        elif not os.path.exists(filename):
+            raise FileNotFoundError('File missing after match {}'.format(filePattern))
         else:
-            getNewestFileCmd = req.getNewestFileReqStruct(filePattern)
-            retVals = processPyScriptRequest(getNewestFileCmd)
-            data = retVals.data
+            with open(filename, 'rb') as fp:
+                data = fp.read()
         return data
 
     def _initWatch(self, dir: str, filePattern: str, minFileSize: int, demoStep: int=0) -> None:
@@ -236,11 +171,13 @@ class DataInterface:
             demoStep: Minimum interval (in seconds) to wait before returning files.
                 Useful for demos replaying existing files while mimicking original timing.
         """
-        if self.local:
+        self.checkAllowedDirs(dir)
+        self.checkAllowedFileTypes(filePattern)
+        self.fileWatchLock.acquire()
+        try:
             self.fileWatcher.initFileNotifier(dir, filePattern, minFileSize, demoStep)
-        else:
-            initWatchCmd = req.initWatchReqStruct(dir, filePattern, minFileSize, demoStep)
-            _ = processPyScriptRequest(initWatchCmd)
+        finally:
+            self.fileWatchLock.release()
         self.initWatchSet = True
         return
 
@@ -250,20 +187,20 @@ class DataInterface:
         InitWatch() must be called first, before watching for specific files.
         If filename includes the full path, the path must match that used in initWatch().
         """
+        self.checkAllowedFileTypes(filename)
         data = None
         if not self.initWatchSet:
             raise StateError("DataInterface: watchFile() called without an initWatch()")
-        if self.local:
+        self.fileWatchLock.acquire()
+        try:
             foundFilename = self.fileWatcher.waitForFile(filename, timeout=timeout)
-            if foundFilename is None:
-                raise TimeoutError("WatchFile: Timeout {}s: {}".format(timeout, filename))
-            else:
-                with open(foundFilename, 'rb') as fp:
-                    data = fp.read()
+        finally:
+            self.fileWatchLock.release()
+        if foundFilename is None:
+            raise TimeoutError("WatchFile: Timeout {}s: {}".format(timeout, filename))
         else:
-            watchCmd = req.watchFileReqStruct(filename, timeout=timeout)
-            retVals = processPyScriptRequest(watchCmd)
-            data = retVals.data
+            with open(foundFilename, 'rb') as fp:
+                data = fp.read()
         return data
 
     def putFile(self, filename: str, data: StrOrBytes, compress: bool=False) -> None:
@@ -276,151 +213,185 @@ class DataInterface:
             compress: Whether to compress the data in transit (not within the file),
                 only has affect in remote mode.
         """
+        fileDir, fileCheck = os.path.split(filename)
+        self.checkAllowedDirs(fileDir)
+        self.checkAllowedFileTypes(fileCheck)
+
         if type(data) == str:
             data = data.encode()
 
-        if self.local:
-            outputDir = os.path.dirname(filename)
-            if not os.path.exists(outputDir):
-                os.makedirs(outputDir)
-            with open(filename, 'wb+') as binFile:
-                binFile.write(data)
-        else:
-            try:
-                fileHash = None
-                putFileCmd = req.putFileReqStruct(filename)
-                for putFilePart in projUtils.generateDataParts(data, putFileCmd, compress):
-                    fileHash = putFilePart.get('fileHash')
-                    _ = processPyScriptRequest(putFilePart)
-            except Exception as err:
-                # Send error notice to clear any partially cached data on the server side
-                # Add fileHash to message and send status=400 to notify
-                if fileHash:
-                    putFileCmd['fileHash'] = fileHash
-                    putFileCmd['status'] = 400
-                    _ = processPyScriptRequest(putFileCmd)
-                raise err
+        outputDir = os.path.dirname(filename)
+        if not os.path.exists(outputDir):
+            os.makedirs(outputDir)
+        with open(filename, 'wb+') as binFile:
+            binFile.write(data)
         return
 
     def listFiles(self, filepattern: str) -> List[str]:
         """Lists files matching regex filePattern from the remote filesystem"""
-        if self.local:
-            if not os.path.isabs(filepattern):
-                errStr = "listFiles must have an absolute path: {}".format(filepattern)
-                raise RequestError(errStr)
-            fileList = []
-            for filename in glob.iglob(filepattern, recursive=True):
-                if os.path.isdir(filename):
-                    continue
-                fileList.append(filename)
-        else:
-            listCmd = req.listFilesReqStruct(filepattern)
-            retVals = processPyScriptRequest(listCmd)
-            fileList = retVals.get('fileList')
-            if type(fileList) is not list:
-                errStr = "Invalid fileList reponse type {}: expecting list".format(type(fileList))
-                raise StateError(errStr)
+        fileDir, fileCheck = os.path.split(filepattern)
+        self.checkAllowedDirs(fileDir)
+        self.checkAllowedFileTypes(fileCheck)
+        if not os.path.isabs(filepattern):
+            errStr = "listFiles must have an absolute path: {}".format(filepattern)
+            raise RequestError(errStr)
+        fileList = []
+        for filename in glob.iglob(filepattern, recursive=True):
+            if os.path.isdir(filename):
+                continue
+            fileList.append(filename)
+        fileList = self.filterFileList(fileList)
         return fileList
 
-    def allowedFileTypes(self) -> List[str]:
+    def getAllowedFileTypes(self) -> List[str]:
         """Returns file extensions which remote filesystem will allow to read and write"""
-        if self.local:
+        if self.allowedFileTypes is None:
             return ['*']
         else:
-            cmd = req.allowedFileTypesReqStruct()
-            retVals = processPyScriptRequest(cmd)
-            fileTypes = retVals.get('fileTypes')
-            if type(fileTypes) is not list:
-                errStr = "Invalid fileTypes reponse type {}: expecting list".format(type(fileTypes))
-                raise StateError(errStr)
-        return fileTypes
+            return self.allowedFileTypes
 
-    def uploadFolderToCloud(self, srcDir, outputDir):
-        """Copies a folder (directory) from the remote to the system where this call is run"""
-        allowedFileTypes = self.allowedFileTypes()
-        logging.info('Uploading folder {} to cloud'.format(srcDir))
-        logging.info('UploadFolder limited to file types: {}'.format(allowedFileTypes))
-        dirPattern = os.path.join(srcDir, '**')  # ** wildcard means include sub-directories
-        fileList = self.listFiles(dirPattern)
-        # The src prefix is the part of the path to eliminate in the destination path
-        # This will be everything except the last subdirectory in srcDir
-        srcPrefix = os.path.dirname(srcDir)
-        self.uploadFilesFromList(fileList, outputDir, srcDirPrefix=srcPrefix)
+    def checkAllowedDirs(self, dir):
+        if dir is None:
+            return True
+        if self.allowedDirs is not None:
+            dirMatch = False
+            for allowedDir in self.allowedDirs:
+                if dir.startswith(allowedDir):
+                    dirMatch = True
+                    break
+            if dirMatch is False:
+                raise ValidationError(
+                    f'Path {dir} not within list of allowed directories {self.allowedDirs}. '
+                    'Make sure you specified a full (absolute) path. '
+                    'Specify allowed directories with FileServer -d parameter.')
+        return True
 
-    def uploadFilesToCloud(self, srcFilePattern, outputDir):
-        """
-        Copies files matching (regex) srcFilePattern from the remote onto the system 
-            where this call is being made.
-        """
-        # get the list of files to upload
-        fileList = self.listFiles(srcFilePattern)
-        self.uploadFilesFromList(fileList, outputDir)
+    def checkAllowedFileTypes(self, filename):
+        if filename is None or filename == '':
+            return True
+        if self.allowedFileTypes is not None:
+            if filename[-1] == '*':
+                # wildcards will be filtered later
+                return True
+            fileExtension = Path(filename).suffix
+            if fileExtension not in self.allowedFileTypes:
+                raise ValidationError(
+                    f"File type {fileExtension} not in list of allowed file types {self.allowedFileTypes}. "
+                    "Specify allowed filetypes with FileServer -f parameter.")
+        return True
 
-    def uploadFilesFromList(self, fileList, outputDir, srcDirPrefix=None):
-        """
-        Copies files in fileList from the remote onto the system
-            where this call is being made.
-        """
-        for file in fileList:
-            fileDir, filename = os.path.split(file)
-            if srcDirPrefix is not None and fileDir.startswith(srcDirPrefix):
-                # Get just the part of fileDir after the srcDirPrefix
-                subDir = fileDir.replace(srcDirPrefix, '')
-            else:
-                subDir = ''
-            try:
-                data = self.getFile(file)
-            except Exception as err:
-                if type(err) is IsADirectoryError or 'IsADirectoryError' in str(err):
-                    continue
-                raise(err)
-            outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
-            logging.info('upload: {} --> {}'.format(file, outputFilename))
-            utils.writeFile(outputFilename, data)
-
-    def downloadFolderFromCloud(self, srcDir, outputDir, deleteAfter=False):
-        """Copies a directory from the system where this call is made to the remote system."""
-        allowedFileTypes = self.allowedFileTypes()
-        logging.info('Downloading folder {} from the cloud'.format(srcDir))
-        logging.info('DownloadFolder limited to file types: {}'.format(allowedFileTypes))
-        dirPattern = os.path.join(srcDir, '**')
-        fileList = [x for x in glob.iglob(dirPattern, recursive=True)]
+    def filterFileList(self, fileList):
         filteredList = []
         for filename in fileList:
-            fileExtension = Path(filename).suffix
-            if fileExtension in allowedFileTypes or '*' in allowedFileTypes:
-                filteredList.append(filename)
-        # The src prefix is the part of the path to eliminate in the destination path
-        # This will be everything except the last subdirectory in srcDir
-        srcPrefix = os.path.dirname(srcDir)
-        self.downloadFilesFromList(filteredList, outputDir, srcDirPrefix=srcPrefix)
-        if deleteAfter:
-            utils.deleteFilesFromList(filteredList)
-
-    def downloadFilesFromCloud(self, srcFilePattern, outputDir, deleteAfter=False):
-        """
-        Copies files matching srcFilePattern from the system where this call is made
-            to the remote system.
-        """
-        fileList = [x for x in glob.iglob(srcFilePattern)]
-        self.downloadFilesFromList(fileList, outputDir)
-        if deleteAfter:
-            utils.deleteFilesFromList(fileList)
-
-    def downloadFilesFromList(self, fileList, outputDir, srcDirPrefix=None):
-        """Copies files in fileList from this computer to the remote."""
-        for file in fileList:
-            if os.path.isdir(file):
+            if os.path.isdir(filename):
                 continue
-            with open(file, 'rb') as fp:
-                data = fp.read()
-            fileDir, filename = os.path.split(file)
-            if srcDirPrefix is not None and fileDir.startswith(srcDirPrefix):
-                # Get just the part of fileDir after the srcDirPrefix
-                subDir = fileDir.replace(srcDirPrefix, '')
-            else:
-                subDir = ''
-            outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
-            logging.info('download: {} --> {}'.format(file, outputFilename))
-            self.putFile(outputFilename, data)
-        return
+            fileExtension = Path(filename).suffix
+            if fileExtension in self.allowedFileTypes:
+                filteredList.append(filename)
+        return filteredList
+
+# # This is a more specific class adding function the cloud client would run locally
+# class DataInterfaceClient(DataInterface):
+#     def __init__(self, dataremote=False):
+#         super().__init__(dataremote)
+#         localOnlyFunctions = [
+#             'uploadFilesFromList',
+#             'downloadFilesFromList',
+#             'uploadFolderToCloud',
+#             'uploadFilesToCloud',
+#             'downloadFolderFromCloud',
+#             'downloadFilesFromCloud',
+#         ]
+#         self.addLocalAttributes(localOnlyFunctions)
+
+### Helper Function to upload and download sets of files ###
+def uploadFilesFromList(dataInterface, fileList, outputDir, srcDirPrefix=None):
+    """
+    Copies files in fileList from the remote onto the system
+        where this call is being made.
+    """
+    for file in fileList:
+        fileDir, filename = os.path.split(file)
+        if srcDirPrefix is not None and fileDir.startswith(srcDirPrefix):
+            # Get just the part of fileDir after the srcDirPrefix
+            subDir = fileDir.replace(srcDirPrefix, '')
+        else:
+            subDir = ''
+        try:
+            data = dataInterface.getFile(file)
+        except Exception as err:
+            if type(err) is IsADirectoryError or 'IsADirectoryError' in str(err):
+                continue
+            raise(err)
+        outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
+        logging.info('upload: {} --> {}'.format(file, outputFilename))
+        utils.writeFile(outputFilename, data)
+
+def downloadFilesFromList(dataInterface, fileList, outputDir, srcDirPrefix=None):
+    """Copies files in fileList from this computer to the remote."""
+    for file in fileList:
+        if os.path.isdir(file):
+            continue
+        with open(file, 'rb') as fp:
+            data = fp.read()
+        fileDir, filename = os.path.split(file)
+        if srcDirPrefix is not None and fileDir.startswith(srcDirPrefix):
+            # Get just the part of fileDir after the srcDirPrefix
+            subDir = fileDir.replace(srcDirPrefix, '')
+        else:
+            subDir = ''
+        outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
+        logging.info('download: {} --> {}'.format(file, outputFilename))
+        dataInterface.putFile(outputFilename, data)
+    return
+
+def uploadFolderToCloud(dataInterface, srcDir, outputDir):
+    """Copies a folder (directory) from the remote to the system where this call is run"""
+    allowedFileTypes = dataInterface.getAllowedFileTypes()
+    logging.info('Uploading folder {} to cloud'.format(srcDir))
+    logging.info('UploadFolder limited to file types: {}'.format(allowedFileTypes))
+    dirPattern = os.path.join(srcDir, '**')  # ** wildcard means include sub-directories
+    fileList = dataInterface.listFiles(dirPattern)
+    # The src prefix is the part of the path to eliminate in the destination path
+    # This will be everything except the last subdirectory in srcDir
+    srcPrefix = os.path.dirname(srcDir)
+    uploadFilesFromList(dataInterface, fileList, outputDir, srcDirPrefix=srcPrefix)
+
+def uploadFilesToCloud(dataInterface, srcFilePattern, outputDir):
+    """
+    Copies files matching (regex) srcFilePattern from the remote onto the system 
+        where this call is being made.
+    """
+    # get the list of files to upload
+    fileList = dataInterface.listFiles(srcFilePattern)
+    uploadFilesFromList(dataInterface, fileList, outputDir)
+
+def downloadFolderFromCloud(dataInterface, srcDir, outputDir, deleteAfter=False):
+    """Copies a directory from the system where this call is made to the remote system."""
+    allowedFileTypes = dataInterface.getAllowedFileTypes()
+    logging.info('Downloading folder {} from the cloud'.format(srcDir))
+    logging.info('DownloadFolder limited to file types: {}'.format(allowedFileTypes))
+    dirPattern = os.path.join(srcDir, '**')
+    fileList = [x for x in glob.iglob(dirPattern, recursive=True)]
+    filteredList = []
+    for filename in fileList:
+        fileExtension = Path(filename).suffix
+        if fileExtension in allowedFileTypes or '*' in allowedFileTypes:
+            filteredList.append(filename)
+    # The src prefix is the part of the path to eliminate in the destination path
+    # This will be everything except the last subdirectory in srcDir
+    srcPrefix = os.path.dirname(srcDir)
+    downloadFilesFromList(dataInterface, filteredList, outputDir, srcDirPrefix=srcPrefix)
+    if deleteAfter:
+        utils.deleteFilesFromList(filteredList)
+
+def downloadFilesFromCloud(dataInterface, srcFilePattern, outputDir, deleteAfter=False):
+    """
+    Copies files matching srcFilePattern from the system where this call is made
+        to the remote system.
+    """
+    fileList = [x for x in glob.iglob(srcFilePattern)]
+    downloadFilesFromList(dataInterface, fileList, outputDir)
+    if deleteAfter:
+        utils.deleteFilesFromList(fileList)
+

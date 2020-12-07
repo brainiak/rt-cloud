@@ -65,4 +65,6 @@ if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "rtcloud" ]; then
   conda activate rtcloud
 fi
 
+export PYTHONPATH=./rtCommon/:$PYTHONPATH
+echo python rtCommon/projectServer.py -p $PROJECT $CFG_PARAM $MAIN_SCRIPT_PARAM $R_PARAM  $TEST_PARAM
 python rtCommon/projectServer.py -p $PROJECT $CFG_PARAM $MAIN_SCRIPT_PARAM $R_PARAM  $TEST_PARAM

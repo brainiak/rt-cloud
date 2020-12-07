@@ -27,10 +27,11 @@ sys.path.append(rootPath)
 #sys.path.append('/jukebox/norman/amennen/github/brainiak/rt-cloud/')
 
 import rtCommon.utils as utils
-import rtCommon.clientInterface as clientInterface
+from rtCommon.clientInterface import ClientInterface
 from rtCommon.structDict import StructDict
 #from rtCommon.dicomNiftiHandler import getTransform
 from rtCommon.imageHandling import getTransform
+from rtCommon.dataInterface import uploadFolderToCloud, uploadFilesFromList
 
 
 # obtain the full path for the configuration toml file
@@ -174,9 +175,9 @@ def main(argv=None):
     print('Initializing directories and configurations')
 
     # establish the RPC connection to the projectInterface
-    clientRPC = clientInterface.ClientRPC()
-    dataInterface = clientRPC.dataInterface
-    args.dataremote = dataInterface.isDataRemote()
+    clientInterface = ClientInterface()
+    dataInterface = clientInterface.dataInterface
+    args.dataremote = clientInterface.isDataRemote()
 
     # load the experiment configuration file
     cfg = utils.loadConfigFile(args.config)
@@ -189,14 +190,14 @@ def main(argv=None):
         buildSubjectFoldersOnServer(cfg)
 
         # next, transfer transformation files from local --> server for online processing
-        dataInterface.uploadFolderToCloud(cfg.local.wf_dir, cfg.server.wf_dir)
+        uploadFolderToCloud(dataInterface, cfg.local.wf_dir, cfg.server.wf_dir)
 
         # upload ROI folder to cloud server - we would need to do this if we were using
         # a standard mask, but we're not in this case
-        #dataInterface.uploadFolderToCloud(cfg.local.maskDir, cfg.server.maskDir)
+        #uploadFolderToCloud(dataInterface, cfg.local.maskDir, cfg.server.maskDir)
 
         # upload all transformed masks to the cloud
-        dataInterface.uploadFilesFromList(cfg.local_MASK_transformed, cfg.subject_reg_dir)
+        uploadFilesFromList(dataInterface, cfg.local_MASK_transformed, cfg.subject_reg_dir)
 
     print('Initialization Complete!')
     return 0

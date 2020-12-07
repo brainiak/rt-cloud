@@ -1,5 +1,6 @@
 import pytest
 import os
+import sys
 import threading
 import time
 import glob
@@ -12,13 +13,19 @@ import rtCommon.wsRequestStructs as req
 import rtCommon.utils as utils
 import rtCommon.projectUtils as projUtils
 from rtCommon.dataInterface import DataInterface
-from rtCommon.fileServer import WsFileWatcher
+from rtCommon.scannerDataService import ScannerDataService
 from rtCommon.webServer import Web, handleDataRequest, CommonOutputDir
 from rtCommon.structDict import StructDict
 from rtCommon.errors import RequestError
 from rtCommon.imageHandling import readDicomFromFile, anonymizeDicom, writeDicomToBuffer
 from rtCommon.webSocketHandlers import sendWebSocketMessage
 from rtCommon.projectServer import ProjectServer
+from rtCommon.clientInterface import ClientInterface
+
+# TODO - test running ControlRoomDataService and connecting from a clientInterface and doing all commands including big files
+# TODO - test running subjectService and connecting from a clientInterface and calling all commands
+# TODO - test instantiating a webDisplayInterface and calling all commands
+# TODO - rename this file to test_remoteServices.py
 
 
 testDir = os.path.dirname(__file__)
@@ -46,7 +53,7 @@ def bigTestfile():  # type: ignore
 
 class TestServers:
     mainThread = None
-    fileThread = None
+    dataThread = None
     pingCount = 0
 
     def setup_class(cls):
@@ -69,39 +76,40 @@ class TestServers:
         cls.mainThread.start()
         time.sleep(.1)
 
+        args = StructDict({'server': 'localhost:8921',
+                           'interval': 0.1,
+                           'allowedDirs': ['/tmp', testDir, samplePath],
+                           'allowedTypes': fileTypeList,
+                           'username': 'test',
+                           'password': 'test',
+                           'test': True,
+                          })
+        dataServer = ScannerDataService(args)
+        dataServer.wsRemoteService.runForever()
         # Start a fileWatcher thread running
-        cls.fileThread = threading.Thread(
-            name='fileThread',
-            target=WsFileWatcher.runFileWatcher,
-            args=('localhost:8921',),
-            kwargs={
-                'retryInterval': 0.1,
-                'allowedDirs': ['/tmp', testDir, samplePath],
-                'allowedTypes': fileTypeList,
-                'username': 'test',
-                'password': 'test',
-                'testMode': True
-            }
+        cls.dataThread = threading.Thread(
+            name='dataThread',
+            target=dataServer.wsRemoteService.runForever()
         )
-        cls.fileThread.setDaemon(True)
-        cls.fileThread.start()
+        cls.dataThread.setDaemon(True)
+        cls.dataThread.start()
         time.sleep(1)
 
     def teardown_class(cls):
-        WsFileWatcher.stop()
-        Web.stop()
-        time.sleep(1)
+        # dataServer.wsRemoteService.stop()
+        # Web.stop()
+        # time.sleep(1)
         pass
 
-    def test_ping(self):
-        print("test_ping")
-        # Send a ping request from projectInterface to fileWatcher
-        # assert Web.wsDataConn is not None
-        cmd = {'cmd': 'ping'}
-        response = Web.wsDataRequest(cmd, timeout=2)
-        if response['status'] != 200:
-            print("Ping error: {}".format(response))
-        assert response['status'] == 200
+    # def test_ping(self):
+    #     print("test_ping")
+    #     # Send a ping request from projectInterface to fileWatcher
+    #     # assert Web.wsDataConn is not None
+    #     cmd = {'cmd': 'ping'}
+    #     response = Web.wsDataRequest(cmd, timeout=2)
+    #     if response['status'] != 200:
+    #         print("Ping error: {}".format(response))
+    #     assert response['status'] == 200
 
     def test_validateRequestedFile(self):
         print("test_validateRequestedFile")
@@ -312,7 +320,7 @@ class TestServers:
         assert writtenData == data
 
         # test get allowedFileTypes
-        allowedTypes = dataInterface.allowedFileTypes()
+        allowedTypes = dataInterface.getAllowedFileTypes()
         assert allowedTypes == fileTypeList
 
         # test list files

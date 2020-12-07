@@ -70,6 +70,6 @@ class TestDataInterface:
         assert len(fileList) == 2
 
         # Test allowedFileTypes
-        allowedTypes = TestDataInterface.fileWatcher.allowedFileTypes()
+        allowedTypes = TestDataInterface.fileWatcher.getAllowedFileTypes()
         assert allowedTypes == ['*']
         return

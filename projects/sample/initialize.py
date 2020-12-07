@@ -32,7 +32,8 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 # import project modules from rt-cloud
 import rtCommon.utils as utils
-import rtCommon.clientInterface as clientInterface
+from rtCommon.clientInterface import ClientInterface
+from rtCommon.dataInterface import uploadFilesToCloud
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
@@ -82,7 +83,7 @@ def initialize(cfg, dataInterface):
     #   OUTPUT:
     #       [1] allowedFileTypes (list of allowed file types)
     
-    allowedFileTypes = dataInterface.allowedFileTypes()
+    allowedFileTypes = dataInterface.getAllowedFileTypes()
     print(""
     "-----------------------------------------------------------------------------\n"
     "Before continuing, we should check to see the file types that are allowed.\n"
@@ -100,7 +101,7 @@ def initialize(cfg, dataInterface):
     #       [2] srcPattern (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
     srcPattern = os.path.join(stimulusDir,'**')
-    dataInterface.uploadFilesToCloud(srcPattern, cloudDir)
+    uploadFilesToCloud(dataInterface, srcPattern, cloudDir)
 
     print(""
     "-----------------------------------------------------------------------------\n"
@@ -128,7 +129,7 @@ def main(argv=None):
     cfg = utils.loadConfigFile(args.config)
 
     # establish the RPC connection to the projectInterface
-    clientRPC = clientInterface.ClientRPC()
+    clientInterface = ClientInterface()
 
     # now that we have the necessary variables, call the function 'initialize' in
     #   order to actually start reading dicoms and doing your analyses of interest!
@@ -136,7 +137,7 @@ def main(argv=None):
     #       [1] cfg (configuration file with important variables)
     #       [2] dataInterface (this will allow a script from the cloud to access files 
     #               from the stimulus computer)
-    initialize(cfg, clientRPC.dataInterface)
+    initialize(cfg, clientInterface.dataInterface)
     return 0
 
 

@@ -16,7 +16,7 @@ Finally, this script is called from 'projectMain.py', which is called from
 
 -----------------------------------------------------------------------------"""
 
-verbose = True
+verbose = False
 
 if verbose:
     # print a short introduction on the internet window
@@ -60,14 +60,14 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 # import project modules from rt-cloud
 from rtCommon.utils import loadConfigFile, stringPartialFormat
-import rtCommon.clientInterface as clientInterface
+from rtCommon.clientInterface import ClientInterface
 from rtCommon.imageHandling import convertDicomImgToNifti
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
-def doRuns(cfg, dataInterface, subjInterface):
+def doRuns(cfg, dataInterface, subjInterface, webInterface):
     """
     This function is called by 'main()' below. Here, we use the 'dataInterface'
     to read in dicoms (presumably from the scanner, but here it's from a folder
@@ -101,7 +101,7 @@ def doRuns(cfg, dataInterface, subjInterface):
     #   OUTPUT:
     #       [1] allowedFileTypes (list of allowed file types)
 
-    allowedFileTypes = dataInterface.allowedFileTypes()
+    allowedFileTypes = dataInterface.getAllowedFileTypes()
     if verbose:
         print(""
         "-----------------------------------------------------------------------------\n"
@@ -132,6 +132,7 @@ def doRuns(cfg, dataInterface, subjInterface):
     streamId = dataInterface.initScannerStream(cfg.dicomDir, 
                                                dicomScanNamePattern,
                                                cfg.minExpectedDicomSize)
+    # TODO - fixe this comment
     # we will use the function 'sendResultToWeb' in 'projectUtils.py' whenever we
     #   want to send values to the web browser so that they can be plotted in the
     #   --Data Plots-- tab
@@ -145,7 +146,7 @@ def doRuns(cfg, dataInterface, subjInterface):
     # here, we are clearing an already existing plot
     if verbose:
         print("• clear any pre-existing plot using 'sendResultToWeb'")
-    subjInterface.sendClassificationResult(runNum, None, None)
+    webInterface.graphResult(runNum, None, None)
 
     if verbose:
         print(""
@@ -193,7 +194,8 @@ def doRuns(cfg, dataInterface, subjInterface):
         if verbose:
             print("• use dataInterface.getImageData() to read dicom file for",
                 "TR %d, %s" %(this_TR, dicomFilename))
-        dicomData = dataInterface.getImageData(streamId, this_TR, timeout_file)
+        dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout_file)
+        dicomData.convert_pixel_data()
 
         if cfg.isSynthetic:
             niftiObject = convertDicomImgToNifti(dicomData)
@@ -215,11 +217,13 @@ def doRuns(cfg, dataInterface, subjInterface):
         if verbose:
             print("| max activation value for TR %d is %d" %(this_TR, max_niftiData))
 
+        # TODO - fix this comment
         # use 'sendResultToWeb' from 'projectUtils.py' to send the result to the
         #   web browser to be plotted in the --Data Plots-- tab.
         if verbose:
             print("| send result to the web, plotted in the 'Data Plots' tab")
-        subjInterface.sendClassificationResult(runNum, int(this_TR), float(avg_niftiData))
+        subjInterface.setResult(runNum, int(this_TR), float(avg_niftiData))
+        webInterface.graphResult(runNum, int(this_TR), float(avg_niftiData))
 
         # save the activations value info into a vector that can be saved later
         all_avg_activations[this_TR] = avg_niftiData
@@ -275,9 +279,15 @@ def main(argv=None):
     # Initialize the RPC connection to the projectInterface
     # This will give us a dataInterface for retrieving files and
     # a subjectInterface for giving feedback
-    clientRPC = clientInterface.ClientRPC()
-    dataInterface = clientRPC.dataInterface
-    subjInterface = clientRPC.subjInterface
+    clientInterfaces = ClientInterface()
+    dataInterface = clientInterfaces.dataInterface
+    subjInterface = clientInterfaces.subjInterface
+    webInterface  = clientInterfaces.webInterface
+
+    # Also try the placeholder for bidsInterface
+    bidsInterface = clientInterfaces.bidsInterface
+    res = bidsInterface.echo("test")
+    print(res)
 
     # load the experiment configuration file
     cfg = loadConfigFile(args.config)
@@ -297,7 +307,7 @@ def main(argv=None):
     #               from the stimulus computer that receives dicoms from the Siemens
     #               console computer)
     #       [3] subjInterface (to send/receive feedback to the subject in the scanner)
-    doRuns(cfg, dataInterface, subjInterface)
+    doRuns(cfg, dataInterface, subjInterface, webInterface)
 
     return 0
 

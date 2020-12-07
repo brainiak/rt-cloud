@@ -25,7 +25,8 @@ sys.path.append(rootPath)
 #sys.path.append('/jukebox/norman/amennen/github/brainiak/rt-cloud/')
 
 import rtCommon.utils as utils
-import rtCommon.clientInterface as clientInterface
+from rtCommon.clientInterface import ClientInterface
+from rtCommon.dataInterface import downloadFilesFromList
 from rtCommon.structDict import StructDict
 #from rtCommon.dicomNiftiHandler import getTransform
 from rtCommon.imageHandling import getTransform
@@ -68,9 +69,9 @@ def main(argv=None):
 	args = argParser.parse_args(argv)
 
 	# establish the RPC connection to the projectInterface
-	clientRPC = clientInterface.ClientRPC()
-	dataInterface = clientRPC.dataInterface
-	args.dataremote = dataInterface.isDataRemote()
+	clientInterface = ClientInterface()
+	dataInterface = clientInterface.dataInterface
+	args.dataremote = clientInterface.isDataRemote()
 
 	# load the experiment configuration file
 	cfg = utils.loadConfigFile(args.config)
@@ -96,7 +97,7 @@ def main(argv=None):
 			runFolder = os.path.join(cfg.server.subject_full_day_path, runId, '*')
 			listOfFiles = glob.glob(runFolder)
 			runFolder_local = os.path.join(cfg.local.subject_full_day_path, runId)
-			dataInterface.downloadFilesFromList(listOfFiles, runFolder_local)
+			downloadFilesFromList(dataInterface, listOfFiles, runFolder_local)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('downloading data to local computer: ', runFolder)
 		# next delete the entire subject folder on the cloud

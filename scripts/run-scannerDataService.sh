@@ -49,4 +49,5 @@ source ~/.bashrc
 conda deactivate
 conda activate rtcloud
 
-python rtCommon/fileServer.py $USER_PARAM $PASSWD_PARAM -s $SERVER -d $ALLOWDIRS -f $ALLOWFILES $TEST $SYNTH
+export PYTHONPATH=./rtCommon/:$PYTHONPATH
+python rtCommon/scannerDataService.py $USER_PARAM $PASSWD_PARAM -s $SERVER -d $ALLOWDIRS -f $ALLOWFILES $TEST $SYNTH

@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import argparse
 import threading
 import logging
@@ -9,8 +10,8 @@ sys.path.append(rootPath)
 from rtCommon.structDict import StructDict
 from rtCommon.utils import installLoggers
 from rtCommon.errors import InvocationError
-from rtCommon.webServer import Web
-from rtCommon.experimentRPCService import startExperimentRPCThread
+from rtCommon.webServer import Web, handleDataRequest, handleSubjectRequest
+from rtCommon.projectServerRPC import startRPCThread, ProjectRPCService
 
 
 class ProjectServer:
@@ -33,18 +34,32 @@ class ProjectServer:
             })
 
     def start(self):
-        """Start the servers. This function doesn't return."""
-        # this will have both a web server and rpc servers to handle client requests
-        rpcThread = threading.Thread(name='rpcThread',
-                                    target=startExperimentRPCThread,
-                                    kwargs={'dataremote': self.args.dataremote,
-                                            'hostname': 'localhost',
-                                            'port': 12345})
-        rpcThread.setDaemon(True)
-        rpcThread.start()
-
+        """Start the Web and RPC servers. This function doesn't return."""
         web = Web()
-        web.start(self.params, self.args.config, testMode=self.args.test)
+        # web.start(self.params, self.args.config, testMode=self.args.test)
+        webThread = threading.Thread(name='webServerThread',
+                                    target=web.start,
+                                    args=(self.params, self.args.config,),
+                                    kwargs={'testMode': self.args.test})
+        webThread.setDaemon(True)
+        webThread.start()
+        # wait for the web to initialize
+        while Web.ioLoopInst is None:
+            time.sleep(0.5)
+
+        rpcService = ProjectRPCService(dataremote=self.args.dataremote)
+        rpcService.registerDataCommFunction(handleDataRequest)
+        rpcService.registerSubjectCommFunction(handleSubjectRequest)
+        rpcService.registerIoLoop(Web.ioLoopInst)
+        startRPCThread(rpcService, hostname='localhost', port=12345)
+        # rpcThread = threading.Thread(name='rpcThread',
+        #                             target=startProjectRPCThread,
+        #                             args=(rpcService,),
+        #                             kwargs={'hostname': 'localhost',
+        #                                     'port': 12345})
+        # rpcThread.setDaemon(True)
+        # rpcThread.start()
+
 
 
 
