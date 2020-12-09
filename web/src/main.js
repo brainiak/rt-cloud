@@ -29,6 +29,8 @@ function arrayFindIndexByX(arr, xval){
     return idx
 }
 
+
+
 class TopPane extends React.Component {
   constructor(props) {
     super(props)
@@ -137,7 +139,7 @@ class TopPane extends React.Component {
     if (cfg == null) {
         return
     }
-    this.webSocket.send(JSON.stringify({cmd: 'run', config: cfg}))
+    this.webSocket.send(JSON.stringify({cmd: 'runScript', args: ['mainScript'], config: cfg}))
   }
 
   stopRun() {
@@ -153,17 +155,16 @@ class TopPane extends React.Component {
     this.webSocket.send(JSON.stringify(cmdStr))
   }
 
-  runSession(cmd) {
+  runSession(scriptType) {
     // clear previous log output
-    var firstLogMsg = '##### ' + cmd + ' #####'
+    var firstLogMsg = '##### ' + scriptType + ' #####'
     this.setState({sessionLog: [firstLogMsg]})
     this.setState({error: ''})
-
     var cfg = this.formatConfigValues(this.state.config)
     if (cfg == null) {
         return
     }
-    this.webSocket.send(JSON.stringify({cmd: cmd}))
+    this.webSocket.send(JSON.stringify({cmd: 'runScript', args: [scriptType] }))
   }
 
   formatConfigValues(cfg) {
@@ -260,7 +261,35 @@ class TopPane extends React.Component {
       this.setState({error: JSON.stringify(errorEvent, null, 4)})
       console.log("WebSocket ERROR: " + JSON.stringify(errorEvent, null, 4));
     };
+  
+class RequestHandler {
+  setConfig() {
+    
+  }
+  userLog() {
+    
+  }
+  sessionLog() {
+    
+  }
+  runStatus() {
+    
+  }
+  resultValue() {
+    
+  }
+  dataPoints() {
+    
+  }
+  error() {
+    
+  }
+  uploadProgress() {
+    
+  }
+}
     webSocket.onmessage = (messageEvent) => {
+      // Handle requests from WebDisplayInterface
       var wsMsg = messageEvent.data;
       var request = JSON.parse(wsMsg)
       // reset error message

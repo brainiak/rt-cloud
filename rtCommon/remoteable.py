@@ -145,7 +145,7 @@ class RemoteHandler:
         self.classInstanceDict[className] = classInstance
 
     def runRemoteCall(self, callDict):
-        print(f'remoteCall {callDict}')
+        # print(f'remoteCall {callDict}')
         className = callDict.get('class')
         attributeName = callDict.get('attribute')
         if None in (className, attributeName):

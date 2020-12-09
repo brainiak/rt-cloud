@@ -15,11 +15,11 @@ class SessionPane extends React.Component {
   }
 
   initBttnOnClick(event) {
-    this.props.runSession('initSession')
+    this.props.runSession('initScript')
   }
 
   finalizeBttnOnClick(event) {
-    this.props.runSession('finalizeSession')
+    this.props.runSession('finalizeScript')
   }
 
   stopBttnOnClick(event) {

@@ -1,12 +1,13 @@
 """This module provides classes for handling web socket communication in the web interface."""
 import time
 import json
-import threading
 import logging
+import threading
 import tornado.websocket
 from rtCommon.structDict import StructDict
 from rtCommon.utils import DebugLevels
 from rtCommon.errors import StateError
+
 
 # Maintain websocket local state (using class as a struct)
 class websocketState:
@@ -119,64 +120,6 @@ def defaultWebsocketCallback(client, message):
     # print(f'{client.name} Callback: {cmd}')
 
 
-# class RtWebSocketHandler:
-#     def __init__(self, ioLoopInst):
-#         self.ioLoopInst = ioLoopInst
-#         self.dataRequestHandler = RequestHandler('wsData')
-#         self.subjectRequestHandler = RequestHandler('wsSubject')
-    
-#     def wsUserSendMsg(self, msg):
-#         self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsUser', msg=msg)
-
-#     def wsSubjectSendMsg(self, msg):
-#         self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsSubject', msg=msg)
-
-#     def userLog(self, logStr):
-#         cmd = {'cmd': 'userLog', 'value': logStr}
-#         self.wsUserSendMsg(json.dumps(cmd))
-
-#     def sessionLog(self, logStr):
-#         cmd = {'cmd': 'sessionLog', 'value': logStr}
-#         self.wsUserSendMsg(json.dumps(cmd))
-
-#     def setUserError(self, errStr):
-#         response = {'cmd': 'error', 'error': errStr}
-#         self.wsUserSendMsg(json.dumps(response))
-
-#     def sendUserConfig(self, config, filename=''):
-#         response = {'cmd': 'config', 'value': config, 'filename': filename}
-#         self.wsUserSendMsg(json.dumps(response))
-
-#     def sendUserDataVals(self, dataPoints):
-#         response = {'cmd': 'dataPoints', 'value': dataPoints}
-#         self.wsUserSendMsg(json.dumps(response))
-
-#     # TODO - move to RequestHandler and give requestHandler an reference to ioLoopInst
-#     def wsDataRequest(self, msg, timeout=None):
-#         """Send a request over the data web socket, i.e. to the remote FileWatcher."""
-#         call_id, conn = self.dataRequestHandler.prepare_request(msg)
-#         isNewRequest = not msg.get('incomplete', False)
-#         cmd = msg.get('cmd')
-#         logging.log(DebugLevels.L6, f'wsDataRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
-#         if isNewRequest is True:
-#             self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsData', msg=json.dumps(msg), conn=conn)
-#         response = self.dataRequestHandler.get_response(call_id, timeout=timeout)
-#         return response
-
-#     # TODO - move to RequestHandler and give requestHandler an reference to ioLoopInst
-#     def wsSubjectRequest(self, msg, timeout=None):
-#         """Send a request over the subject web socket, i.e. to the remote subjectInterface."""
-#         call_id, conn = self.subjectRequestHandler.prepare_request(msg)
-#         isNewRequest = not msg.get('incomplete', False)
-#         cmd = msg.get('cmd')
-#         logging.log(DebugLevels.L6, f'wsSubjectRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
-#         if isNewRequest is True:
-#             self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsSubject', msg=json.dumps(msg), conn=conn)
-#         response = self.subjectRequestHandler.get_response(call_id, timeout=timeout)
-#         return response
-
-
-
 ###################
 '''
 Data Mesage Handler:
@@ -191,12 +134,25 @@ class RequestHandler:
     given a unique ID and callbacks from the client are matched to the original request and results
     returned to the corresponding caller. 
     """
-    def __init__(self, name):
+    def __init__(self, name, ioLoopInst):
         self.dataCallbacks = {}
         self.dataSequenceNum = 0
         self.cbPruneTime = 0
         self.callbackLock = threading.Lock()
         self.name = name
+        self.ioLoopInst = ioLoopInst
+
+    # Top level function to make a remote request
+    def doRequest(self, msg, timeout=None):
+        """Send a request over the web socket, i.e. to the remote FileWatcher."""
+        call_id, conn = self.prepare_request(msg)
+        isNewRequest = not msg.get('incomplete', False)
+        cmd = msg.get('cmd')
+        logging.log(DebugLevels.L6, f'wsRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
+        if isNewRequest is True:
+            self.ioLoopInst.add_callback(sendWebSocketMessage, wsName=self.name, msg=json.dumps(msg), conn=conn)
+        response = self.get_response(call_id, timeout=timeout)
+        return response
 
     # Step 1 - Prepare the request, record the callback struct and ID for when the reply comes
     # was sendDataMsgFromThreadAsync(msg):  - TODO remove

@@ -127,7 +127,7 @@ class WsRemoteService:
         if type(error) is KeyboardInterrupt:
             WsRemoteService.shouldExit = True
         else:
-            logging.log(logging.WARNING, "on_error: WsFeedbackReceiver: {} {}".
+            logging.log(logging.WARNING, "on_error: WsRemoteService: {} {}".
                         format(type(error), str(error)))
 
     @staticmethod

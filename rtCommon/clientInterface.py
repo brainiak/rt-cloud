@@ -45,10 +45,10 @@ class ClientInterface:
                 self.subjInterface = SubjectInterface(dataremote=False)
                 self.bidsInterface = BidsInterface(dataremote=False)
                 # TODO: this can't run locally? There is no remote option for webDisplayService because it always runs local within the projectServer
-                self.webInterface = WebDisplayInterface()
+                self.webInterface = WebDisplayInterface(ioLoopInst=None)
             else:
                 raise err
-    
+
     def isDataRemote(self):
         if self.rpcConn is not None:
             return self.rpcConn.root.isDataRemote()

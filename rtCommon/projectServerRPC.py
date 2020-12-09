@@ -20,12 +20,12 @@ class ProjectRPCService(rpyc.Service):
     exposed_BidsInterface = None
     exposed_WebDisplayInterface = None
 
-    def __init__(self, dataremote = False):
+    def __init__(self, dataremote=False, webUI=None):
         self.dataremote = dataremote
         ProjectRPCService.exposed_DataInterface = DataInterface(dataremote=dataremote)
-        ProjectRPCService.exposed_SubjectInterface = SubjectInterface(dataremote=dataremote)
         ProjectRPCService.exposed_BidsInterface = BidsInterface(dataremote=dataremote)
-        ProjectRPCService.exposed_WebDisplayInterface = WebDisplayInterface()
+        ProjectRPCService.exposed_SubjectInterface = SubjectInterface(dataremote=dataremote)
+        ProjectRPCService.exposed_WebDisplayInterface = webUI
 
     def exposed_isDataRemote(self):
         return self.dataremote
@@ -46,11 +46,11 @@ class ProjectRPCService(rpyc.Service):
             raise StateError("exposed_SubjectInterface not instatiated yet")
         ProjectRPCService.exposed_SubjectInterface.registerCommFunction(commFunction)
 
-    @staticmethod
-    def registerIoLoop(ioLoop):
-        if ProjectRPCService.exposed_WebDisplayInterface is None:
-            raise StateError("exposed_WebDisplayInterface not instatiated yet")
-        ProjectRPCService.exposed_WebDisplayInterface.setIoLoopInst(ioLoop)
+    # @staticmethod
+    # def registerWebIoLoop(ioLoop):
+    #     if ProjectRPCService.exposed_WebDisplayInterface is None:
+    #         raise StateError("exposed_WebDisplayInterface not instatiated yet")
+    #     ProjectRPCService.exposed_WebDisplayInterface.setIoLoopInst(ioLoop)
 
     def on_connect(self, conn):
         pass

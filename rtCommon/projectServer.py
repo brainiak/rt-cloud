@@ -1,17 +1,22 @@
 import os
 import sys
 import time
+import json
+import pickle
 import argparse
 import threading
 import logging
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(currPath)
 sys.path.append(rootPath)
+from rtCommon.webServer import Web
 from rtCommon.structDict import StructDict
 from rtCommon.utils import installLoggers
-from rtCommon.errors import InvocationError
-from rtCommon.webServer import Web, handleDataRequest, handleSubjectRequest
+from rtCommon.errors import InvocationError, StateError, RequestError
+from rtCommon.projectUtils import unpackDataMessage
+from rtCommon.wsRemoteService import encodeByteTypeArgs, decodeByteTypeArgs
 from rtCommon.projectServerRPC import startRPCThread, ProjectRPCService
+from rtCommon.webSocketHandlers import RequestHandler, DataWebSocketHandler
 
 
 class ProjectServer:
@@ -47,11 +52,17 @@ class ProjectServer:
         while Web.ioLoopInst is None:
             time.sleep(0.5)
 
-        rpcService = ProjectRPCService(dataremote=self.args.dataremote)
-        rpcService.registerDataCommFunction(handleDataRequest)
-        rpcService.registerSubjectCommFunction(handleSubjectRequest)
-        rpcService.registerIoLoop(Web.ioLoopInst)
+        rpcHandlers = RPCHandlers(Web.ioLoopInst, Web.webDisplayInterface)
+        Web.addHandlers([(r'/wsData', DataWebSocketHandler,
+                          dict(name='wsData', callback=rpcHandlers.dataWsCallback))])
+        Web.addHandlers([(r'/wsSubject', DataWebSocketHandler,
+                          dict(name='wsSubject', callback=rpcHandlers.subjectWsCallback))])
+
+        rpcService = ProjectRPCService(dataremote=self.args.dataremote, webUI=Web.webDisplayInterface)
+        rpcService.registerDataCommFunction(rpcHandlers.dataRequest)
+        rpcService.registerSubjectCommFunction(rpcHandlers.subjectRequest)
         startRPCThread(rpcService, hostname='localhost', port=12345)
+
         # rpcThread = threading.Thread(name='rpcThread',
         #                             target=startProjectRPCThread,
         #                             args=(rpcService,),
@@ -61,6 +72,92 @@ class ProjectServer:
         # rpcThread.start()
 
 
+# TODO: Perhaps move to ProjectServerRPC?
+class RPCHandlers:
+    def __init__(self, ioLoopInst, webDisplayInterface):
+        self.ioLoopInst = ioLoopInst
+        self.webUI = webDisplayInterface
+        self.handlers = {}
+        self.handlers['wsData'] = RequestHandler('wsData', ioLoopInst)
+        self.handlers['wsSubject'] = RequestHandler('wsSubject', ioLoopInst)
+
+    def dataWsCallback(self, client, message):
+        handler = self.handlers.get('wsData')
+        if handler is None:
+            raise StateError(f'RPC Handler wsData not registered')
+        try:
+            handler.callback(client, message)
+        except Exception as err:
+            print(err)
+            # TODO log
+
+    def subjectWsCallback(self, client, message):
+        handler = self.handlers.get('wsSubject')
+        if handler is None:
+            raise StateError(f'RPC Handler wsSubject not registered')
+        try:
+            handler.callback(client, message)
+        except Exception as err:
+            print(err)
+            # TODO log
+
+    def dataRequest(self, cmd, timeout=60):
+        try:
+            return self.handleRPCRequest('wsData', cmd, timeout)
+        except Exception as err:
+            print(err)
+            # TODO log error
+            # TODO Send web user error message
+
+    def subjectRequest(self, cmd, timeout=60):
+        try:
+            return self.handleRPCRequest('wsSubject', cmd, timeout)
+        except Exception as err:
+            print(err)
+            # TODO log error
+            # TODO Send web user error message
+
+    def handleRPCRequest(self, channelName, cmd, timeout=60):
+        """Process RPC requests using websocket RequestHandler to send the request"""
+        handler = self.handlers[channelName]
+        if handler is None:
+            raise StateError(f'RPC Handler {channelName} not registered')
+        savedError = None
+        incomplete = True
+        # print(f'handle request {cmd}')
+        if cmd.get('cmd') == 'rpc':
+            # if cmd is rpc, check and encode any byte args as base64
+            cmd = encodeByteTypeArgs(cmd)
+            # TODO - also encode numpy ints and floats as python ints and floats
+        while incomplete:
+            response = handler.doRequest(cmd, timeout)
+            if response.get('status') != 200:
+                errStr = 'handleDataRequest: status {}, err {}'.format(
+                            response.get('status'), response.get('error'))
+                self.webUI.setUserError(response.get('error'))
+                raise RequestError(errStr)
+            try:
+                data = unpackDataMessage(response)
+            except Exception as err:
+                logging.error('handleDataRequest: unpackDataMessage: {}'.format(err))
+                if savedError is None:
+                    savedError = err
+            incomplete = response.get('incomplete', False)
+            cmd['callId'] = response.get('callId', -1)
+            cmd['incomplete'] = incomplete
+        if savedError:
+            errStr = 'handleDataRequest: unpackDataMessage: {}'.format(savedError)
+            self.webUI.setUserError(savedError)
+            raise RequestError(errStr)
+        serializationType = response.get('dataSerialization')
+        if serializationType == 'json':
+            if type(data) is bytes:
+                data = data.decode()
+            data = json.loads(data)
+        elif serializationType == 'pickle':
+            data = pickle.loads(data)
+        callId = response.get('callId', -1)
+        return data
 
 
 if __name__ == "__main__":
