@@ -14,7 +14,9 @@ class BidsInterface(RemoteableExtensible):
         if dataremote is True:
             return
         # Other initialization here
-    
+
     # Example function
     def echo(self, val):
-        return f"Echo: {val}"
+        msg = f"Echo: {val}"
+        print(msg)
+        return msg

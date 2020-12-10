@@ -101,8 +101,6 @@ class Web():
             (r'/logout', LogoutHandler),
             (r'/wsUser', BaseWebSocketHandler, dict(name='wsUser', callback=Web.browserRequestHandler._wsBrowserCallback)),
             (r'/wsEvents', BaseWebSocketHandler, dict(name='wsEvent', callback=params.eventCallback)),  # gets signal to change image
-            # (r'/wsSubject', DataWebSocketHandler, dict(name='wsSubject', callback=Web.wsHandler.subjectWsCallback)),
-            # (r'/wsData', DataWebSocketHandler, dict(name='wsData', callback=Web.wsHandler.dataWsCallback)),
             (r'/src/(.*)', tornado.web.StaticFileHandler, {'path': src_root}),
             (r'/css/(.*)', tornado.web.StaticFileHandler, {'path': css_root}),
             (r'/img/(.*)', tornado.web.StaticFileHandler, {'path': img_root}),
@@ -142,37 +140,36 @@ class WsBrowserRequestHandler:
             cfg = loadConfigFile(self.configFilename)
         self.cfg = cfg
         self.scripts = {}
-        self.addScript('mainScript', params.mainScript, 'run')
-        self.addScript('initScript', params.initScript, 'init')
-        self.addScript('finalizeScript', params.finalizeScript, 'finalize')
-    
-    def addScript(self, name, path, type):
+        self._addScript('mainScript', params.mainScript, 'run')
+        self._addScript('initScript', params.initScript, 'init')
+        self._addScript('finalizeScript', params.finalizeScript, 'finalize')
+
+    def _addScript(self, name, path, type):
         self.scripts[name] = (path, type)
 
-    def getDefaultConfig(self):
+    def on_getDefaultConfig(self):
         # TODO - may need to remove certain fields that can't be jsonified
         if self.configFilename is not None and self.configFilename != '':
             cfg = loadConfigFile(self.configFilename)
         else:
             cfg = self.cfg
-        self.webUI.sendUserConfig(cfg, filename=self.configFilename)
+        self.webUI.sendConfig(cfg, filename=self.configFilename)
 
-    def getDataPoints(self):
-        resultVals = ProjectRPCService.exposed_WebDisplayInterface.getResultValues()
-        self.webUI.sendUserDataVals(resultVals)
+    def on_getDataPoints(self):
+        self.webUI.sendPreviousDataPoints()
 
-    def clearDataPoints(self):
-        ProjectRPCService.exposed_WebDisplayInterface.clearResultValues()
+    def on_clearDataPoints(self):
+        self.webUI.clearAllPlots()
 
-    def runScript(self, name):
+    def on_runScript(self, name):
         sessionScript, logType = self.scripts.get(name)
         if sessionScript in (None, ''):
-            self.webUI.setUserError(f"Script {name} is not registered, cannot run script")
+            self._setError(f"Script {name} is not registered, cannot run script")
             return
         if self.runInfo.threadId is not None:
             self.runInfo.threadId.join(timeout=1)
             if self.runInfo.threadId.is_alive():
-                self.webUI.setUserError("Client thread already runnning, skipping new request")
+                self._setError("Client thread already runnning, skipping new request")
                 return
             self.runInfo.threadId = None
         self.runInfo.stopRun = False
@@ -182,7 +179,7 @@ class WsBrowserRequestHandler:
         self.runInfo.threadId.setDaemon(True)
         self.runInfo.threadId.start()
 
-    def stop(self):
+    def on_stop(self):
         if self.runInfo.threadId is not None:
             # TODO - stopRun need to be made global or runSesson part of this class
             self.runInfo.stopRun = True
@@ -191,11 +188,11 @@ class WsBrowserRequestHandler:
                 self.runInfo.threadId = None
                 self.runInfo.stopRun = False
 
-    def uploadFiles(self, request):
+    def on_uploadFiles(self, request):
         if self.runInfo.uploadThread is not None:
             self.runInfo.uploadThread.join(timeout=1)
             if self.runInfo.uploadThread.is_alive():
-                self.webUI.setUserError("Upload thread already runnning, skipping new request")
+                self._setError("Upload thread already runnning, skipping new request")
                 return
         self.runInfo.uploadThread = threading.Thread(name='uploadFiles',
                                                     target=self._uploadFilesHandler,
@@ -217,18 +214,18 @@ class WsBrowserRequestHandler:
                 self.cfg = newCfg
             else:
                 if cfgData is None:
-                    errStr = 'browserMainCallback: Config field is None'
+                    errStr = 'wsBrowserCallback: Config field is None'
                 elif type(cfgData) not in (dict, list):
-                    errStr = 'browserMainCallback: Config field wrong type {}'.format(type(cfgData))
+                    errStr = 'wsBrowserCallback: Config field wrong type {}'.format(type(cfgData))
                 else:
-                    errStr = 'browserMainCallback: Error parsing config field {}'.format(cfgData)
-                self.webUI.setUserError(errStr)
+                    errStr = 'wsBrowserCallback: Error parsing config field {}'.format(cfgData)
+                self._setError(errStr)
                 return
-        functionName = request.get('cmd')
+        cmd = request.get('cmd')
+        functionName = 'on_' + cmd
         func = getattr(self, functionName)
-        nonFunctionSet = (None, '', '_wsBrowserCallback', '_runSession', '_uploadFilesHandler')
-        if functionName in nonFunctionSet or not callable(func):
-            self.webUI.setUserError("Web Request: unknown command " + func)
+        if not callable(func):
+            self._setError("Web Request: unknown command " + cmd)
             return
         logging.log(DebugLevels.L3, "WEB USER CMD: %s", func)
         args = request.get('args', ())
@@ -237,9 +234,14 @@ class WsBrowserRequestHandler:
         kwargs = request.get('kwargs', {})
         if kwargs is None:
             kwargs = {}
-        # print(f'{functionName}: {args} {kwargs}')
-        res = func(*args, **kwargs)
-        # TODO: return the result - actually the calls themselves send the result back, do we want to change that?
+        # print(f'{cmd}: {args} {kwargs}')
+        try:
+            # The invoked functions send any results to the clients, this allows the result to go to all connected clients
+            #  instead of just the client that made the request.
+            res = func(*args, **kwargs)
+        except Exception as err:
+            errStr = 'wsBrowserCallback: ' + str(err)
+            self._setError(errStr)
         return
 
     def _runSession(self, cfg, pyScript, tag, logType='run'):
@@ -264,7 +266,7 @@ class WsBrowserRequestHandler:
         proc = subprocess.Popen(cmd, cwd=rootDir, env=env, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
         # send running status to user web page
-        self.webUI.sendRunStatus(tag)
+        self.webUI.sendRunStatus(tag + ' running')
         # start a separate thread to read the process output
         lineQueue = queue.Queue()
         outputThread = threading.Thread(target=procOutputReader, args=(proc, lineQueue))
@@ -289,9 +291,12 @@ class WsBrowserRequestHandler:
                     self.webUI.sessionLog(line)
                 logging.info(line.rstrip())
         # processing complete, set status
-        endStatus = tag + ' complete \u2714'
-        if self.runInfo.stopRun is True:
+        if proc.returncode != 0:
+            endStatus = tag + ': An Error in the experiment script occured'
+        elif self.runInfo.stopRun is True:
             endStatus = 'stopped'
+        else:
+            endStatus = tag + ' complete \u2714'
         self.webUI.sendRunStatus(endStatus)
         outputThread.join(timeout=1)
         if outputThread.is_alive():
@@ -307,7 +312,7 @@ class WsBrowserRequestHandler:
             srcFile = request['srcFile']
             compress = request['compress']  # TODO use compress parameter
         except KeyError as err:
-            self.webUI.setUserError("UploadFiles request missing a parameter: {}".format(err))
+            self._setError("UploadFiles request missing a parameter: {}".format(err))
             return
 
         # get handle to dataInterface
@@ -325,6 +330,11 @@ class WsBrowserRequestHandler:
         # self.webUI.sendUploadStatus(fileName)
         self.webUI.sendUploadStatus('------upload complete------')
 
+    def _setError(self, errStr):
+        errStr = 'WsBrowserRequestHandler: ' + errStr
+        print(errStr)
+        logging.error(errStr)
+        self.webUI.setUserError(errStr)
 
 def procOutputReader(proc, lineQueue):
     """Read output from runSession process and queue into lineQueue for logging"""

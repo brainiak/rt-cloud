@@ -80,7 +80,7 @@ class DataWebSocketHandler(BaseWebSocketHandler):
         # get the corresponding RequestHandler object so we can clear any waiting threads
         callback_func = websocketState.wsCallbacks.get(self.name)
         requestHandler = callback_func.__self__
-        requestHandler.close_pending_requests()
+        requestHandler.close_pending_requests(self.name)
 
 
 def sendWebSocketMessage(wsName, msg, conn=None):
@@ -145,6 +145,7 @@ class RequestHandler:
     # Top level function to make a remote request
     def doRequest(self, msg, timeout=None):
         """Send a request over the web socket, i.e. to the remote FileWatcher."""
+        # print(f'doRequest: {msg}')
         call_id, conn = self.prepare_request(msg)
         isNewRequest = not msg.get('incomplete', False)
         cmd = msg.get('cmd')
@@ -163,7 +164,10 @@ class RequestHandler:
         try:
             wsConnections = websocketState.wsConnectionLists.get(self.name)
             if wsConnections is None or len(wsConnections) == 0:
-                raise StateError("webServer: FileServer not connected. Please run the fileServer.")
+                serviceName = 'DataService'
+                if self.name == 'wsSubject':
+                    serviceName = 'SubjectService'
+                raise StateError(f"RemoteService: {serviceName} not connected. Please start the remote service.")
             reqConn = wsConnections[-1]  # always use most recent connection
         finally:
             websocketState.wsConnLock.release()

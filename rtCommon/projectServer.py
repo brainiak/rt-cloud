@@ -28,6 +28,8 @@ class ProjectServer:
             args.test = False
         if not hasattr(args, 'dataremote'):
             args.dataremote = False
+        if not hasattr(args, 'subjectremote'):
+            args.subjectremote = False
         if not hasattr(args, 'port'):
             args.port = 8888
         self.args = args
@@ -58,7 +60,9 @@ class ProjectServer:
         Web.addHandlers([(r'/wsSubject', DataWebSocketHandler,
                           dict(name='wsSubject', callback=rpcHandlers.subjectWsCallback))])
 
-        rpcService = ProjectRPCService(dataremote=self.args.dataremote, webUI=Web.webDisplayInterface)
+        rpcService = ProjectRPCService(dataremote=self.args.dataremote, 
+                                       subjectremote=self.args.subjectremote,
+                                       webUI=Web.webDisplayInterface)
         rpcService.registerDataCommFunction(rpcHandlers.dataRequest)
         rpcService.registerSubjectCommFunction(rpcHandlers.subjectRequest)
         startRPCThread(rpcService, hostname='localhost', port=12345)
@@ -88,8 +92,7 @@ class RPCHandlers:
         try:
             handler.callback(client, message)
         except Exception as err:
-            print(err)
-            # TODO log
+            self.setError('dataWsCallback: ' + format(err))
 
     def subjectWsCallback(self, client, message):
         handler = self.handlers.get('wsSubject')
@@ -98,27 +101,38 @@ class RPCHandlers:
         try:
             handler.callback(client, message)
         except Exception as err:
-            print(err)
-            # TODO log
+            self.setError('subjectWsCallback: ' + format(err))
 
     def dataRequest(self, cmd, timeout=60):
         try:
             return self.handleRPCRequest('wsData', cmd, timeout)
         except Exception as err:
-            print(err)
-            # TODO log error
-            # TODO Send web user error message
+            self.setError('DataRequest: ' + format(err))
 
     def subjectRequest(self, cmd, timeout=60):
         try:
             return self.handleRPCRequest('wsSubject', cmd, timeout)
         except Exception as err:
-            print(err)
-            # TODO log error
-            # TODO Send web user error message
+            self.setError('SubjectRequest: ' + format(err))
+
+    def close_pending_requests(self, channelName):
+        handler = self.handlers.get(channelName)
+        if handler is None:
+            raise StateError(f'RPC Handler {channelName} not registered')
+        try:
+            handler.close_pending_requests()
+        except Exception as err:
+            self.setError('close_pending_requests: ' + format(err))
+
+    def setError(self, errStr):
+        errStr = 'RPC Handler: ' + errStr
+        print(errStr)
+        logging.error(errStr)
+        self.webUI.setUserError(errStr)
 
     def handleRPCRequest(self, channelName, cmd, timeout=60):
         """Process RPC requests using websocket RequestHandler to send the request"""
+        """Caller will catch exceptions"""
         handler = self.handlers[channelName]
         if handler is None:
             raise StateError(f'RPC Handler {channelName} not registered')
@@ -134,21 +148,21 @@ class RPCHandlers:
             if response.get('status') != 200:
                 errStr = 'handleDataRequest: status {}, err {}'.format(
                             response.get('status'), response.get('error'))
-                self.webUI.setUserError(response.get('error'))
+                self.setError(errStr)
                 raise RequestError(errStr)
             try:
                 data = unpackDataMessage(response)
             except Exception as err:
-                logging.error('handleDataRequest: unpackDataMessage: {}'.format(err))
+                errStr = 'handleDataRequest: unpackDataMessage: {}'.format(err)
+                logging.error(errStr)
                 if savedError is None:
-                    savedError = err
+                    savedError = errStr
             incomplete = response.get('incomplete', False)
             cmd['callId'] = response.get('callId', -1)
             cmd['incomplete'] = incomplete
         if savedError:
-            errStr = 'handleDataRequest: unpackDataMessage: {}'.format(savedError)
-            self.webUI.setUserError(savedError)
-            raise RequestError(errStr)
+            self.setError(savedError)
+            raise RequestError(savedError)
         serializationType = response.get('dataSerialization')
         if serializationType == 'json':
             if type(data) is bytes:
@@ -156,7 +170,6 @@ class RPCHandlers:
             data = json.loads(data)
         elif serializationType == 'pickle':
             data = pickle.loads(data)
-        callId = response.get('callId', -1)
         return data
 
 
@@ -175,7 +188,9 @@ if __name__ == "__main__":
     argParser.add_argument('--finalizeScript', '-f', default=None, type=str,
                            help='project finalization script')
     argParser.add_argument('--dataremote', '-x', default=False, action='store_true',
-                           help='dicom files retrieved from remote server')
+                           help='dicom files retrieved from remote service')
+    argParser.add_argument('--subjectremote', '-s', default=False, action='store_true',
+                           help='subject feedback/response to remote service')
     argParser.add_argument('--test', '-t', default=False, action='store_true',
                            help='start webServer in test mode, unsecure')
     args = argParser.parse_args()

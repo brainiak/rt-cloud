@@ -413,6 +413,9 @@ def main():
             dicomFilename = dicomScanNamePattern.format(TR=TRFilenum)
             print(f'Get Dicom: {dicomFilename}')
             dicomData = dataInterface.getImageData(streamId, int(TRFilenum), timeout_file)
+            if dicomData is None:
+                print('Error: getImageData returned None')
+                return
             full_nifti_name = convertToNifti(cfg, args, TRFilenum, scanNum, dicomData)
             print(full_nifti_name)
             print(cfg.MASK_transformed[cfg.useMask])
@@ -433,10 +436,14 @@ def main():
                 # now we want to always send this back to the local computer running the display
                 full_file_name_to_save =  os.path.join(cfg.local.subject_full_day_path, runId, file_name_to_save)
                 # Send classification result back to the console computer
-                dataInterface.putFile(full_file_name_to_save, text_to_save)
+                try:
+                    dataInterface.putFile(full_file_name_to_save, text_to_save)
+                except Exception as err:
+                    print('Error putFile: ' + str(err))
+                    return
                 # JUST TO PLOT ON WEB SERVER
                 subjInterface.setResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
-                webInterface.graphResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
+                webInterface.plotDataPoint(run, int(TRFilenum), float(runData.percent_change[TRindex]))
             TRheader = makeTRHeader(cfg, runIndex, TRFilenum, TRindex, runData.percent_change[TRindex])
             TRindex += 1
 

@@ -100,7 +100,6 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     #   INPUT: None
     #   OUTPUT:
     #       [1] allowedFileTypes (list of allowed file types)
-
     allowedFileTypes = dataInterface.getAllowedFileTypes()
     if verbose:
         print(""
@@ -116,7 +115,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         subj_imgDir = "{}.{}.{}".format(cfg.datestr, cfg.subjectName, cfg.subjectName)
         cfg.dicomDir = os.path.join(cfg.imgDir, subj_imgDir)
     if verbose:
-        print("Location of the subject's dicoms: \n%s\n" %cfg.dicomDir,
+        print("Location of the subject's dicoms: \n" + cfg.dicomDir + "\n"
         "-----------------------------------------------------------------------------")
 
     # initialize a watch for the entire dicom folder (it doesn't look for a
@@ -146,7 +145,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     # here, we are clearing an already existing plot
     if verbose:
         print("• clear any pre-existing plot using 'sendResultToWeb'")
-    webInterface.graphResult(runNum, None, None)
+    webInterface.clearRunPlot(runNum)
 
     if verbose:
         print(""
@@ -192,9 +191,12 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         #       [1] dicomData (with class 'pydicom.dataset.FileDataset')
         print(f'Processing TR {this_TR}')
         if verbose:
-            print("• use dataInterface.getImageData() to read dicom file for",
+            print("• use dataInterface.getImageData() to read dicom file for"
                 "TR %d, %s" %(this_TR, dicomFilename))
         dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout_file)
+        if dicomData is None:
+            print('Error: getImageData returned None')
+            return
         dicomData.convert_pixel_data()
 
         if cfg.isSynthetic:
@@ -223,7 +225,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         if verbose:
             print("| send result to the web, plotted in the 'Data Plots' tab")
         subjInterface.setResult(runNum, int(this_TR), float(avg_niftiData))
-        webInterface.graphResult(runNum, int(this_TR), float(avg_niftiData))
+        webInterface.plotDataPoint(runNum, int(this_TR), float(avg_niftiData))
 
         # save the activations value info into a vector that can be saved later
         all_avg_activations[this_TR] = avg_niftiData
