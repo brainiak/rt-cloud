@@ -1,5 +1,5 @@
 # Realtime fMRI Cloud Framework
-This is a generic framework for building real-time fMRI processing pipelines in the cloud.
+The Realtime fMRI Cloud Framework is an open-source software package that makes it easier to build and deploy real-time fMRI experiments. The framework provides a coordination hub between the experimenter’s script, a subject feedback script, the scanner data, and experiment control. It streams scanner data (in real-time) to an experimenter’s script and forwards the results for use in subject feedback (optionally using tools like PsychoPy, jsPsych, or PsychToolbox). It provides a web-based user interface that allows for starting and stopping runs, changing settings, and viewing output. It can be configured to run in the cloud, on a cluster, or in the control room. Development was initially funded by Intel Labs; the framework is under active development with funding from NIMH to further extend its capabilities, including support for standards such as BIDS and OpenNeuro.org.
 
 ## How it works
 There are three general components:
