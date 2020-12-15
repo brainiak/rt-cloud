@@ -3,6 +3,7 @@ import os
 import rtCommon.imageHandling as rd
 from nibabel.nicom import dicomreaders
 from rtCommon.dataInterface import DataInterface
+from rtCommon.errors import ValidationError
 
 test_dicomFile = '001_000005_000100.dcm'
 test_dicomTruncFile = 'trunc_001_000005_000100.dcm'
@@ -22,8 +23,14 @@ def test_readDicom():
     assert vol2 is not None
     assert (vol1 == vol2).all()
 
+    # if dataInterface is not initialized with allowedDirs or allowedFileTypes it should fail
     dataInterface = DataInterface()
-    dataInterface._initWatch(dicomDir, '*.dcm', 0)
+    with pytest.raises(ValidationError):
+        dataInterface.initWatch(dicomDir, '*.dcm', 0)
+
+    # Now allow all dirs and file types
+    dataInterface = DataInterface(allowedDirs=['*'], allowedFileTypes=['*'])
+    dataInterface.initWatch(dicomDir, '*.dcm', 0)
     dicomImg3 = rd.readRetryDicomFromDataInterface(dataInterface, dicomFile)
     vol3 = rd.parseDicomVolume(dicomImg3, 64)
     assert vol3 is not None

@@ -6,7 +6,7 @@ from rtCommon.dataInterface import DataInterface
 from rtCommon.subjectInterface import SubjectInterface
 from rtCommon.bidsInterface import BidsInterface
 from rtCommon.webDisplayInterface import WebDisplayInterface
-from rtCommon.errors import StateError
+from rtCommon.errors import StateError, RequestError
 
 
 class ProjectRPCService(rpyc.Service):
@@ -23,7 +23,15 @@ class ProjectRPCService(rpyc.Service):
     def __init__(self, dataremote=False, subjectremote=False, webUI=None):
         self.dataremote = dataremote
         self.subjectremote = subjectremote
-        ProjectRPCService.exposed_DataInterface = DataInterface(dataremote=dataremote)
+        allowedDirs = None
+        allowedFileTypes = None
+        if dataremote is False:
+            allowedDirs=['*']
+            allowedFileTypes=['*']
+
+        ProjectRPCService.exposed_DataInterface = DataInterface(dataremote=dataremote,
+                                                                allowedDirs=allowedDirs,
+                                                                allowedFileTypes=allowedFileTypes)
         ProjectRPCService.exposed_BidsInterface = BidsInterface(dataremote=dataremote)
         ProjectRPCService.exposed_SubjectInterface = SubjectInterface(dataremote=subjectremote)
         ProjectRPCService.exposed_WebDisplayInterface = webUI

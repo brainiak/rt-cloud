@@ -10,45 +10,47 @@ class TestRemoteable:
         pass
 
     def test_remoteable(self):
-        # The remoteHandler will also be our communication go-between for the remote case
-        remoteHandler = RemoteHandler()
-        # Create a local version of the class - this would be the class instance at the remote server
-        sampleLocal = SampleClassRemoteable(dataremote=False)
-        # The local instance will be created on the remote server, register it with the remoteHandler
-        remoteHandler.registerClassInstance(SampleClassRemoteable, sampleLocal)
-        # Create the remote instance - this would be at the client side
-        sampleRemote = SampleClassRemoteable(dataremote=True)
-        # Register the remote instance's callstub as the handler.runRemoteCall function
-        # Normally there would be a communiction channel between the remote callstub and the remoteHandler
-        sampleRemote.registerCommFunction(remoteHandler.runRemoteCall)
+        # Create the instance running at remote server (note that data will be local to that instance)
+        sampleServerInstance = SampleClassRemoteable(dataremote=False)
+
+        # Create a mock RPC instance that will mimic the communication to service
+        mockRPC = MockRPCHandler(sampleServerInstance)
+
+        # Create a client instance (note it's requests will need to be sent to the remote)
+        sampleClientInstance = SampleClassRemoteable(dataremote=True)
+        
+        # The mockRPC will act as the communication channel between the client and server.
+        sampleClientInstance.registerCommFunction(mockRPC.sendRequest)
+
         # Test all the functions
-        assert sampleLocal.noargs() == sampleRemote.noargs()
-        assert sampleLocal.posargs(1, 2) == sampleRemote.posargs(1, 2)
-        assert sampleLocal.kwargs(a=3, b=4) == sampleRemote.kwargs(a=3, b=4)
-        assert sampleLocal.poskwargs(1, 2, c=3, d=4) == sampleRemote.poskwargs(1, 2, c=3, d=4)
-        assert sampleLocal.val1 == sampleRemote.val1
-        assert sampleLocal.val2 == sampleRemote.val2
+        assert sampleServerInstance.noargs() == sampleClientInstance.noargs()
+        assert sampleServerInstance.posargs(1, 2) == sampleClientInstance.posargs(1, 2)
+        assert sampleServerInstance.kwargs(a=3, b=4) == sampleClientInstance.kwargs(a=3, b=4)
+        assert sampleServerInstance.poskwargs(1, 2, c=3, d=4) == sampleClientInstance.poskwargs(1, 2, c=3, d=4)
+        assert sampleServerInstance.val1 == sampleClientInstance.val1
+        assert sampleServerInstance.val2 == sampleClientInstance.val2
         pass
 
     def test_remoteableExtensible(self):
-        # The remoteHandler will also be our communication go-between for the remote case
-        remoteHandler = RemoteHandler()
-        # Create a local version of the class - this would be the class instance at the remote server
-        sampleLocal = SampleClassRemoteExtensible(dataremote=False)
-        # The local instance will be created on the remote server, register it with the remoteHandler
-        remoteHandler.registerClassInstance(SampleClassRemoteExtensible, sampleLocal)
-        # Create the remote instance - this would be at the client side
-        sampleRemote = SampleClassRemoteExtensible(dataremote=True)
-        # Register the remote instance's callstub as the handler.runRemoteCall function
-        # Normally there would be a communiction channel between the remote callstub and the remoteHandler
-        sampleRemote.registerCommFunction(remoteHandler.runRemoteCall)
+        # Create the instance running at remote server (note that data will be local to that instance)
+        sampleServerInstance = SampleClassRemoteExtensible(dataremote=False)
+
+        # Create a mock RPC instance that will mimic the communication to service
+        mockRPC = MockRPCHandler(sampleServerInstance)
+
+        # Create a client instance (note it's requests will need to be sent to the remote)
+        sampleClientInstance = SampleClassRemoteExtensible(dataremote=True)
+
+        # The mockRPC will act as the communication channel between the client and server.
+        sampleClientInstance.registerCommFunction(mockRPC.sendRequest)
+
         # Test all the functions
-        assert sampleLocal.noargs() == sampleRemote.noargs()
-        assert sampleLocal.posargs(1, 2) == sampleRemote.posargs(1, 2)
-        assert sampleLocal.kwargs(a=3, b=4) == sampleRemote.kwargs(a=3, b=4)
-        assert sampleLocal.poskwargs(1, 2, c=3, d=4) == sampleRemote.poskwargs(1, 2, c=3, d=4)
-        assert sampleLocal.val1 == sampleRemote.val1
-        assert sampleLocal.val2 == sampleRemote.val2
+        assert sampleServerInstance.noargs() == sampleClientInstance.noargs()
+        assert sampleServerInstance.posargs(1, 2) == sampleClientInstance.posargs(1, 2)
+        assert sampleServerInstance.kwargs(a=3, b=4) == sampleClientInstance.kwargs(a=3, b=4)
+        assert sampleServerInstance.poskwargs(1, 2, c=3, d=4) == sampleClientInstance.poskwargs(1, 2, c=3, d=4)
+        assert sampleServerInstance.val1 == sampleClientInstance.val1
+        assert sampleServerInstance.val2 == sampleClientInstance.val2
         pass
 
     def test_remoteableHandler(self):
@@ -89,6 +91,19 @@ class TestRemoteable:
 
 
 ### Sample classes for running tests ###
+class MockRPCHandler:
+    """Pass in the serviceInstance running at the remote site since we are mocking that
+       there is actually and network connection between the two sites.
+    """
+    def __init__(self, serviceInstance):
+        # The remoteHandler will also be our communication go-between for the remote case
+        self.remoteHandler = RemoteHandler()
+        serviceClass = type(serviceInstance)
+        self.remoteHandler.registerClassInstance(serviceClass, serviceInstance)
+
+    def sendRequest(self, cmd, timeout=5):
+        return self.remoteHandler.runRemoteCall(cmd)
+
 
 class SampleClassRemoteable(Remoteable):
     val1 = 'class field val1'

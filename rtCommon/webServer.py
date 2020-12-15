@@ -39,6 +39,7 @@ class Web():
     """Cloud service web-interface that is the front-end to the data processing."""
     app = None
     httpServer = None
+    started = False
     httpPort = 8888
     # Main html page to load
     webDir = os.path.join(rootDir, 'web/')
@@ -108,6 +109,7 @@ class Web():
         ], **settings)
         Web.httpServer = tornado.httpserver.HTTPServer(Web.app, ssl_options=ssl_ctx)
         Web.httpServer.listen(Web.httpPort)
+        Web.started = True
         Web.ioLoopInst.start()
 
     @staticmethod
@@ -119,6 +121,15 @@ class Web():
         """Stop the web server."""
         Web.ioLoopInst.add_callback(Web.ioLoopInst.stop)
         Web.app = None
+        
+    # Possibly use raise exception to stop a thread
+    # def raise_exception(self): i.e. for stop()
+        # thread_id = self.get_id() 
+        # res = ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 
+        #       ctypes.py_object(SystemExit)) 
+        # if res > 1: 
+        #     ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0) 
+        #     print('Exception raise failure') 
 
     @staticmethod
     def close():

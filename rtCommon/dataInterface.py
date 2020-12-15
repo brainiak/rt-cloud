@@ -11,6 +11,7 @@ import threading
 import logging
 from pathlib import Path
 from typing import List, Any
+import pydicom
 import rtCommon.utils as utils
 from rtCommon.remoteable import RemoteableExtensible
 from rtCommon.fileWatcher import FileWatcher
@@ -30,18 +31,22 @@ class DataInterface(RemoteableExtensible):
         if dataremote is True:
             return
         self.initWatchSet = False
+        self.watchDir = None
         self.currentStreamId = 0
         self.streamInfo = None
         self.allowedDirs = allowedDirs
+        if allowedDirs is not None:
+            self.allowedDirs = [dir.rstrip('/') for dir in allowedDirs]
         self.allowedFileTypes = allowedFileTypes
         self.fileWatchLock = threading.Lock()
         # instantiate local FileWatcher
         self.fileWatcher = FileWatcher()
 
     def __del__(self):
-        if self.fileWatcher is not None:
-            self.fileWatcher.__del__()
-            self.fileWatcher = None
+        if hasattr(self, "fileWatcher"):
+            if self.fileWatcher is not None:
+                self.fileWatcher.__del__()
+                self.fileWatcher = None
 
     def initScannerStream(self, imgDir: str, filePattern: str,
                           minFileSize: int, demoStep: int=0) -> int:
@@ -59,8 +64,8 @@ class DataInterface(RemoteableExtensible):
         Returns:
             streamId: An identifier used when calling getImageData()
         """
-        self.checkAllowedDirs(imgDir)
-        self.checkAllowedFileTypes(filePattern)
+        self._checkAllowedDirs(imgDir)
+        self._checkAllowedFileTypes(filePattern)
         
         # check that filePattern has {TR} in it
         if not re.match(r'.*{TR.*', filePattern):
@@ -76,11 +81,11 @@ class DataInterface(RemoteableExtensible):
             'imgIndex': 0,
         })
         _, file_ext = os.path.splitext(filePattern)
-        self._initWatch(imgDir, '*' + file_ext, minFileSize, demoStep)
+        self.initWatch(imgDir, '*' + file_ext, minFileSize, demoStep)
         return self.currentStreamId
 
 
-    def getImageData(self, streamId: int, imageIndex: int=None, timeout: int=5):
+    def getImageData(self, streamId: int, imageIndex: int=None, timeout: int=5) -> pydicom.dataset.FileDataset:
         """
         Get data from a stream initialized with initScannerStream or initOpenNeuroStream
 
@@ -93,18 +98,18 @@ class DataInterface(RemoteableExtensible):
             The bytes array representing the image data
             returns pydicom.dataset.FileDataset
         """
-        if self.currentStreamId == 0 or self.currentStreamId != streamId:
+        if self.currentStreamId == 0 or self.currentStreamId != streamId or self.streamInfo.streamId != streamId:
             raise ValidationError(f"StreamID mismatch {self.currentStreamId} : {streamId}")
 
         if imageIndex is None:
-            imageIndex = self.currentStreamId.imgIndex
+            imageIndex = self.streamInfo.imgIndex
         filename = self.streamInfo.filePattern.format(TR=imageIndex)
 
         retries = 0
         while retries < 5:
             retries += 1
             try:
-                data = self._watchFile(filename, timeout)
+                data = self.watchFile(filename, timeout)
                 # TODO - Inject error here and see if commpipe remains open
                 dicomImg = readDicomFromBuffer(data)
                 # Convert pixel data to a numpy.ndarray internally.
@@ -124,8 +129,8 @@ class DataInterface(RemoteableExtensible):
     def getFile(self, filename: str) -> bytes:
         """Returns a file's data immediately or fails if the file doesn't exist."""
         fileDir, fileCheck = os.path.split(filename)
-        self.checkAllowedDirs(fileDir)
-        self.checkAllowedFileTypes(fileCheck)
+        self._checkAllowedDirs(fileDir)
+        self._checkAllowedFileTypes(fileCheck)
 
         data = None
         if not os.path.exists(filename):
@@ -142,12 +147,12 @@ class DataInterface(RemoteableExtensible):
         """Searches for files matching filePattern and returns the most recently created one."""
         data = None
         baseDir, filePattern = os.path.split(filepattern)
-        self.checkAllowedDirs(baseDir)
+        self._checkAllowedDirs(baseDir)
         if not os.path.isabs(baseDir):
             # TODO - handle relative paths
             pass
         filename = utils.findNewestFile(baseDir, filePattern)
-        self.checkAllowedFileTypes(filename)
+        self._checkAllowedFileTypes(filename)
         if filename is None:
             # No file matching pattern
             raise FileNotFoundError('No file found matching pattern {}'.format(filePattern))
@@ -158,7 +163,7 @@ class DataInterface(RemoteableExtensible):
                 data = fp.read()
         return data
 
-    def _initWatch(self, dir: str, filePattern: str, minFileSize: int, demoStep: int=0) -> None:
+    def initWatch(self, dir: str, filePattern: str, minFileSize: int, demoStep: int=0) -> None:
         """Initialize a watch directory for files matching filePattern.
 
         No data is returned by this function, but a filesystem watch is established.
@@ -171,9 +176,10 @@ class DataInterface(RemoteableExtensible):
             demoStep: Minimum interval (in seconds) to wait before returning files.
                 Useful for demos replaying existing files while mimicking original timing.
         """
-        self.checkAllowedDirs(dir)
-        self.checkAllowedFileTypes(filePattern)
+        self._checkAllowedDirs(dir)
+        self._checkAllowedFileTypes(filePattern)
         self.fileWatchLock.acquire()
+        self.watchDir = dir
         try:
             self.fileWatcher.initFileNotifier(dir, filePattern, minFileSize, demoStep)
         finally:
@@ -181,16 +187,25 @@ class DataInterface(RemoteableExtensible):
         self.initWatchSet = True
         return
 
-    def _watchFile(self, filename: str, timeout: int=5) -> bytes:
+    def watchFile(self, filename: str, timeout: int=5) -> bytes:
         """Watches for a specific file to be created and returns the file data.
 
         InitWatch() must be called first, before watching for specific files.
         If filename includes the full path, the path must match that used in initWatch().
         """
-        self.checkAllowedFileTypes(filename)
         data = None
         if not self.initWatchSet:
             raise StateError("DataInterface: watchFile() called without an initWatch()")
+
+        # check filename dir matches initWatch dir
+        fileDir, fileCheck = os.path.split(filename)
+        if fileDir not in ('', None):
+            if fileDir != self.watchDir:
+                raise RequestError("DataInterface: watchFile: filepath doesn't match "
+                                    f"watch directory: {fileDir}, {self.watchDir}")
+            self._checkAllowedDirs(fileDir)
+        self._checkAllowedFileTypes(fileCheck)
+
         self.fileWatchLock.acquire()
         try:
             foundFilename = self.fileWatcher.waitForFile(filename, timeout=timeout)
@@ -214,8 +229,8 @@ class DataInterface(RemoteableExtensible):
                 only has affect in remote mode.
         """
         fileDir, fileCheck = os.path.split(filename)
-        self.checkAllowedDirs(fileDir)
-        self.checkAllowedFileTypes(fileCheck)
+        self._checkAllowedDirs(fileDir)
+        self._checkAllowedFileTypes(fileCheck)
 
         if type(data) == str:
             data = data.encode()
@@ -230,8 +245,8 @@ class DataInterface(RemoteableExtensible):
     def listFiles(self, filepattern: str) -> List[str]:
         """Lists files matching regex filePattern from the remote filesystem"""
         fileDir, fileCheck = os.path.split(filepattern)
-        self.checkAllowedDirs(fileDir)
-        self.checkAllowedFileTypes(fileCheck)
+        self._checkAllowedDirs(fileDir)
+        self._checkAllowedFileTypes(fileCheck)
         if not os.path.isabs(filepattern):
             errStr = "listFiles must have an absolute path: {}".format(filepattern)
             raise RequestError(errStr)
@@ -240,47 +255,50 @@ class DataInterface(RemoteableExtensible):
             if os.path.isdir(filename):
                 continue
             fileList.append(filename)
-        fileList = self.filterFileList(fileList)
+        fileList = self._filterFileList(fileList)
         return fileList
 
     def getAllowedFileTypes(self) -> List[str]:
         """Returns file extensions which remote filesystem will allow to read and write"""
-        if self.allowedFileTypes is None:
-            return ['*']
-        else:
-            return self.allowedFileTypes
+        return self.allowedFileTypes
 
-    def checkAllowedDirs(self, dir):
+    def _checkAllowedDirs(self, dir):
+        if self.allowedDirs is None or len(self.allowedDirs) == 0:
+            raise ValidationError('DataInterface: no allowed directories are set')
         if dir is None:
             return True
-        if self.allowedDirs is not None:
-            dirMatch = False
-            for allowedDir in self.allowedDirs:
-                if dir.startswith(allowedDir):
-                    dirMatch = True
-                    break
-            if dirMatch is False:
-                raise ValidationError(
-                    f'Path {dir} not within list of allowed directories {self.allowedDirs}. '
-                    'Make sure you specified a full (absolute) path. '
-                    'Specify allowed directories with FileServer -d parameter.')
+        if self.allowedDirs[0] == '*':
+            return True
+        dirMatch = False
+        for allowedDir in self.allowedDirs:
+            if dir.startswith(allowedDir):
+                dirMatch = True
+                break
+        if dirMatch is False:
+            raise ValidationError(
+                f'Path {dir} not within list of allowed directories {self.allowedDirs}. '
+                'Make sure you specified a full (absolute) path. '
+                'Specify allowed directories with FileServer -d parameter.')
         return True
 
-    def checkAllowedFileTypes(self, filename):
+    def _checkAllowedFileTypes(self, filename) -> bool:
+        if self.allowedFileTypes is None or len(self.allowedFileTypes) == 0:
+            raise ValidationError('DataInterface: no allowed file types are set')
         if filename is None or filename == '':
             return True
-        if self.allowedFileTypes is not None:
-            if filename[-1] == '*':
-                # wildcards will be filtered later
-                return True
-            fileExtension = Path(filename).suffix
-            if fileExtension not in self.allowedFileTypes:
-                raise ValidationError(
-                    f"File type {fileExtension} not in list of allowed file types {self.allowedFileTypes}. "
-                    "Specify allowed filetypes with FileServer -f parameter.")
+        if self.allowedFileTypes[0] == '*':
+            return True
+        if filename[-1] == '*':
+            # wildcards will be filtered later
+            return True
+        fileExtension = Path(filename).suffix
+        if fileExtension not in self.allowedFileTypes:
+            raise ValidationError(
+                f"File type {fileExtension} not in list of allowed file types {self.allowedFileTypes}. "
+                "Specify allowed filetypes with FileServer -f parameter.")
         return True
 
-    def filterFileList(self, fileList):
+    def _filterFileList(self, fileList):
         filteredList = []
         for filename in fileList:
             if os.path.isdir(filename):

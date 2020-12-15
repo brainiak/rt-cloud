@@ -21,6 +21,7 @@ from rtCommon.imageHandling import readDicomFromFile, anonymizeDicom, writeDicom
 from rtCommon.webSocketHandlers import sendWebSocketMessage
 from rtCommon.projectServer import ProjectServer
 from rtCommon.clientInterface import ClientInterface
+from tests.ServersForTesting import ServersForTesting
 
 # TODO - test running ControlRoomDataService and connecting from a clientInterface and doing all commands including big files
 # TODO - test running subjectService and connecting from a clientInterface and calling all commands
@@ -33,7 +34,9 @@ rootPath = os.path.dirname(testDir)
 testDataPath = os.path.join(testDir, 'test_input')
 samplePath = os.path.join(rootPath,'projects/sample')
 tmpDir = os.path.join(testDir, 'tmp/')
-fileTypeList = ['.dcm', '.mat', '.bin', '.txt']
+
+allowedDirs =  ['/tmp', testDir, samplePath]
+allowedFileTypes = ['.dcm', '.mat', '.bin', '.txt']
 
 
 @pytest.fixture(scope="module")
@@ -52,54 +55,15 @@ def bigTestfile():  # type: ignore
 
 
 class TestServers:
-    mainThread = None
-    dataThread = None
+    serversForTests = None
     pingCount = 0
 
     def setup_class(cls):
-        global testDir, samplePath, fileTypeList
-        utils.installLoggers(logging.DEBUG, logging.DEBUG, filename='logs/tests.log')
-        # Start a projectServer thread running
-        cfg = StructDict({'sessionId': "test",
-                          'subjectName': "test_sample",
-                          'subjectNum': 1,
-                          'subjectDay': 1,
-                          'sessionNum': 1})
-        args = StructDict({'config': cfg,
-                           'mainScript': 'projects/sample/sample.py',
-                           'dataremote': True,
-                           'port': 8921, 
-                           'test': True})
-        projectServer = ProjectServer(args)
-        cls.mainThread = threading.Thread(name='mainThread', target=projectServer.start)
-        cls.mainThread.setDaemon(True)
-        cls.mainThread.start()
-        time.sleep(.1)
-
-        args = StructDict({'server': 'localhost:8921',
-                           'interval': 0.1,
-                           'allowedDirs': ['/tmp', testDir, samplePath],
-                           'allowedTypes': fileTypeList,
-                           'username': 'test',
-                           'password': 'test',
-                           'test': True,
-                          })
-        dataServer = ScannerDataService(args)
-        dataServer.wsRemoteService.runForever()
-        # Start a fileWatcher thread running
-        cls.dataThread = threading.Thread(
-            name='dataThread',
-            target=dataServer.wsRemoteService.runForever()
-        )
-        cls.dataThread.setDaemon(True)
-        cls.dataThread.start()
-        time.sleep(1)
+        cls.serversForTests = ServersForTesting()
+        cls.serversForTests.startServers(allowedDirs, allowedFileTypes)
 
     def teardown_class(cls):
-        # dataServer.wsRemoteService.stop()
-        # Web.stop()
-        # time.sleep(1)
-        pass
+        cls.serversForTests.stopServers()
 
     # def test_ping(self):
     #     print("test_ping")

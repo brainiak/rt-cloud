@@ -22,6 +22,7 @@ from rtCommon.webSocketHandlers import RequestHandler, DataWebSocketHandler
 class ProjectServer:
     """The main server for running a project. This server starts both the web server and an RPC server."""
     def __init__(self, args):
+        self.started = False
         if args is None:
             args = argparse.Namespace()
         if not hasattr(args, 'test'):
@@ -39,6 +40,7 @@ class ProjectServer:
              'finalizeScript': args.finalizeScript,
              'port' : args.port,
             })
+        self.web = None
 
     def start(self):
         """Start the Web and RPC servers. This function doesn't return."""
@@ -51,8 +53,9 @@ class ProjectServer:
         webThread.setDaemon(True)
         webThread.start()
         # wait for the web to initialize
-        while Web.ioLoopInst is None:
-            time.sleep(0.5)
+        while Web.started is False:
+            time.sleep(0.1)
+        self.web = web
 
         rpcHandlers = RPCHandlers(Web.ioLoopInst, Web.webDisplayInterface)
         Web.addHandlers([(r'/wsData', DataWebSocketHandler,
@@ -65,6 +68,7 @@ class ProjectServer:
                                        webUI=Web.webDisplayInterface)
         rpcService.registerDataCommFunction(rpcHandlers.dataRequest)
         rpcService.registerSubjectCommFunction(rpcHandlers.subjectRequest)
+        self.started = True
         startRPCThread(rpcService, hostname='localhost', port=12345)
 
         # rpcThread = threading.Thread(name='rpcThread',
@@ -75,6 +79,8 @@ class ProjectServer:
         # rpcThread.setDaemon(True)
         # rpcThread.start()
 
+    def stop(self):
+        self.web.stop()
 
 # TODO: Perhaps move to ProjectServerRPC?
 class RPCHandlers:
@@ -108,12 +114,14 @@ class RPCHandlers:
             return self.handleRPCRequest('wsData', cmd, timeout)
         except Exception as err:
             self.setError('DataRequest: ' + format(err))
+            raise err;
 
     def subjectRequest(self, cmd, timeout=60):
         try:
             return self.handleRPCRequest('wsSubject', cmd, timeout)
         except Exception as err:
             self.setError('SubjectRequest: ' + format(err))
+            raise err;
 
     def close_pending_requests(self, channelName):
         handler = self.handlers.get(channelName)

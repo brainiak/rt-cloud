@@ -3,6 +3,7 @@ from rtCommon.dataInterface import DataInterface
 from rtCommon.subjectInterface import SubjectInterface
 from rtCommon.webDisplayInterface import WebDisplayInterface
 from rtCommon.bidsInterface import BidsInterface
+from rtCommon.errors import RequestError
 
 
 class ClientInterface:
@@ -41,7 +42,7 @@ class ClientInterface:
             reply.lower().strip()
             if reply[0] == 'y':
                 # These will be run in the same process as the experiment script
-                self.dataInterface = DataInterface(dataremote=False)
+                self.dataInterface = DataInterface(dataremote=False, allowedDirs=['*'], allowedFileTypes=['*'])
                 self.subjInterface = SubjectInterface(dataremote=False)
                 self.bidsInterface = BidsInterface(dataremote=False)
                 # TODO: this can't run locally? There is no remote option for webDisplayService because it always runs local within the projectServer

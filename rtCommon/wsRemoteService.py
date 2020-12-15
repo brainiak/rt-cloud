@@ -43,7 +43,7 @@ class WsRemoteService:
         """Run the receiver loop. This function doesn't return."""
         # go into loop trying to do webSocket connection periodically
         args = self.args
-        print(f'args {self.args}')
+        # print(f'args {self.args}')
         WsRemoteService.shouldExit = False
         while not WsRemoteService.shouldExit:
             try:
