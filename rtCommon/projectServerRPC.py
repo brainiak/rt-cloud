@@ -68,7 +68,8 @@ class ProjectRPCService(rpyc.Service):
 def startRPCThread(rpcService, hostname=None, port=12345):
     """
     This function starts the Project RPC server for communication between the projectServer
-        and the experiment script. It does not return.
+        and the experiment script. 
+        IT DOES NOT RETURN.
     """
     safe_attrs = rpyc.core.protocol.DEFAULT_CONFIG.get('safe_attrs')
     safe_attrs.add('__format__')

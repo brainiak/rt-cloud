@@ -23,6 +23,7 @@ class TestSampleProject:
         cls.serversForTests.stopServers()
 
     def test_runFromCommandLine(self):
-        argv = []  # ['--dataremote']
+        argv = []
         ret = sample.main(argv)
         assert ret == 0
+

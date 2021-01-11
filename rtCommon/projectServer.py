@@ -80,6 +80,7 @@ class ProjectServer:
         # rpcThread.start()
 
     def stop(self):
+        # TODO - stop RPCThread
         self.web.stop()
 
 # TODO: Perhaps move to ProjectServerRPC?

@@ -27,6 +27,7 @@ class WsRemoteService:
         self.args = args
         self.sessionCookie = None
         self.needLogin = True
+        self.started = False
 
         # # Starts the receiver in it's own thread
         # self.recvThread = threading.Thread(name='recvThread', target=self.wsReceiver)
@@ -61,6 +62,7 @@ class WsRemoteService:
                                             cookie="login="+self.sessionCookie)
                 logging.log(logging.INFO, "Connected to: %s", wsAddr)
                 print("Connected to: {}".format(wsAddr))
+                self.started = True
                 ws.run_forever(sslopt={"ca_certs": certFile})
             except Exception as err:
                 logging.log(logging.INFO, "WsRemoteService Exception {}: {}".format(type(err).__name__, str(err)))

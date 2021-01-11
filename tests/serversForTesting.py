@@ -1,7 +1,8 @@
 import os
-import sys
-import threading
 import time
+import platform
+import threading
+import multiprocessing
 # sys.path.append(rootPath)
 from rtCommon.structDict import StructDict
 from rtCommon.scannerDataService import ScannerDataService
@@ -13,14 +14,41 @@ samplePath = os.path.join(rootPath,'projects/sample')
 
 fileTypeList = ['.dcm', '.mat', '.bin', '.txt']
 
+
+def runProjectServer(args, isStartedEvent):
+    projectServer = ProjectServer(args)
+    projThread = threading.Thread(name='mainThread', target=projectServer.start)
+    projThread.start()
+    while projectServer.started is False:
+        time.sleep(.1)
+    isStartedEvent.set()
+
+
+def runDataServer(args, isStartedEvent):
+    dataServer = ScannerDataService(args)
+    dataThread = threading.Thread(
+        name='dataThread',
+        target=dataServer.wsRemoteService.runForever
+    )
+    dataThread.start()
+    while dataServer.wsRemoteService.started is False:
+        time.sleep(.1)
+    isStartedEvent.set()
+
+
 class ServersForTesting:
     def __init__(self):
         self.projectServer = None
         self.dataServer = None
         self.subjectServer = None
-        self.projectThread = None
-        self.dataThread = None
-        self.subjectThread = None
+        self.projectProc = None
+        self.dataProc = None
+        self.subjectProc = None
+        if platform.system() == "Darwin":
+            try:
+                multiprocessing.set_start_method('spawn')
+            except Exception as err:
+                print(f'multiprocess err: {err}')
 
     def startServers(self, allowedDirs, allowedFileTypes):
         global testDir, samplePath, fileTypeList
@@ -35,11 +63,10 @@ class ServersForTesting:
                            'dataremote': True,
                            'port': 8921, 
                            'test': True})
-        self.projectServer = ProjectServer(args)
-        self.projectThread = threading.Thread(name='mainThread', target=self.projectServer.start)
-        self.projectThread.setDaemon(True)
-        self.projectThread.start()
-        time.sleep(.1)
+        isRunningEvent = multiprocessing.Event()
+        self.projectProc = multiprocessing.Process(target=runProjectServer, args=(args, isRunningEvent))
+        self.projectProc.start()
+        isRunningEvent.wait()
 
         # Start the dataService running
         args = StructDict({'server': 'localhost:8921',
@@ -50,20 +77,13 @@ class ServersForTesting:
                            'password': 'test',
                            'test': True,
                           })
-        self.dataServer = ScannerDataService(args)
-        # Start dataSerivce running in a thread
-        self.dataThread = threading.Thread(
-            name='dataThread',
-            target=self.dataServer.wsRemoteService.runForever
-        )
-        self.dataThread.setDaemon(True)
-        self.dataThread.start()
-        time.sleep(.1)
+        isRunningEvent = multiprocessing.Event()
+        self.dataProc = multiprocessing.Process(target=runDataServer, args=(args, isRunningEvent))
+        self.dataProc.start()
+        isRunningEvent.wait()
 
-        while self.projectServer.started is False:
-            time.sleep(.1)
         return True
 
     def stopServers(self):
-        # TODO: implement stopServers
-        pass
+        self.projectProc.kill()
+        self.dataProc.kill()
