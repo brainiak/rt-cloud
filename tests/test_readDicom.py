@@ -5,8 +5,8 @@ from nibabel.nicom import dicomreaders
 from rtCommon.dataInterface import DataInterface
 from rtCommon.errors import ValidationError
 
-test_dicomFile = '001_000005_000100.dcm'
-test_dicomTruncFile = 'trunc_001_000005_000100.dcm'
+test_dicomFile = '001_000013_000005.dcm'
+test_dicomTruncFile = 'trunc_001_000013_000005.dcm'
 
 
 def test_readDicom():

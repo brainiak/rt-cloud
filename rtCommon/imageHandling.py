@@ -269,11 +269,9 @@ def convertDicomFileToNifti(dicomFilename, niftiFilename):
     outPath, outName = os.path.split(niftiFilename)
     if outName.endswith('.nii'):
         outName = os.path.splitext(outName)[0]  # remove extention
-    cmd = '{bin} -s y -b n -o {outdir} -f {outname} {inname}'.format(
-        bin=dcm2niiCmd, outdir=outPath, outname=outName, inname=dicomFilename
-        )
-    # os.system(cmd)
-    subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL)
+    cmd = [dcm2niiCmd, '-s', 'y', '-b', 'n', '-o', outPath, '-f', outName,
+           dicomFilename]
+    subprocess.run(cmd, shell=False, stdout=subprocess.DEVNULL)
 
 
 def readNifti(niftiFilename):
