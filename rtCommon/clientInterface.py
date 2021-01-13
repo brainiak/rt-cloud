@@ -9,12 +9,12 @@ from rtCommon.errors import RequestError
 class ClientInterface:
     """
     This class provides the API that an experiment script can use to communicate with the 
-    project server. It provides both a DataInterface for reading or writing files, and a 
+    project server. It provides both a DataInterface for reading or writing files, and a
     SubjectInterface for sending/receiving feedback and response to the subject in the MRI scanner.
     """
-    def __init__(self):
+    def __init__(self, rpyc_timeout=60):
         """
-        Establishes an RPC connection to a localhost projectServer on a predefined port. 
+        Establishes an RPC connection to a localhost projectServer on a predefined port.
         The projectServer must be running on the same computer as the script using this interface.
         """
         try:
@@ -25,6 +25,7 @@ class ClientInterface:
                                             "allow_public_attrs": True,
                                             "safe_attrs": safe_attrs,
                                             "allow_pickle" : True,
+                                            "sync_request_timeout": rpyc_timeout,
                                             # "allow_getattr": True,
                                             # "allow_setattr": True,
                                             # "allow_delattr": True,

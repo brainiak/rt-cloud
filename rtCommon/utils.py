@@ -283,6 +283,15 @@ def stringPartialFormat(text, tag, val) -> str:
     result = re.sub(pattern, formatMatch, text)
     return result
 
+
+def trimDictBytes(msg, trimSize=64):
+    keys = list(msg.keys())
+    for key in keys:
+        if type(msg[key]) in (str, bytes, bytearray):
+            if len(msg[key]) > trimSize:
+                msg.pop(key, None)
+
+
 '''
 import inspect  # type: ignore
 def xassert(bool_val, message):

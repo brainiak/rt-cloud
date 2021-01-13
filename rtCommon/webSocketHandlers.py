@@ -5,7 +5,7 @@ import logging
 import threading
 import tornado.websocket
 from rtCommon.structDict import StructDict
-from rtCommon.utils import DebugLevels
+from rtCommon.utils import DebugLevels, trimDictBytes
 from rtCommon.errors import StateError
 
 
@@ -249,6 +249,7 @@ class RequestHandler:
         # wait for semaphore signal indicating a callback for this callId has occured
         signaled = callbackStruct.semaphore.acquire(timeout=timeout)
         if signaled is False:
+            trimDictBytes(callbackStruct.msg)
             raise TimeoutError("sendDataMessage: Data Request Timed Out({}) {}".
                                 format(timeout, callbackStruct.msg))
         self.callbackLock.acquire()
@@ -271,6 +272,7 @@ class RequestHandler:
                     print(f'callback num responses not zero {response}')
                 self.dataCallbacks.pop(callId, None)
         except IndexError:
+            trimDictBytes(callbackStruct.msg)
             raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.
                                 format(callbackStruct.msg))
         finally:
@@ -327,3 +329,5 @@ class RequestHandler:
             logging.error(f'RequestHandler {self.name} pruneCallbacks: error {err}')
         finally:
             self.callbackLock.release()
+
+

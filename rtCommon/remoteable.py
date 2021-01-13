@@ -42,6 +42,9 @@ class RemoteStub(object):
         self.commFunction = None
         self.timeout = 5
 
+    def setRPCTimeout(self, timeout):
+        self.timeout = timeout
+
     def registerCommFunction(self, commFunction):
         # TODO - perhaps we register a channel instead which goes directly to one end point
         self.commFunction = commFunction
@@ -49,7 +52,10 @@ class RemoteStub(object):
     def remoteCall(self, attribute, *args, **kwargs) -> any:
         # print(f'remoteCall class: {self.classname}, attribute: {attribute}, args: {args}, kwargs: {kwargs}')
         callStruct = {'cmd': 'rpc', 'class': self.classname, 'attribute': attribute, 'args': args, 'kwargs': kwargs}
-        return self.commFunction(callStruct, timeout=self.timeout)
+        timeout = self.timeout
+        if 'rpc_timeout' in kwargs:
+            timeout = kwargs.pop('rpc_timeout')
+        return self.commFunction(callStruct, timeout=timeout)
 
     def __getattr__(self, name):
         # Previously just 'return self.remoteCall'
@@ -81,9 +87,16 @@ class RemoteableExtensible(object):
         self.timeout = 5
         self.localAttributes = [
             'localAttributes', 'commFunction', 'timeout',
-            'addLocalAttributes', 'registerCommFunction'
+            'addLocalAttributes', 'registerCommFunction',
+            'setRPCTimeout', 'isDataRemote', 'dataremote'
             ]
         # 'timeout',
+
+    def isDataRemote(self):
+        return self.dataremote
+
+    def setRPCTimeout(self, timeout):
+        self.timeout = timeout
 
     def registerCommFunction(self, commFunction):
         # TODO - perhaps we register a channel instead which goes directly to one end point
@@ -94,7 +107,11 @@ class RemoteableExtensible(object):
         # if isinstance(arg, numpy.generic): arg.item()
         # print(f'remoteCall class: {type(self).__name__}, attribute: {attribute}, args: {args}, kwargs: {kwargs}')
         callStruct = {'cmd': 'rpc', 'class': type(self).__name__, 'attribute': attribute, 'args': args, 'kwargs': kwargs}
-        result = self.commFunction(callStruct, timeout=self.timeout)
+        timeout = self.timeout
+        if 'rpc_timeout' in kwargs:
+            timeout = kwargs.pop('rpc_timeout')
+        # print(f'Remote call using timeout: {timeout}')
+        result = self.commFunction(callStruct, timeout=timeout)
         # print(f'result: {type(result)}')
         return result
 

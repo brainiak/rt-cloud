@@ -13,7 +13,7 @@ import websocket
 from base64 import b64encode, b64decode
 from rtCommon.remoteable import RemoteHandler
 from rtCommon.projectUtils import generateDataParts
-from rtCommon.utils import DebugLevels
+from rtCommon.utils import DebugLevels, trimDictBytes
 from rtCommon.errors import RequestError
 from rtCommon.projectUtils import login, certFile, checkSSLCertAltName, makeSSLCertFile
 
@@ -94,6 +94,7 @@ class WsRemoteService:
             response.pop('data', None)
             response.pop('args', None)
             response.pop('kwargs', None)
+            trimDictBytes(response)
             cmd = request.get('cmd')
             # decode any encoded byte args
             # TODO - spin off a thread for each request passing in client so the thread call client.send
@@ -113,7 +114,10 @@ class WsRemoteService:
                 response['dataSerialization'] = 'pickle'
             # return callResult
             response['status'] = 200
-            for msgPart in generateDataParts(data, response, compress=False):
+            compress = False
+            if len(data) > 1024 * 1024:
+                compress = True
+            for msgPart in generateDataParts(data, response, compress=compress):
                 WsRemoteService.send_response(client, msgPart)
         except Exception as err:
             errStr = "RPC Exception: {}: {}".format(cmd, err)

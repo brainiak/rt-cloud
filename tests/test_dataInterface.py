@@ -1,10 +1,13 @@
 import pytest
 import os
 import copy
+import time
+import shutil
 from rtCommon.clientInterface import ClientInterface
-from rtCommon.dataInterface import DataInterface
+from rtCommon.dataInterface import DataInterface, uploadFilesToCloud, downloadFilesFromCloud
 from rtCommon.imageHandling import readDicomFromBuffer
 from rtCommon.errors import ValidationError, RequestError
+import rtCommon.utils as utils
 from tests.serversForTesting import ServersForTesting
 
 # Note these tests will test the local version of DataInterface (not remote)
@@ -23,6 +26,15 @@ allowedFileTypes = ['.bin', '.txt', '.dcm']
 def dicomTestFilename():  # type: ignore
     return os.path.join(testDir, 'test_input/001_000013_000005.dcm')
 
+@pytest.fixture(scope="module")
+def bigTestFile():  # type: ignore
+    filename = os.path.join(testDir, 'test_input/bigfile.bin')
+    if not os.path.exists(filename):
+        with open(filename, 'wb') as fout:
+            for _ in range(101):
+                fout.write(os.urandom(1024*1024))
+    return filename
+
 
 class TestDataInterface:
     serversForTests = None
@@ -35,20 +47,48 @@ class TestDataInterface:
         cls.serversForTests.stopServers()
 
     # Local dataInterface test
-    def test_localDataInterface(self, dicomTestFilename):
+    def test_localDataInterface(self, dicomTestFilename, bigTestFile):
         """Test DataInterface when instantiated in local mode"""
         dataInterface = DataInterface(dataremote=False,
                                       allowedDirs=allowedDirs,
                                       allowedFileTypes=allowedFileTypes)
+        runReadWriteFileTest(dataInterface, bigTestFile, isRemote=False)
         runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False)
         return
 
     # Remote dataInterface test
-    def test_remoteDataInterface(self, dicomTestFilename):
+    def test_remoteDataInterface(self, dicomTestFilename, bigTestFile):
         # Use a remote (RPC) client to the dataInterface
         clientInterface = ClientInterface()
         dataInterface = clientInterface.dataInterface
+        runReadWriteFileTest(dataInterface, bigTestFile, isRemote=True)
         runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=True)
+        runUploadDownloadTest(dataInterface)
+
+
+def runReadWriteFileTest(dataInterface, testFileName, isRemote=False):
+    with open(testFileName, 'rb') as fp:
+        data = fp.read()
+
+    # Test getFile
+    print('test getFile')
+    startTime = time.time()
+    responseData = dataInterface.getFile(testFileName)
+    print('GetFile {} time: {}'.format(testFileName, (time.time() - startTime)))
+    assert responseData == data, 'getFile assertion'
+
+    # Test put file
+    outfileName = os.path.join(tmpDir, testFileName)
+    extraArgs = {}
+    if dataInterface.isDataRemote():
+        extraArgs = {'rpc_timeout': 60}
+    startTime = time.time()
+    dataInterface.putFile(outfileName, data, **extraArgs)
+    print('PutFile {} time: {}'.format(outfileName, (time.time() - startTime)))
+    # read back data and compare to original
+    with open(outfileName, 'rb') as fp:
+        data1 = fp.read()
+    assert data1 == data, 'putFile assertion'
 
 
 def runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False):
@@ -59,6 +99,21 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False
     print('test getFile')
     data2 = dataInterface.getFile(dicomTestFilename)
     assert data1 == data2, 'getFile data assertion'
+
+    # Try get of non-allowed file type
+    print('test get from non-allowed file type')
+    with pytest.raises((ValidationError, RequestError, Exception)) as err:
+        nodata = dataInterface.getFile(os.path.join(testDir, 'test_utils.py'))
+        # assert nodata == None, 'get non-allowed file'
+    # import pdb; pdb.set_trace()
+    # print(f'## ERROR {err}')
+
+    # Try get from non-allowed dir
+    print('test get from non-allowed directory')
+    with pytest.raises((ValidationError, RequestError, Exception)) as err:
+        nodata = dataInterface.getFile(os.path.join(rootDir, 'environment.yml'))
+        assert nodata == None, 'get non-allowed dir'
+    # print(f'## ERROR {err}')
 
     # Test getNewestFile
     print('test getNewestFile')
@@ -72,6 +127,12 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False
     dataInterface.initWatch(watchDir, filePattern, 0)
     data4 = dataInterface.watchFile(dicomTestFilename, timeout=5)
     assert data1 == data4, 'watchFile data assertion'
+
+    # Test watch non-allowed directory
+    with pytest.raises((ValidationError, RequestError, Exception)) as err:
+        watchDir = os.path.join(rootDir, 'test_input')
+        dataInterface.initWatch(watchDir, filePattern, 0)
+    # print(f'## ERROR {err}')
 
     # Test put text file
     print('test putTextFile')
@@ -149,3 +210,35 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False
         assert outList == expectedList
 
     return
+
+
+def runUploadDownloadTest(dataInterface):
+    # test downloadFilesFromCloud and uploadFilesToCloud
+    assert dataInterface.isDataRemote() is True
+    # 0. remove any previous test directories
+    shutil.rmtree('/tmp/d2', ignore_errors=True)
+    shutil.rmtree('/tmp/d3', ignore_errors=True)
+    # 1. create a tmp sub-dir with some files in it
+    text1 = 'test file 1'
+    text2 = 'test file 2'
+    bindata1 = b'\xFE\xED\x01\x23'
+    bindata2 = b'\xAA\xBB\xCC\xDD'
+    utils.writeFile('/tmp/d1/test1.txt', text1, binary=False)
+    utils.writeFile('/tmp/d1/test2.txt', text2, binary=False)
+    utils.writeFile('/tmp/d1/test3.bin', bindata1)
+    utils.writeFile('/tmp/d1/test4.bin', bindata2)
+    # 2. download files from cloud
+    downloadFilesFromCloud(dataInterface, '/tmp/d1/test*.txt', '/tmp/d2')
+    downloadFilesFromCloud(dataInterface, '/tmp/d1/test*.bin', '/tmp/d2')
+    # 3. upload files to cloud
+    uploadFilesToCloud(dataInterface, '/tmp/d2/test*.txt', '/tmp/d3')
+    uploadFilesToCloud(dataInterface, '/tmp/d2/test*.bin', '/tmp/d3')
+    # check that all files in d1 are same as files in d3
+    d3text1 = utils.readFile('/tmp/d3/test1.txt', binary=False)
+    d3text2 = utils.readFile('/tmp/d3/test2.txt', binary=False)
+    d3bin1 = utils.readFile('/tmp/d3/test3.bin')
+    d3bin2 = utils.readFile('/tmp/d3/test4.bin')
+    assert d3text1 == text1
+    assert d3text2 == text2
+    assert d3bin1 == bindata1
+    assert d3bin2 == bindata2

@@ -158,6 +158,31 @@ class TestPearsonsMeanCorr:
         res = vutils.pearsons_mean_corr(n1t, n2t)
         assert res > 0.999
 
+class TestUtils:
+    def test_delete(self):
+        fileList = ['/tmp/d1/test1.txt', '/tmp/d1/d2/test2.txt',
+                    '/tmp/d1/d2/d3/test3.txt', '/tmp/d1/d2/d3/test4.txt']
+        for file in fileList:
+            utils.writeFile(file, 'hello', binary=False)
+
+        # test delete files from list
+        assert os.path.exists(fileList[-1])
+        utils.deleteFilesFromList(fileList)
+        assert not os.path.exists(fileList[-1])
+        assert os.path.isdir('/tmp/d1/d2/d3')
+
+        # test delete folder
+        for file in fileList:
+            utils.writeFile(file, 'hello', binary=False)
+        utils.deleteFolder('/tmp/d1')
+        assert not os.path.isdir('/tmp/d1')
+
+        # test delete files recursively in folders, but leave folders in place
+        for file in fileList:
+            utils.writeFile(file, 'hello', binary=False)
+        utils.deleteFolderFiles('/tmp/d1')
+        assert os.path.isdir('/tmp/d1/d2/d3')
+
 
 if __name__ == "__main__":
     print("PYTEST MAIN:")
