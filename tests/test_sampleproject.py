@@ -17,7 +17,9 @@ class TestSampleProject:
 
     def setup_class(cls):
         cls.serversForTests = ServersForTesting()
-        cls.serversForTests.startServers(allowedDirs, allowedFileTypes)
+        cls.serversForTests.startServers(allowedDirs=allowedDirs,
+                                         allowedFileTypes=allowedFileTypes,
+                                         dataRemote=True)
 
     def teardown_class(cls):
         cls.serversForTests.stopServers()

@@ -25,13 +25,13 @@ class ProjectServer:
         self.started = False
         if args is None:
             args = argparse.Namespace()
-        if not hasattr(args, 'test'):
+        if not hasattr(args, 'test') or args.test is None:
             args.test = False
-        if not hasattr(args, 'dataremote'):
+        if not hasattr(args, 'dataremote') or args.dataremote is None:
             args.dataremote = False
-        if not hasattr(args, 'subjectremote'):
+        if not hasattr(args, 'subjectremote') or args.subjectremote is None:
             args.subjectremote = False
-        if not hasattr(args, 'port'):
+        if not hasattr(args, 'port') or args.port is None:
             args.port = 8888
         self.args = args
         self.params = StructDict(

@@ -6,13 +6,14 @@ import multiprocessing
 # sys.path.append(rootPath)
 from rtCommon.structDict import StructDict
 from rtCommon.scannerDataService import ScannerDataService
+from rtCommon.subjectService import SubjectService
 from rtCommon.projectServer import ProjectServer
 
-testDir = os.path.dirname(os.path.realpath(__file__))
-rootPath = os.path.dirname(os.path.dirname(testDir))
-samplePath = os.path.join(rootPath,'projects/sample')
+testDir = os.path.dirname(__file__)
+tmpDir = os.path.join(testDir, 'tmp/')
 
-fileTypeList = ['.dcm', '.mat', '.bin', '.txt']
+defaultAllowedDirs = [testDir, tmpDir]
+defaultAllowedFileTypes = ['*.dcm', '*.txt', '*.bin']
 
 
 def runProjectServer(args, isStartedEvent):
@@ -24,7 +25,7 @@ def runProjectServer(args, isStartedEvent):
     isStartedEvent.set()
 
 
-def runDataServer(args, isStartedEvent):
+def runDataService(args, isStartedEvent):
     dataServer = ScannerDataService(args)
     dataThread = threading.Thread(
         name='dataThread',
@@ -36,11 +37,20 @@ def runDataServer(args, isStartedEvent):
     isStartedEvent.set()
 
 
+def runSubjectService(args, isStartedEvent):
+    subjectService = SubjectService(args)
+    subjThread = threading.Thread(
+        name='subjThread',
+        target=subjectService.wsRemoteService.runForever
+    )
+    subjThread.start()
+    while subjectService.wsRemoteService.started is False:
+        time.sleep(.1)
+    isStartedEvent.set()
+
+
 class ServersForTesting:
     def __init__(self):
-        self.projectServer = None
-        self.dataServer = None
-        self.subjectServer = None
         self.projectProc = None
         self.dataProc = None
         self.subjectProc = None
@@ -50,8 +60,10 @@ class ServersForTesting:
             except Exception as err:
                 print(f'multiprocess err: {err}')
 
-    def startServers(self, allowedDirs, allowedFileTypes):
-        global testDir, samplePath, fileTypeList
+    def startServers(self,
+                     allowedDirs=defaultAllowedDirs,
+                     allowedFileTypes=defaultAllowedFileTypes,
+                     dataRemote=True, subjectRemote=True):
         # Start the projectServer running
         cfg = StructDict({'sessionId': "test",
                           'subjectName': "test_sample",
@@ -60,7 +72,8 @@ class ServersForTesting:
                           'sessionNum': 1})
         args = StructDict({'config': cfg,
                            'mainScript': 'projects/sample/sample.py',
-                           'dataremote': True,
+                           'dataremote': dataRemote,
+                           'subjectremote': subjectRemote,
                            'port': 8921, 
                            'test': True})
         isRunningEvent = multiprocessing.Event()
@@ -68,22 +81,50 @@ class ServersForTesting:
         self.projectProc.start()
         isRunningEvent.wait()
 
-        # Start the dataService running
-        args = StructDict({'server': 'localhost:8921',
-                           'interval': 0.1,
-                           'allowedDirs': allowedDirs,
-                           'allowedFileTypes': allowedFileTypes,
-                           'username': 'test',
-                           'password': 'test',
-                           'test': True,
-                          })
-        isRunningEvent = multiprocessing.Event()
-        self.dataProc = multiprocessing.Process(target=runDataServer, args=(args, isRunningEvent))
-        self.dataProc.start()
-        isRunningEvent.wait()
+        if dataRemote is True:
+            # Start the dataService running
+            args = StructDict({'server': 'localhost:8921',
+                               'interval': 0.1,
+                               'allowedDirs': allowedDirs,
+                               'allowedFileTypes': allowedFileTypes,
+                               'username': 'test',
+                               'password': 'test',
+                               'test': True,
+                               })
+            isRunningEvent = multiprocessing.Event()
+            self.dataProc = multiprocessing.Process(target=runDataService, args=(args, isRunningEvent))
+            self.dataProc.start()
+            isRunningEvent.wait()
+        else:
+            self.dataProc = None
+
+        if subjectRemote is True:
+            # Start the subjectService running
+            args = StructDict({'server': 'localhost:8921',
+                               'interval': 0.1,
+                               'allowedDirs': allowedDirs,
+                               'allowedFileTypes': allowedFileTypes,
+                               'username': 'test',
+                               'password': 'test',
+                               'test': True,
+                               })
+            isRunningEvent = multiprocessing.Event()
+            self.subjectProc = multiprocessing.Process(target=runSubjectService, args=(args, isRunningEvent))
+            self.subjectProc.start()
+            isRunningEvent.wait()
+            # time.sleep(5)
+        else:
+            self.subjectProc = None
 
         return True
 
     def stopServers(self):
-        self.projectProc.kill()
-        self.dataProc.kill()
+        if self.projectProc is not None:
+            self.projectProc.kill()
+            self.projectProc = None
+        if self.dataProc is not None:
+            self.dataProc.kill()
+            self.dataProc = None
+        if self.subjectProc is not None:
+            self.subjectProc.kill()
+            self.subjectProc = None

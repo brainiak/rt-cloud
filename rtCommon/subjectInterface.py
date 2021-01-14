@@ -12,7 +12,7 @@ class SubjectInterface(RemoteableExtensible):
     Provides functions for sending feedback and receiving reponses from the subject in the scanner.
     """
     def __init__(self, dataremote=False):
-        super().__init__(dataremote)
+        super().__init__(dataremote=dataremote)
         if dataremote is True:
             return
         self.msgQueue = Queue()
@@ -27,6 +27,9 @@ class SubjectInterface(RemoteableExtensible):
         }
         self.msgQueue.put(feedbackMsg)
         pass
+
+    def dequeueResult(self, block=False, timeout=None):
+        return self.msgQueue.get(block=block, timeout=timeout)
 
     def getResponse(self, runId, trId):
         print(f'SubjectInterface: getResponse: run {runId}, tr {trId}')

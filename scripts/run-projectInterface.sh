@@ -46,7 +46,8 @@ fi
 R_PARAM=''
 if [ -z $USELOCALFILES ]; then
   # USELOCALFILES not set, use remote files
-  R_PARAM='-x'
+  # TODO - have separate flags for dataremote and subjectremote
+  R_PARAM='-x -s'
 fi
 
 pushd web
