@@ -1,6 +1,5 @@
-from re import sub
 import pytest
-from tests.serversForTesting import ServersForTesting
+from tests.backgroundTestServers import BackgroundTestServers
 from rtCommon.clientInterface import ClientInterface
 
 
@@ -8,7 +7,7 @@ class TestSubjectInterface:
     serversForTests = None
 
     def setup_class(cls):
-        cls.serversForTests = ServersForTesting()
+        cls.serversForTests = BackgroundTestServers()
 
     def teardown_class(cls):
         cls.serversForTests.stopServers()

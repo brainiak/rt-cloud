@@ -49,7 +49,7 @@ def runSubjectService(args, isStartedEvent):
     isStartedEvent.set()
 
 
-class ServersForTesting:
+class BackgroundTestServers:
     def __init__(self):
         self.projectProc = None
         self.dataProc = None

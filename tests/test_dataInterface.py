@@ -8,7 +8,7 @@ from rtCommon.dataInterface import DataInterface, uploadFilesToCloud, downloadFi
 from rtCommon.imageHandling import readDicomFromBuffer
 from rtCommon.errors import ValidationError, RequestError
 import rtCommon.utils as utils
-from tests.serversForTesting import ServersForTesting
+from tests.backgroundTestServers import BackgroundTestServers
 
 # Note these tests will test the local version of DataInterface (not remote)
 
@@ -40,7 +40,7 @@ class TestDataInterface:
     serversForTests = None
 
     def setup_class(cls):
-        cls.serversForTests = ServersForTesting()
+        cls.serversForTests = BackgroundTestServers()
 
 
     def teardown_class(cls):

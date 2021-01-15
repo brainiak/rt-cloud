@@ -144,6 +144,7 @@ class WsBrowserRequestHandler:
         self.webUI = webDisplayInterface
         self.runInfo = StructDict({'threadId': None, 'stopRun': False})
         self.confDir = params.confDir
+        self.configFilename = None
         if not os.path.exists(self.confDir):
             os.makedirs(self.confDir)
         if type(cfg) is str:
@@ -346,6 +347,7 @@ class WsBrowserRequestHandler:
         print(errStr)
         logging.error(errStr)
         self.webUI.setUserError(errStr)
+
 
 def procOutputReader(proc, lineQueue):
     """Read output from runSession process and queue into lineQueue for logging"""
