@@ -12,7 +12,7 @@ class ClientInterface:
     project server. It provides both a DataInterface for reading or writing files, and a
     SubjectInterface for sending/receiving feedback and response to the subject in the MRI scanner.
     """
-    def __init__(self, rpyc_timeout=60):
+    def __init__(self, rpyc_timeout=60, yesToPrompts=False):
         """
         Establishes an RPC connection to a localhost projectServer on a predefined port.
         The projectServer must be running on the same computer as the script using this interface.
@@ -39,13 +39,17 @@ class ClientInterface:
             self.webInterface = rpcConn.root.WebDisplayInterface
             self.rpcConn = rpcConn
         except ConnectionRefusedError as err:
-            reply = input('Unable to connect to projectServer, continue using localfiles? ' + '(y/n): ')
+            if yesToPrompts:
+                print('Unable to connect to projectServer, continuing using localfiles')
+                reply = 'y'
+            else:
+                reply = input('Unable to connect to projectServer, continue using localfiles? ' + '(y/n): ')
             reply.lower().strip()
             if reply[0] == 'y':
                 # These will be run in the same process as the experiment script
-                self.dataInterface = DataInterface(dataremote=False, allowedDirs=['*'], allowedFileTypes=['*'])
-                self.subjInterface = SubjectInterface(dataremote=False)
-                self.bidsInterface = BidsInterface(dataremote=False)
+                self.dataInterface = DataInterface(dataRemote=False, allowedDirs=['*'], allowedFileTypes=['*'])
+                self.subjInterface = SubjectInterface(subjectRemote=False)
+                self.bidsInterface = BidsInterface(dataRemote=False)
                 # TODO: this can't run locally? There is no remote option for webDisplayService because it always runs local within the projectServer
                 self.webInterface = WebDisplayInterface(ioLoopInst=None)
             else:
@@ -57,6 +61,11 @@ class ClientInterface:
         else:
             return False
 
+    def isSubjectRemote(self):
+        if self.rpcConn is not None:
+            return self.rpcConn.root.isSubjectRemote()
+        else:
+            return False
 
 class DataInterfaceOverrides(object):
     '''Override the getImageData function of DataInterface 
@@ -84,6 +93,15 @@ class DataInterfaceOverrides(object):
         ref = self.remote.getImageData(streamId, imageIndex, timeout)
         val = rpyc.classic.obtain(ref)
         return val
+
+    # TODO
+    # def getFile():
+    #  calls getFileMulti() repeatedly until all parts have been received and returns the data.
+    #  note that for most files (<10M) there will only be one part, the reply will contain part x of y.
+    #
+    # def putFile():
+    #  if the file is >10M will call the remote putFileMulti() repeatedly with each part. The remote
+    #  will cache the parts until the last is received and assemble them.
 
 
 # Example of generic override of getattribute to modify call behavior

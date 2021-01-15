@@ -20,27 +20,28 @@ class ProjectRPCService(rpyc.Service):
     exposed_BidsInterface = None
     exposed_WebDisplayInterface = None
 
-    def __init__(self, dataremote=False, subjectremote=False, webUI=None):
-        self.dataremote = dataremote
-        self.subjectremote = subjectremote
+    def __init__(self, dataRemote=False, subjectRemote=False, webUI=None):
+        self.dataRemote = dataRemote
+        self.subjectRemote = subjectRemote
         allowedDirs = None
         allowedFileTypes = None
-        if dataremote is False:
+        if dataRemote is False:
+            # Allow all file types and directories for local filesystem access
             allowedDirs=['*']
             allowedFileTypes=['*']
 
-        ProjectRPCService.exposed_DataInterface = DataInterface(dataremote=dataremote,
+        ProjectRPCService.exposed_DataInterface = DataInterface(dataRemote=dataRemote,
                                                                 allowedDirs=allowedDirs,
                                                                 allowedFileTypes=allowedFileTypes)
-        ProjectRPCService.exposed_BidsInterface = BidsInterface(dataremote=dataremote)
-        ProjectRPCService.exposed_SubjectInterface = SubjectInterface(dataremote=subjectremote)
+        ProjectRPCService.exposed_BidsInterface = BidsInterface(dataRemote=dataRemote)
+        ProjectRPCService.exposed_SubjectInterface = SubjectInterface(subjectRemote=subjectRemote)
         ProjectRPCService.exposed_WebDisplayInterface = webUI
 
     def exposed_isDataRemote(self):
-        return self.dataremote
+        return self.dataRemote
 
     def exposed_isSubjectRemote(self):
-        return self.subjectremote
+        return self.subjectRemote
 
     @staticmethod
     def registerDataCommFunction(commFunction):
@@ -77,8 +78,8 @@ def startRPCThread(rpcService, hostname=None, port=12345):
     #  client will get it's own instance. If an instance is passed in then all clients
     #  will share that instance.
     # For non-shared case
-    # serviceWithArgs = classpartial(ProjectRPCService, dataremote=dataremote)
-    # rpcService = ProjectRPCService(dataremote, dataCommFunc)
+    # serviceWithArgs = classpartial(ProjectRPCService, dataRemote=dataRemote)
+    # rpcService = ProjectRPCService(dataRemote, dataCommFunc)
 
     threadId = ThreadedServer(rpcService, hostname=hostname, port=port,
                               protocol_config={

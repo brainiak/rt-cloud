@@ -32,8 +32,8 @@ class TestSubjectInterface:
 def runSubjectFeedbackTest(isRemote):
     clientInterface = ClientInterface()
     subjInterface = clientInterface.subjInterface
-    print(f'subjInterface remote: {subjInterface.dataremote}, {subjInterface.isDataRemote()}')
-    assert subjInterface.isDataRemote() == isRemote
+    print(f'subjInterface remote: {subjInterface.isRemote}, {subjInterface.isRunningRemote()}')
+    assert subjInterface.isRunningRemote() == isRemote
 
     runId = 3
     for trId in range(1, 10):

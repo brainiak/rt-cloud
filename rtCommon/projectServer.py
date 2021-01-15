@@ -27,10 +27,10 @@ class ProjectServer:
             args = argparse.Namespace()
         if not hasattr(args, 'test') or args.test is None:
             args.test = False
-        if not hasattr(args, 'dataremote') or args.dataremote is None:
-            args.dataremote = False
-        if not hasattr(args, 'subjectremote') or args.subjectremote is None:
-            args.subjectremote = False
+        if not hasattr(args, 'dataRemote') or args.dataRemote is None:
+            args.dataRemote = False
+        if not hasattr(args, 'subjectRemote') or args.subjectRemote is None:
+            args.subjectRemote = False
         if not hasattr(args, 'port') or args.port is None:
             args.port = 8888
         self.args = args
@@ -63,8 +63,8 @@ class ProjectServer:
         Web.addHandlers([(r'/wsSubject', DataWebSocketHandler,
                           dict(name='wsSubject', callback=rpcHandlers.subjectWsCallback))])
 
-        rpcService = ProjectRPCService(dataremote=self.args.dataremote, 
-                                       subjectremote=self.args.subjectremote,
+        rpcService = ProjectRPCService(dataRemote=self.args.dataRemote,
+                                       subjectRemote=self.args.subjectRemote,
                                        webUI=Web.webDisplayInterface)
         rpcService.registerDataCommFunction(rpcHandlers.dataRequest)
         rpcService.registerSubjectCommFunction(rpcHandlers.subjectRequest)
@@ -196,9 +196,9 @@ if __name__ == "__main__":
                            help='project initialization script')
     argParser.add_argument('--finalizeScript', '-f', default=None, type=str,
                            help='project finalization script')
-    argParser.add_argument('--dataremote', '-x', default=False, action='store_true',
+    argParser.add_argument('--dataRemote', '-x', default=False, action='store_true',
                            help='dicom files retrieved from remote service')
-    argParser.add_argument('--subjectremote', '-s', default=False, action='store_true',
+    argParser.add_argument('--subjectRemote', '-s', default=False, action='store_true',
                            help='subject feedback/response to remote service')
     argParser.add_argument('--test', '-t', default=False, action='store_true',
                            help='start webServer in test mode, unsecure')

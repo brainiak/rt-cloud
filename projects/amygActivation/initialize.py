@@ -90,7 +90,7 @@ def initialize(cfg, args):
         os.makedirs(cfg.local.wf_dir)
     os.system(f'cp {cfg.local.maskDir}/* {cfg.local.subject_reg_dir}')
 
-    if args.dataremote: # here we will need to specify separate paths for processing
+    if args.dataRemote: # here we will need to specify separate paths for processing
         cfg.server.codeDir = os.path.join(cfg.server.rtcloudDir, 'projects', cfg.projectName)
         cfg.server.dataDir = os.path.join(cfg.server.codeDir, cfg.server.serverDataDir)
         cfg.server.subject_full_day_path = os.path.join(cfg.server.dataDir, cfg.bids_id, cfg.ses_id)
@@ -148,7 +148,7 @@ def buildSubjectFoldersOnServer(cfg):
 ####################################################################################
 # from initialize import *
 # defaultConfig = 'conf/amygActivation.toml'
-# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9', 'commpipe': None, 'dataremote': True})
+# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9', 'commpipe': None, 'dataRemote': True})
 ####################################################################################
 
 def main(argv=None):
@@ -177,14 +177,14 @@ def main(argv=None):
     # establish the RPC connection to the projectInterface
     clientInterface = ClientInterface()
     dataInterface = clientInterface.dataInterface
-    args.dataremote = clientInterface.isDataRemote()
+    args.dataRemote = clientInterface.isDataRemote()
 
     # load the experiment configuration file
     cfg = utils.loadConfigFile(args.config)
     cfg = initialize(cfg, args)
 
     # build subject folders on server
-    if args.dataremote:
+    if args.dataRemote:
         print('Files Remote Case')
 
         buildSubjectFoldersOnServer(cfg)

@@ -74,7 +74,7 @@ def makeRunReg(cfg, args, dataInterface, runNum, runFolder, saveMat=1):
         regData = StructDict()
         regData.regressor = regressor
         sio.savemat(full_name, regData, appendmat=False)
-        if args.dataremote:
+        if args.dataRemote:
             # save this back to local machine
             # make it into a list to use in the function
             fileList = [full_name]
@@ -91,7 +91,7 @@ def findConditionTR(regressor, condition):
 def convertToNifti(cfg, args, TRnum, scanNum, dicomData):
     #anonymizedDicom = anonymizeDicom(dicomData) # should be anonymized already
     expected_dicom_name = cfg.dicomNamePattern.format(SCAN=scanNum, TR=TRnum)
-    if args.dataremote:
+    if args.dataRemote:
         tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
     else:
         tempNiftiDir = os.path.join(cfg.local.dataDir, 'tmp/convertedNiftis')
@@ -134,7 +134,7 @@ def registerMNIToNewNifti(cfg, args, full_nifti_name):
     # transform BOLD to BOLD
     for m in np.arange(cfg.n_masks):
         # rerun for each mask
-        if args.dataremote:
+        if args.dataRemote:
             full_ROI_path = os.path.join(cfg.server.maskDir, cfg.MASK[m])
         else:
             full_ROI_path = os.path.join(cfg.local.maskDir, cfg.MASK[m])
@@ -233,17 +233,17 @@ def makeRunHeader(cfg, args, runIndex):
     # Output header 
     now = datetime.now() 
     print('**************************************************************************************************')
-    print('* amygActivation v.1.0') 
-    print('* Date/Time: ' + now.isoformat()) 
-    print('* Subject Number: ' + str(cfg.subjectNum)) 
-    print('* Subject Name: ' + str(cfg.subjectName)) 
-    print('* Run Number: ' + str(cfg.runNum[runIndex])) 
-    print('* Scan Number: ' + str(cfg.scanNum[runIndex])) 
-    print('* Real-Time Data: ' + str(cfg.rtData))     
-    print('* dataremote: ' + str(args.dataremote)) 
-    print('* Dicom directory: ' + str(cfg.dicomDir)) 
+    print('* amygActivation v.1.0')
+    print('* Date/Time: ' + now.isoformat())
+    print('* Subject Number: ' + str(cfg.subjectNum))
+    print('* Subject Name: ' + str(cfg.subjectName))
+    print('* Run Number: ' + str(cfg.runNum[runIndex]))
+    print('* Scan Number: ' + str(cfg.scanNum[runIndex]))
+    print('* Real-Time Data: ' + str(cfg.rtData))
+    print('* dataRemote: ' + str(args.dataRemote))
+    print('* Dicom directory: ' + str(cfg.dicomDir))
     print('**************************************************************************************************')
-    # prepare for TR sequence 
+    # prepare for TR sequence
     print('{:10s}{:10s}{:10s}{:10s}'.format('run', 'filenum', 'TRindex', 'percent_change')) 
     runId = 'run-{0:02d}'.format(cfg.runNum[runIndex])
     return  runId
@@ -255,7 +255,7 @@ def makeTRHeader(cfg, runIndex, TRFilenum, TRindex, percent_change):
 
 def createRunFolder(cfg, args, runNum):
     runId = 'run-{0:02d}'.format(runNum)
-    if args.dataremote:
+    if args.dataRemote:
         runFolder = os.path.join(cfg.server.subject_full_day_path, runId)
     else:
         runFolder = os.path.join(cfg.local.subject_full_day_path, runId)
@@ -264,7 +264,7 @@ def createRunFolder(cfg, args, runNum):
     return runFolder
 
 def createTmpFolder(cfg,args):
-    if args.dataremote:
+    if args.dataRemote:
         tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
     else:
         tempNiftiDir = os.path.join(cfg.local.dataDir, 'tmp/convertedNiftis/')
@@ -274,7 +274,7 @@ def createTmpFolder(cfg,args):
     return
 
 def deleteTmpFiles(cfg,args):
-    if args.dataremote:
+    if args.dataRemote:
         tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
     else:
         tempNiftiDir = os.path.join(cfg.local.dataDir, 'tmp/convertedNiftis')
@@ -318,7 +318,7 @@ def split_tol(test_list, tol):
 # testing code--debug mode -- run in amygActivation directory
 # from amygActivation import *
 # defaultConfig = 'conf/sampleCfg.toml'
-# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9', 'commpipe': None, 'dataremote': True})
+# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9', 'commpipe': None, 'dataRemote': True})
 # runIndex=0
 # TRFilenum=9
 
@@ -345,7 +345,7 @@ def main():
     dataInterface = clientInterface.dataInterface
     subjInterface = clientInterface.subjInterface
     webInterface = clientInterface.webInterface
-    args.dataremote = dataInterface.dataremote
+    args.dataRemote = dataInterface.dataRemote
 
     cfg = utils.loadConfigFile(args.config)
     cfg = initialize(cfg, args)

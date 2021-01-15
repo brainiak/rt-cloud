@@ -121,7 +121,7 @@ def main(argv=None):
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment config file (.json or .toml)')
-    argParser.add_argument('--dataremote', '-x', default=False, action='store_true',
+    argParser.add_argument('--dataRemote', '-x', default=False, action='store_true',
                            help='retrieve files from the remote server')
     args = argParser.parse_args(argv)
 

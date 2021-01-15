@@ -41,10 +41,7 @@ class TestDataInterface:
 
     def setup_class(cls):
         cls.serversForTests = ServersForTesting()
-        cls.serversForTests.startServers(allowedDirs=allowedDirs,
-                                         allowedFileTypes=allowedFileTypes,
-                                         dataRemote=True,
-                                         subjectRemote=False)
+
 
     def teardown_class(cls):
         cls.serversForTests.stopServers()
@@ -52,24 +49,50 @@ class TestDataInterface:
     # Local dataInterface test
     def test_localDataInterface(self, dicomTestFilename, bigTestFile):
         """Test DataInterface when instantiated in local mode"""
-        dataInterface = DataInterface(dataremote=False,
+        dataInterface = DataInterface(dataRemote=False,
                                       allowedDirs=allowedDirs,
                                       allowedFileTypes=allowedFileTypes)
-        runReadWriteFileTest(dataInterface, bigTestFile, isRemote=False)
-        runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False)
+        runDataInterfaceMethodTests(dataInterface, dicomTestFilename)
+        runLocalFileValidationTests(dataInterface)
+        runReadWriteFileTest(dataInterface, bigTestFile)
+        return
+
+    # Remote dataInterface test
+    def test_rpyclocalDataInterface(self, dicomTestFilename, bigTestFile):
+        # Use a remote (RPC) client to the dataInterface
+        TestDataInterface.serversForTests.stopServers()
+        TestDataInterface.serversForTests.startServers(allowedDirs=allowedDirs,
+                                                       allowedFileTypes=allowedFileTypes,
+                                                       dataRemote=False,
+                                                       subjectRemote=False)
+        clientInterface = ClientInterface()
+        dataInterface = clientInterface.dataInterface
+        assert clientInterface.isDataRemote() == False
+        assert dataInterface.isRemote == False
+        runDataInterfaceMethodTests(dataInterface, dicomTestFilename)
+        runReadWriteFileTest(dataInterface, bigTestFile)
         return
 
     # Remote dataInterface test
     def test_remoteDataInterface(self, dicomTestFilename, bigTestFile):
         # Use a remote (RPC) client to the dataInterface
+        TestDataInterface.serversForTests.stopServers()
+        TestDataInterface.serversForTests.startServers(allowedDirs=allowedDirs,
+                                                       allowedFileTypes=allowedFileTypes,
+                                                       dataRemote=True,
+                                                       subjectRemote=False)
         clientInterface = ClientInterface()
         dataInterface = clientInterface.dataInterface
-        runReadWriteFileTest(dataInterface, bigTestFile, isRemote=True)
-        runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=True)
+        assert clientInterface.isDataRemote() == True
+        assert dataInterface.isRemote == True
+        runDataInterfaceMethodTests(dataInterface, dicomTestFilename)
+        runRemoteFileValidationTests(dataInterface)
         runUploadDownloadTest(dataInterface)
+        runReadWriteFileTest(dataInterface, bigTestFile)
+        return
 
 
-def runReadWriteFileTest(dataInterface, testFileName, isRemote=False):
+def runReadWriteFileTest(dataInterface, testFileName):
     with open(testFileName, 'rb') as fp:
         data = fp.read()
 
@@ -83,7 +106,7 @@ def runReadWriteFileTest(dataInterface, testFileName, isRemote=False):
     # Test put file
     outfileName = os.path.join(tmpDir, testFileName)
     extraArgs = {}
-    if dataInterface.isDataRemote():
+    if dataInterface.isRunningRemote():
         extraArgs = {'rpc_timeout': 60}
     startTime = time.time()
     dataInterface.putFile(outfileName, data, **extraArgs)
@@ -94,7 +117,7 @@ def runReadWriteFileTest(dataInterface, testFileName, isRemote=False):
     assert data1 == data, 'putFile assertion'
 
 
-def runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False):
+def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
     with open(dicomTestFilename, 'rb') as fp:
         data1 = fp.read()
 
@@ -102,21 +125,6 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False
     print('test getFile')
     data2 = dataInterface.getFile(dicomTestFilename)
     assert data1 == data2, 'getFile data assertion'
-
-    # Try get of non-allowed file type
-    print('test get from non-allowed file type')
-    with pytest.raises((ValidationError, RequestError, Exception)) as err:
-        nodata = dataInterface.getFile(os.path.join(testDir, 'test_utils.py'))
-        # assert nodata == None, 'get non-allowed file'
-    # import pdb; pdb.set_trace()
-    # print(f'## ERROR {err}')
-
-    # Try get from non-allowed dir
-    print('test get from non-allowed directory')
-    with pytest.raises((ValidationError, RequestError, Exception)) as err:
-        nodata = dataInterface.getFile(os.path.join(rootDir, 'environment.yml'))
-        assert nodata == None, 'get non-allowed dir'
-    # print(f'## ERROR {err}')
 
     # Test getNewestFile
     print('test getNewestFile')
@@ -130,12 +138,6 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False
     dataInterface.initWatch(watchDir, filePattern, 0)
     data4 = dataInterface.watchFile(dicomTestFilename, timeout=5)
     assert data1 == data4, 'watchFile data assertion'
-
-    # Test watch non-allowed directory
-    with pytest.raises((ValidationError, RequestError, Exception)) as err:
-        watchDir = os.path.join(rootDir, 'test_input')
-        dataInterface.initWatch(watchDir, filePattern, 0)
-    # print(f'## ERROR {err}')
 
     # Test put text file
     print('test putTextFile')
@@ -161,13 +163,6 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False
     fileList = dataInterface.listFiles(filePattern)
     assert len(fileList) == 2
 
-    # Test allowedFileTypes
-    _allowedTypes = dataInterface.getAllowedFileTypes()
-    # in the remote case the returned value is an rpyc netref
-    #   so we need to make a local copy to do the comparison
-    _allowedTypes = copy.copy(_allowedTypes)
-    assert _allowedTypes == allowedFileTypes
-
     # Test initScannerStream and getImageData
     streamId = dataInterface.initScannerStream(sampleProjectDicomDir,
                                                "001_000013_{TR:06d}.dcm",
@@ -188,36 +183,69 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename, isRemote=False
         print(f"Stream seek check: image {i}")
         assert streamImage == directImage
 
-    if isRemote is False:
-        # Test _checkAllowedFileTypes
-        print("Test files validations")
-        assert dataInterface._checkAllowedDirs('/tmp') == True
-        assert dataInterface._checkAllowedDirs('/tmp/t1') == True
-        assert dataInterface._checkAllowedDirs(testDir) == True
-        assert dataInterface._checkAllowedDirs(testDir + '//t2/') == True
-        assert dataInterface._checkAllowedDirs(sampleProjectDicomDir) == True
-        assert dataInterface._checkAllowedDirs(sampleProjectDicomDir + '//t2') == True
-        with pytest.raises(ValidationError):
-            dataInterface._checkAllowedDirs('/data/')
+def runRemoteFileValidationTests(dataInterface):
+    # Tests for remote dataInterface
+    assert dataInterface.isRunningRemote() == True
 
-        assert dataInterface._checkAllowedFileTypes('test.dcm') == True
-        assert dataInterface._checkAllowedFileTypes('test.bin') == True
-        assert dataInterface._checkAllowedFileTypes('test.txt') == True
-        with pytest.raises(ValidationError):
-            dataInterface._checkAllowedFileTypes('test.nope') == False
+    # Try get of non-allowed file type
+    print('test get from non-allowed file type')
+    with pytest.raises((ValidationError, RequestError, Exception)) as err:
+        nodata = dataInterface.getFile(os.path.join(testDir, 'test_utils.py'))
+        # assert nodata == None, 'get non-allowed file'
+    # import pdb; pdb.set_trace()
+    # print(f'## ERROR {err}')
 
-        # Test _filterFileList
-        inputList = ['test.txt', 'test.nope', 'file.bin', 'data.db']
-        expectedList = ['test.txt', 'file.bin']
-        outList = dataInterface._filterFileList(inputList)
-        assert outList == expectedList
+    # Try get from non-allowed directory
+    print('test get from non-allowed directory')
+    with pytest.raises((ValidationError, RequestError, Exception)) as err:
+        nodata = dataInterface.getFile(os.path.join(rootDir, 'environment.yml'))
+        assert nodata == None, 'get non-allowed dir'
+    # print(f'## ERROR {err}')
 
+    # Test watch non-allowed directory
+    filePattern = '*.dcm'
+    with pytest.raises((ValidationError, RequestError, Exception)) as err:
+        watchDir = os.path.join(rootDir, 'test_input')
+        dataInterface.initWatch(watchDir, filePattern, 0)
+    # print(f'## ERROR {err}')
+
+    # Test allowedFileTypes
+    _allowedTypes = dataInterface.getAllowedFileTypes()
+    # in the remote case the returned value is an rpyc netref
+    #   so we need to make a local copy to do the comparison
+    _allowedTypes = copy.copy(_allowedTypes)
+    assert _allowedTypes == allowedFileTypes
+
+
+def runLocalFileValidationTests(dataInterface):
+    # Test _checkAllowedFileTypes
+    print("Test files validations")
+    assert dataInterface._checkAllowedDirs('/tmp') == True
+    assert dataInterface._checkAllowedDirs('/tmp/t1') == True
+    assert dataInterface._checkAllowedDirs(testDir) == True
+    assert dataInterface._checkAllowedDirs(testDir + '//t2/') == True
+    assert dataInterface._checkAllowedDirs(sampleProjectDicomDir) == True
+    assert dataInterface._checkAllowedDirs(sampleProjectDicomDir + '//t2') == True
+    with pytest.raises(ValidationError):
+        dataInterface._checkAllowedDirs('/data/')
+
+    assert dataInterface._checkAllowedFileTypes('test.dcm') == True
+    assert dataInterface._checkAllowedFileTypes('test.bin') == True
+    assert dataInterface._checkAllowedFileTypes('test.txt') == True
+    with pytest.raises(ValidationError):
+        dataInterface._checkAllowedFileTypes('test.nope') == False
+
+    # Test _filterFileList
+    inputList = ['test.txt', 'test.nope', 'file.bin', 'data.db']
+    expectedList = ['test.txt', 'file.bin']
+    outList = dataInterface._filterFileList(inputList)
+    assert outList == expectedList
     return
 
 
 def runUploadDownloadTest(dataInterface):
     # test downloadFilesFromCloud and uploadFilesToCloud
-    assert dataInterface.isDataRemote() is True
+    assert dataInterface.isRunningRemote() is True
     # 0. remove any previous test directories
     shutil.rmtree('/tmp/d2', ignore_errors=True)
     shutil.rmtree('/tmp/d3', ignore_errors=True)

@@ -275,13 +275,15 @@ def main(argv=None):
                            help='Comma separated list of run numbers')
     argParser.add_argument('--scans', '-s', default='', type=str,
                            help='Comma separated list of scan number')
+    argParser.add_argument('--yesToPrompts', '-y', default=False, action='store_true',
+                           help='automatically answer tyes to any prompts')
 
     args = argParser.parse_args(argv)
 
     # Initialize the RPC connection to the projectInterface
     # This will give us a dataInterface for retrieving files and
     # a subjectInterface for giving feedback
-    clientInterfaces = ClientInterface()
+    clientInterfaces = ClientInterface(yesToPrompts=args.yesToPrompts)
     dataInterface = clientInterfaces.dataInterface
     subjInterface = clientInterfaces.subjInterface
     webInterface  = clientInterfaces.webInterface

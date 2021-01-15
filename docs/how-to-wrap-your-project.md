@@ -17,17 +17,17 @@ Accept at least the following command line parameters in your project python fil
     # This parameter is used by projectInterface
     argParser.add_argument('--commpipe', '-q', default=None, type=str,
                            help='Named pipe to communicate with projectInterface')
-    argParser.add_argument('--dataremote', '-x', default=False, action='store_true',
+    argParser.add_argument('--dataRemote', '-x', default=False, action='store_true',
                            help='retrieve dicom files from the remote server')
     args = argParser.parse_args()
 
 Set up communication with the projectInterface
 
-    projectComm = projUtils.initProjectComm(args.commpipe, args.dataremote)
+    projectComm = projUtils.initProjectComm(args.commpipe, args.dataRemote)
 
 Open a DataInterface object for reading and writing files
 
-    dataInterface = DataInterface(dataremote=args.dataremote, commPipes=projectComm)
+    dataInterface = DataInterface(dataRemote=args.dataRemote, commPipes=projectComm)
 
 Then within your python script, use the DataInterface object to request remote files. For example to retrieve dicom images as they are created, init a watch on the appropriate directory and then watch for them.
 

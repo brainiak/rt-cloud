@@ -39,7 +39,7 @@ defaultConfig = os.path.join(currPath, 'conf/amygActivation.toml')
 def finalize(cfg, args):
 	# first find the number of runs completed
 	run_path = os.path.join(cfg.local.subject_full_day_path, 'run*')
-	if args.dataremote:
+	if args.dataRemote:
 		run_path = os.path.join(cfg.server.subject_full_day_path, 'run*')
 	nRuns_completed = len(glob.glob(run_path))
 	return nRuns_completed
@@ -71,7 +71,7 @@ def main(argv=None):
 	# establish the RPC connection to the projectInterface
 	clientInterface = ClientInterface()
 	dataInterface = clientInterface.dataInterface
-	args.dataremote = clientInterface.isDataRemote()
+	args.dataRemote = clientInterface.isDataRemote()
 
 	# load the experiment configuration file
 	cfg = utils.loadConfigFile(args.config)
@@ -81,7 +81,7 @@ def main(argv=None):
 	# copy subject folders from server to local
 	# subject-specific folder
 	# everything in temp/convertedNiftis
-	if args.dataremote:
+	if args.dataRemote:
 		print('Files Remote Case')
 		# we don't need the tmp/convertedNiftis so first remove those
 		tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')

@@ -11,14 +11,14 @@ class TestRemoteable:
 
     def test_remoteable(self):
         # Create the instance running at remote server (note that data will be local to that instance)
-        sampleServerInstance = SampleClassRemoteable(dataremote=False)
+        sampleServerInstance = SampleClassRemoteable(isRemote=False)
 
         # Create a mock RPC instance that will mimic the communication to service
         mockRPC = MockRPCHandler(sampleServerInstance)
 
         # Create a client instance (note it's requests will need to be sent to the remote)
-        sampleClientInstance = SampleClassRemoteable(dataremote=True)
-        
+        sampleClientInstance = SampleClassRemoteable(isRemote=True)
+
         # The mockRPC will act as the communication channel between the client and server.
         sampleClientInstance.registerCommFunction(mockRPC.sendRequest)
 
@@ -33,13 +33,13 @@ class TestRemoteable:
 
     def test_remoteableExtensible(self):
         # Create the instance running at remote server (note that data will be local to that instance)
-        sampleServerInstance = SampleClassRemoteExtensible(dataremote=False)
+        sampleServerInstance = SampleClassRemoteExtensible(isRemote=False)
 
         # Create a mock RPC instance that will mimic the communication to service
         mockRPC = MockRPCHandler(sampleServerInstance)
 
         # Create a client instance (note it's requests will need to be sent to the remote)
-        sampleClientInstance = SampleClassRemoteExtensible(dataremote=True)
+        sampleClientInstance = SampleClassRemoteExtensible(isRemote=True)
 
         # The mockRPC will act as the communication channel between the client and server.
         sampleClientInstance.registerCommFunction(mockRPC.sendRequest)
@@ -56,7 +56,7 @@ class TestRemoteable:
     def test_remoteableHandler(self):
         rh = RemoteHandler()
         # The remote server instantiates a local instance
-        testObj = SampleClassRemoteable(dataremote=False)
+        testObj = SampleClassRemoteable(isRemote=False)
         # Also create a list object
         aList = list()
 
@@ -107,8 +107,8 @@ class MockRPCHandler:
 
 class SampleClassRemoteable(Remoteable):
     val1 = 'class field val1'
-    def __init__(self, dataremote=False):
-        super().__init__(dataremote)
+    def __init__(self, isRemote=False):
+        super().__init__(isRemote)
         self.val2 = 'instance field val2'
 
     def noargs(self):
@@ -130,8 +130,8 @@ class SampleClassRemoteable(Remoteable):
 
 class SampleClassRemoteExtensible(RemoteableExtensible):
     val1 = 'class field val1'
-    def __init__(self, dataremote=False):
-        super().__init__(dataremote)
+    def __init__(self, isRemote=False):
+        super().__init__(isRemote=isRemote)
         self.val2 = 'instance field val2'
 
     def noargs(self):
@@ -163,8 +163,8 @@ class SampleClassRemoteExtensible(RemoteableExtensible):
 #         print('Juice Cherries')
 #         return a+b
 
-# o = Orange(dataremote=True)
-# c = Cherry(dataremote=True)
+# o = Orange(isRemote=True)
+# c = Cherry(isRemote=True)
 
 # o.peel(1)
 # c.juice(2, b=3)
@@ -183,9 +183,9 @@ class SampleClassRemoteExtensible(RemoteableExtensible):
 #         print('Juice Cherries')
 #         return a+b
 
-# o = Orange(dataremote=True)
+# o = Orange(isRemote=True)
 # o.addLocalAttributes('peel')
-# c = Cherry(dataremote=True)
+# c = Cherry(isRemote=True)
 
 # o.peel(1)
 # o.remotePeel(3)

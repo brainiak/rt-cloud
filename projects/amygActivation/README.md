@@ -98,7 +98,7 @@ In this case, you don’t need the file server at all, because the project will 
       bash scripts/run-projectInterface.sh -p amygActivation -c projects/amygActivation/conf/amygActivation_local.toml --localfiles
       ```
 
-        1. The -`-localfiles` flag sets the `args.dataremote` to be true in all subsequent project code (default is false)
+        1. The -`-localfiles` flag sets the `args.dataRemote` to be true in all subsequent project code (default is false)
         2. The `-c`  input tells the web server which config file to use in all subsequent code. It is very important to put the correct config file that you edited here. I would suggest making multiple config files with the different settings so you can just change it here when you’re running in different ways.
 2. Go to the web browser to run the experiment
     - Go to [https://localhost:8888/](https://localhost:8888/login?next=%2F)

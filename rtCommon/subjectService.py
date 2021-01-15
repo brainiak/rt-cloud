@@ -8,7 +8,7 @@ from rtCommon.utils import installLoggers
 
 class SubjectService:
     def __init__(self, args, webSocketChannelName='wsSubject'):
-        self.subjectInterface = SubjectInterface(dataremote=False)
+        self.subjectInterface = SubjectInterface(subjectRemote=False)
         self.wsRemoteService = WsRemoteService(args, webSocketChannelName)
         self.wsRemoteService.addHandlerClass(SubjectInterface, self.subjectInterface)
 

@@ -8,7 +8,7 @@ from rtCommon.utils import installLoggers
 
 class OpenNeuroService:
     def __init__(self, args, webSocketChannelName='wsData'):
-        self.bidsInterface = BidsInterface(dataremote=False)
+        self.bidsInterface = BidsInterface(dataRemote=False)
         self.wsRemoteService = WsRemoteService(args, webSocketChannelName)
         self.wsRemoteService.addHandlerClass(BidsInterface, self.bidsInterface)
 

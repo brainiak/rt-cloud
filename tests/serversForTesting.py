@@ -72,8 +72,8 @@ class ServersForTesting:
                           'sessionNum': 1})
         args = StructDict({'config': cfg,
                            'mainScript': 'projects/sample/sample.py',
-                           'dataremote': dataRemote,
-                           'subjectremote': subjectRemote,
+                           'dataRemote': dataRemote,
+                           'subjectRemote': subjectRemote,
                            'port': 8921, 
                            'test': True})
         isRunningEvent = multiprocessing.Event()
@@ -102,8 +102,6 @@ class ServersForTesting:
             # Start the subjectService running
             args = StructDict({'server': 'localhost:8921',
                                'interval': 0.1,
-                               'allowedDirs': allowedDirs,
-                               'allowedFileTypes': allowedFileTypes,
                                'username': 'test',
                                'password': 'test',
                                'test': True,

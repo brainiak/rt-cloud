@@ -14,12 +14,12 @@ defaultAllowedTypes = ['.dcm', '.mat', '.txt']
 
 class ScannerDataService:
     def __init__(self, args, webSocketChannelName='wsData'):
-        self.dataInterface = DataInterface(dataremote=False, 
+        self.dataInterface = DataInterface(dataRemote=False, 
                                            allowedDirs=args.allowedDirs,
                                            allowedFileTypes=args.allowedFileTypes)
         self.wsRemoteService = WsRemoteService(args, webSocketChannelName)
         self.wsRemoteService.addHandlerClass(DataInterface, self.dataInterface)
-        self.bidsInterface = BidsInterface(dataremote=False)
+        self.bidsInterface = BidsInterface(dataRemote=False)
         self.wsRemoteService.addHandlerClass(BidsInterface, self.bidsInterface)
 
 

@@ -1,7 +1,9 @@
 import pytest
 import os
+import time
 import projects.sample.sample as sample
 from tests.serversForTesting import ServersForTesting
+from rtCommon.clientInterface import ClientInterface
 
 testDir = os.path.dirname(__file__)
 rootPath = os.path.dirname(testDir)
@@ -17,15 +19,38 @@ class TestSampleProject:
 
     def setup_class(cls):
         cls.serversForTests = ServersForTesting()
-        cls.serversForTests.startServers(allowedDirs=allowedDirs,
-                                         allowedFileTypes=allowedFileTypes,
-                                         dataRemote=True)
 
     def teardown_class(cls):
         cls.serversForTests.stopServers()
 
-    def test_runFromCommandLine(self):
+    def test_runWithDataLocal(self):
+        print("\nSampleProject::test_runWithDataLocal")
+        TestSampleProject.serversForTests.stopServers()
+        TestSampleProject.serversForTests.startServers(allowedDirs=allowedDirs,
+                                                       allowedFileTypes=allowedFileTypes,
+                                                       dataRemote=False)
+        client = ClientInterface()
+        assert client.isDataRemote() == False
         argv = []
         ret = sample.main(argv)
         assert ret == 0
 
+    def test_runWithDataRemote(self):
+        print("\nSampleProject::test_runWithDataRemote")
+        TestSampleProject.serversForTests.stopServers()
+        TestSampleProject.serversForTests.startServers(allowedDirs=allowedDirs,
+                                                       allowedFileTypes=allowedFileTypes,
+                                                       dataRemote=True)
+        client = ClientInterface()
+        assert client.isDataRemote() == True
+        argv = []
+        ret = sample.main(argv)
+        assert ret == 0
+
+    def test_runWithoutProjectInterface(self):
+        print("\nSampleProject::test_runWithoutProjectInterface:")
+        TestSampleProject.serversForTests.stopServers()
+        time.sleep(0.1)
+        argv = ['-y']
+        ret = sample.main(argv)
+        assert ret == 0

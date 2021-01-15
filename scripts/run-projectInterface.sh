@@ -46,7 +46,7 @@ fi
 R_PARAM=''
 if [ -z $USELOCALFILES ]; then
   # USELOCALFILES not set, use remote files
-  # TODO - have separate flags for dataremote and subjectremote
+  # TODO - have separate flags for dataRemote and subjectRemote
   R_PARAM='-x -s'
 fi
 

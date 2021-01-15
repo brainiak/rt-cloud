@@ -13,18 +13,18 @@ will dispatch them to the handler.
 class Remoteable(object):
     '''
     A class that can be subclassed to allow remote invocation.
-    When dataremote is True it returns a remote stub instance, when false it returns the real instance
+    When isRemote is True it returns a remote stub instance, when false it returns the real instance
     '''
-    def __new__(cls, dataremote=False):
-        if dataremote is True:
+    def __new__(cls, isRemote=False):
+        if isRemote is True:
             # instance = RemoteStub(cls.__name__)
             instance = RemoteStub(cls)
         else:
             instance = object.__new__(cls)
         return instance
 
-    def __init__(self, dataremote=False):
-        self.dataremote = dataremote
+    def __init__(self, isRemote=False):
+        self.isRemote = isRemote
 
 
 class RemoteStub(object):
@@ -34,9 +34,9 @@ class RemoteStub(object):
     and this class overrides __getattr__ to forward the call request to a remote instance
     via the registered communication channel function.
     '''
-    def __init__(self, classType, dataremote=True):
-        assert dataremote is True
-        self.dataremote = True  # always true for the remote stup
+    def __init__(self, classType, isRemote=True):
+        assert isRemote is True
+        self.isRemote = True  # always true for the remote stup
         self.classType = classType
         self.classname = classType.__name__
         self.commFunction = None
@@ -81,19 +81,19 @@ class RemoteableExtensible(object):
     be registerd as 'local' meaning calls to them will be handled local, all other calls
     would be sent to the remote instance.
     '''
-    def __init__(self, dataremote=False):
-        self.dataremote = dataremote
+    def __init__(self, isRemote=False):
+        self.isRemote = isRemote
         self.commFunction = None
         self.timeout = 5
         self.localAttributes = [
             'localAttributes', 'commFunction', 'timeout',
             'addLocalAttributes', 'registerCommFunction',
-            'setRPCTimeout', 'isDataRemote', 'dataremote'
+            'setRPCTimeout', 'isRunningRemote', 'isRemote'
             ]
         # 'timeout',
 
-    def isDataRemote(self):
-        return self.dataremote
+    def isRunningRemote(self):
+        return self.isRemote
 
     def setRPCTimeout(self, timeout):
         self.timeout = timeout
@@ -125,7 +125,7 @@ class RemoteableExtensible(object):
         # callername = inspect.stack()[1][3]
         # if callername in ('__getattribute__', 'remoteCall'):
         #     raise RecursionError('Remoteable __getattribute__ {name}: add all object attrs to localAttributes')
-        isremote = object.__getattribute__(self, 'dataremote')
+        isremote = object.__getattribute__(self, 'isRemote')
         if isremote:
             localAttrs = object.__getattribute__(self, 'localAttributes')
             if name not in localAttrs:

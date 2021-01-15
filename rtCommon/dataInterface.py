@@ -26,9 +26,9 @@ class DataInterface(RemoteableExtensible):
     """
     Provides functions for accessing remote or local files depending on configuration
     """
-    def __init__(self, dataremote=False, allowedDirs=None, allowedFileTypes=None):
-        super().__init__(dataremote)
-        if dataremote is True:
+    def __init__(self, dataRemote=False, allowedDirs=None, allowedFileTypes=None):
+        super().__init__(isRemote=dataRemote)
+        if dataRemote is True:
             return
         self.initWatchSet = False
         self.watchDir = None
@@ -299,6 +299,10 @@ class DataInterface(RemoteableExtensible):
         return True
 
     def _filterFileList(self, fileList):
+        if self.allowedFileTypes is None or len(self.allowedFileTypes) == 0:
+            raise ValidationError('DataInterface: no allowed file types are set')
+        if self.allowedFileTypes[0] == '*':
+            return fileList
         filteredList = []
         for filename in fileList:
             if os.path.isdir(filename):
@@ -310,8 +314,8 @@ class DataInterface(RemoteableExtensible):
 
 # # This is a more specific class adding function the cloud client would run locally
 # class DataInterfaceClient(DataInterface):
-#     def __init__(self, dataremote=False):
-#         super().__init__(dataremote)
+#     def __init__(self, dataRemote=False):
+#         super().__init__(dataRemote)
 #         localOnlyFunctions = [
 #             'uploadFilesFromList',
 #             'downloadFilesFromList',

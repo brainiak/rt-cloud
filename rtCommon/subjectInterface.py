@@ -11,12 +11,12 @@ class SubjectInterface(RemoteableExtensible):
     """
     Provides functions for sending feedback and receiving reponses from the subject in the scanner.
     """
-    def __init__(self, dataremote=False):
-        super().__init__(dataremote=dataremote)
-        if dataremote is True:
+    def __init__(self, subjectRemote=False):
+        super().__init__(isRemote=subjectRemote)
+        if subjectRemote is True:
             return
         self.msgQueue = Queue()
-    
+
     def setResult(self, runId, trId, value):
         print(f'SubjectInterface: setResult: run {runId}, tr {trId}, value {value}')
         feedbackMsg = {
@@ -42,13 +42,13 @@ class SubjectInterface(RemoteableExtensible):
 
 # class SubjectInterface:
 #     """Provides functions for sending feedback and receiving reponses from the subject in the scanner."""
-#     def __init__(self, dataremote=False):
-#         self.dataremote = dataremote
+#     def __init__(self, dataRemote=False):
+#         self.dataRemote = dataRemote
 
 #     def sendClassificationResult(self, runId, trId, value):
 #         """Send classification results the a feedbackReceiver, such as running with psychoPy."""
 #         cmd = resultStruct(runId, trId, value)
-#         if not self.dataremote:
+#         if not self.dataRemote:
 #             _ = processPyScriptRequest(cmd)
 #         else:
 #             print(f'SubjectInterface: run {runId}, tr {trId}, value {value}')
