@@ -95,6 +95,9 @@ class Web():
         Web.ioLoopInst = tornado.ioloop.IOLoop.current()
         Web.webDisplayInterface = WebDisplayInterface(ioLoopInst=Web.ioLoopInst)
         Web.browserRequestHandler = WsBrowserRequestHandler(Web.webDisplayInterface, params, cfg)
+        # Note that some application handlers are added after the Web.app is created, including
+        # 'wsData' and 'wsSubject' which can't be added until after a handler instance is created.
+        # See projectServer.py where theses handlers are added.
         Web.app = tornado.web.Application([
             (r'/', HttpHandler, dict(htmlDir=Web.htmlDir, page='index.html')),
             (r'/feedback', HttpHandler, dict(htmlDir=Web.htmlDir, page='biofeedback.html')),  # shows image
@@ -139,7 +142,7 @@ class Web():
 
 
 class WsBrowserRequestHandler:
-    """Commands that the javascript running in the web browser can call"""
+    """Command handler for commands that the javascript running in the web browser can call"""
     def __init__(self, webDisplayInterface, params, cfg):
         self.webUI = webDisplayInterface
         self.runInfo = StructDict({'threadId': None, 'stopRun': False})
@@ -157,9 +160,15 @@ class WsBrowserRequestHandler:
         self._addScript('finalizeScript', params.finalizeScript, 'finalize')
 
     def _addScript(self, name, path, type):
+        """Add the experiment script to be connected to the various run button of the
+           web page. These include 'mainScript' for classification processing,
+           'initScript' for session initialization, and 'finalizeScript' for
+           any final processing at the end of a session.
+        """
         self.scripts[name] = (path, type)
 
     def on_getDefaultConfig(self):
+        """Return default configuration settings for the project"""
         # TODO - may need to remove certain fields that can't be jsonified
         if self.configFilename is not None and self.configFilename != '':
             cfg = loadConfigFile(self.configFilename)
@@ -168,12 +177,15 @@ class WsBrowserRequestHandler:
         self.webUI.sendConfig(cfg, filename=self.configFilename)
 
     def on_getDataPoints(self):
+        """Return data points that have been plotted"""
         self.webUI.sendPreviousDataPoints()
 
     def on_clearDataPoints(self):
+        """Clear all plot datapoints"""
         self.webUI.clearAllPlots()
 
     def on_runScript(self, name):
+        """Run one of the project scripts in a separate process"""
         sessionScript, logType = self.scripts.get(name)
         if sessionScript in (None, ''):
             self._setError(f"Script {name} is not registered, cannot run script")
@@ -192,6 +204,7 @@ class WsBrowserRequestHandler:
         self.runInfo.threadId.start()
 
     def on_stop(self):
+        """Stop execution of the currently running project script (only one can run at a time)"""
         if self.runInfo.threadId is not None:
             # TODO - stopRun need to be made global or runSesson part of this class
             self.runInfo.stopRun = True
@@ -201,6 +214,7 @@ class WsBrowserRequestHandler:
                 self.runInfo.stopRun = False
 
     def on_uploadFiles(self, request):
+        """Upload files from the dataServer to the cloud computer"""
         if self.runInfo.uploadThread is not None:
             self.runInfo.uploadThread.join(timeout=1)
             if self.runInfo.uploadThread.is_alive():
@@ -213,7 +227,11 @@ class WsBrowserRequestHandler:
         self.runInfo.uploadThread.start()
 
     def _wsBrowserCallback(self, client, message):
-        """Handles messages/requests received over web sockets from the web interface javascript.""" 
+        """
+        The main message handler for messages received over web sockets from the web
+        page javascript. It will parse the message and call the corresponding function
+        above to handle the request.
+        """
         # Callback functions to invoke when message received from client window connection
         request = json.loads(message)
         logging.log(DebugLevels.L3, f'browserCallback: {request}')
@@ -248,8 +266,8 @@ class WsBrowserRequestHandler:
             kwargs = {}
         # print(f'{cmd}: {args} {kwargs}')
         try:
-            # The invoked functions send any results to the clients, this allows the result to go to all connected clients
-            #  instead of just the client that made the request.
+            # The invoked functions send any results to the clients, this allows the result
+            #  to go to all connected clients instead of just the client that made the request.
             res = func(*args, **kwargs)
         except Exception as err:
             errStr = 'wsBrowserCallback: ' + str(err)
@@ -257,7 +275,10 @@ class WsBrowserRequestHandler:
         return
 
     def _runSession(self, cfg, pyScript, tag, logType='run'):
-        """Run the experimenter provided python script as a separate process."""
+        """
+        Run the experimenter provided python script as a separate process. Forward
+        the script's printed output to the web page's log message area.
+        """
         # write out config file for use by pyScript
         if logType == 'run':
             configFileName = os.path.join(self.confDir, 'cfg_sub{}_day{}_run{}.toml'.

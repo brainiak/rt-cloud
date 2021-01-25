@@ -1,5 +1,8 @@
-# An RPC server base class for encapsulating other classes and receiving requests 
-# that will call that encapsulated class
+"""
+An RPC server base class for encapsulating a service class and receiving requests that
+will call that encapsulated class. This is part of a remote service that communicates
+with the projectServer.
+"""
 import os
 import sys
 import re
@@ -23,6 +26,11 @@ class WsRemoteService:
     shouldExit = False
 
     def __init__(self, args, channelName):
+        """
+        Args:
+            args: Argparse args for establishing a connection to the projectServer
+            channelName: the websocket channel to connect on, e.g. 'wsData'
+        """
         self.channelName = channelName
         self.args = args
         self.sessionCookie = None
@@ -35,9 +43,11 @@ class WsRemoteService:
         # self.recvThread.start()
 
     def addHandlerClass(self, classType, classInstance):
+        """Register the class that will handle the received requests via the class type"""
         WsRemoteService.remoteHandler.registerClassInstance(classType, classInstance)
 
     def addHandlerClassName(self, className, classInstance):
+        """Register the class that will handle the received requests via the class name"""
         WsRemoteService.remoteHandler.registerClassNameInstance(className, classInstance)
 
     def runForever(self):
@@ -83,6 +93,11 @@ class WsRemoteService:
 
     @staticmethod
     def on_message(client, message):
+        """
+        Main message dispatcher that will get the request from projectServer
+        and call the registered handler to process the request. It will then
+        return the result of the handler function back to the projectServer.
+        """
         response = {'status': 400, 'error': 'unhandled request'}
         cmd = 'unknown'
         try:
@@ -149,14 +164,15 @@ def isNativeType(var):
 
 
 def encodeByteTypeArgs(cmd) -> dict:
-    '''
+    """
     Check if any args are of type 'bytes' and if so base64 encode them.
-    The original arg will be replaced with a tag that will reference the encoded bytes within the cmd dict.
+    The original arg will be replaced with a tag that will reference the encoded bytes
+        within the cmd dict.
     Args:
         cmd: a dictionary of the command to check
-    Returns: 
+    Returns:
         A cmd dictionary with the byte args encoded
-    '''
+    """
     args = cmd.get('args', ())
     byteArgIndices = []
     for i, arg in enumerate(args):
@@ -191,13 +207,13 @@ def encodeByteTypeArgs(cmd) -> dict:
 
 
 def decodeByteTypeArgs(cmd) -> dict:
-    '''
+    """
     Decodes rpc args that were previously encoded with encodeByteTypeArgs.
     Args:
         cmd: a dictionary with encoded args
     Returns:
         cmd: a dictionary with decoded args
-    '''
+    """
     byteArgIndices = cmd.get('encodedByteArgs')
     if byteArgIndices is not None:
         args = cmd.get('args', ())

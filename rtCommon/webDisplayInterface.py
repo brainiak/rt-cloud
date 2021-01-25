@@ -1,3 +1,8 @@
+"""
+WebDisplayInterface is a client interface (i.e. for the experiment script running in the cloud) 
+that provides calls that affect what is displayed in the users web browser. It is also used
+internally within projectServer for setting log and error messages within the web browser.
+"""
 import json
 import numbers
 from rtCommon.webSocketHandlers import sendWebSocketMessage
@@ -5,11 +10,16 @@ from rtCommon.errors import RequestError
 
 class WebDisplayInterface:
     def __init__(self, ioLoopInst=None):
+        """
+        Args:
+            ioLoopInst - Tornado webserver i/o event loop, for synchronizing websocket communication
+        """
         self.ioLoopInst = ioLoopInst
         # dataPoints is a list of lists, each inner list is the points for a runId of that index
         self.dataPoints = [[{'x': 0, 'y': 0}]]
 
     def userLog(self, logStr):
+        """Set a log message in the user log area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'userLog', 'value': logStr}
             self._sendMessageToWeb(json.dumps(cmd))
@@ -17,6 +27,7 @@ class WebDisplayInterface:
             print("UserLog: " + logStr)
 
     def sessionLog(self, logStr):
+        """Set a log message in the session log area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'sessionLog', 'value': logStr}
             self._sendMessageToWeb(json.dumps(cmd))
@@ -24,6 +35,7 @@ class WebDisplayInterface:
             print("SessionLog: " + logStr)
 
     def debugLog(self, logStr):
+        """Set a log message in the debug log area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'debugLog', 'value': logStr}
             self._sendMessageToWeb(json.dumps(cmd))
@@ -31,6 +43,7 @@ class WebDisplayInterface:
             print("DebugLog: " + logStr)
 
     def setUserError(self, errStr):
+        """Set an error message in the error display area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'userError', 'error': errStr}
             self._sendMessageToWeb(json.dumps(cmd))
@@ -38,6 +51,7 @@ class WebDisplayInterface:
             print("UseError: " + errStr)
 
     def setDebugError(self, errStr):
+        """Set an error message in the debug display area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'debugError', 'error': errStr}
             self._sendMessageToWeb(json.dumps(cmd))
@@ -45,6 +59,7 @@ class WebDisplayInterface:
             print("DebugError: " + errStr)
 
     def sendRunStatus(self, statusStr):
+        """Indicate run status in the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'runStatus', 'status': statusStr}
             self._sendMessageToWeb(json.dumps(cmd))
@@ -59,6 +74,7 @@ class WebDisplayInterface:
             print("UploadStatus: " + fileStr)
 
     def sendConfig(self, config, filename=''):
+        """Send the project configurations to the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'setConfig', 'value': config, 'filename': filename}
             self._sendMessageToWeb(json.dumps(cmd))
@@ -66,6 +82,7 @@ class WebDisplayInterface:
             print("sendConfig: " + filename)
 
     def sendPreviousDataPoints(self):
+        """Send previously plotted data points to the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'setDataPoints', 'value': self.dataPoints}
             self._sendMessageToWeb(json.dumps(cmd))
@@ -73,6 +90,7 @@ class WebDisplayInterface:
             print("sendPreviousDataPoints: " + self.dataPoints)
 
     def plotDataPoint(self, runId, trId, value):
+        """Add a new data point to the web page plots"""
         msg = {
             'cmd': 'plotDataPoint',
             'runId': runId,
@@ -86,13 +104,16 @@ class WebDisplayInterface:
             print(f"plotDataPoint: run {runId}, tr {trId}, value {value}")
 
     def clearAllPlots(self):
+        """Clear all data plots in the web page"""
         self.dataPoints = [[{'x': 0, 'y': 0}]]
         self.sendPreviousDataPoints()
 
     def clearRunPlot(self, runId):
+        """Clear the data plot for the specfied run"""
         self.plotDataPoint(runId, None, None)
 
     def getPreviousDataPoints(self):
+        """Local command to retrieve previously plotted points (doesn't send to web page)"""
         return self.dataPoints
 
     def _addResultValue(self, runId, trId, value):
@@ -114,9 +135,10 @@ class WebDisplayInterface:
             if val['x'] == x:
                 runVals[i] = {'x': x, 'y': y}
                 return
-        runVals.append({'x': x, 'y': y})    
+        runVals.append({'x': x, 'y': y})
 
     def _sendMessageToWeb(self, msg):
+        """Helper function used by the other methods to send a message to the web page"""
         if self.ioLoopInst is not None:
             self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsUser', msg=msg)
         else:

@@ -1,6 +1,13 @@
 """
-Client module for receiving and sending files to/from a remote FileWatcher. 
-Can also be used in local-mode accessing local files without a FileWatcher.
+DataInterface is a client interface (i.e. for the experiment script running in the cloud) that
+provides data access, such as reading and writing files.
+
+To support RPC calls from the client, there will be two instances of dataInterface, one
+at the cloud projectServer which is a stub to forward requests (started with dataRemote=True),
+and another at the control room computer, run as a service and with dataRemote=False.
+
+When not using RPC, i.e. when the projectServer is run with --localfiles, there will be only
+one instance of dataInterface, as part of the projectServer with dataRemote=False.
 """
 import os
 import re
@@ -10,23 +17,39 @@ import chardet
 import threading
 import logging
 from pathlib import Path
-from typing import List, Any
+from typing import List, Union
 import pydicom
 import rtCommon.utils as utils
 from rtCommon.remoteable import RemoteableExtensible
 from rtCommon.fileWatcher import FileWatcher
-from rtCommon.errors import StateError, RequestError, InvocationError, ValidationError, NotImplementedError
+from rtCommon.errors import StateError, RequestError, InvocationError, ValidationError
 from rtCommon.structDict import StructDict
-from rtCommon.rtTypes import StrOrBytes
 from rtCommon.imageHandling import readDicomFromBuffer
 
 
-# This is the most general purpose one (for example used in the control room file server)
 class DataInterface(RemoteableExtensible):
     """
-    Provides functions for accessing remote or local files depending on configuration
+    Provides functions for accessing remote or local files depending on if dateRemote flag is
+    set true or false. 
+
+    If dataRemote=True, then the RemoteExtensible parent class takes over and forwards all
+    requests to a remote server via a callback function registered with the RemoteExtensible object.
+    In that case *none* of the methods below will be locally invoked.
+
+    If dataRemote=False, then the methods below will be invoked locally and the RemoteExtensible
+    parent class is inoperable (i.e. does nothing).
     """
-    def __init__(self, dataRemote=False, allowedDirs=None, allowedFileTypes=None):
+    def __init__(self, dataRemote :bool=False, allowedDirs :List[str]=None, allowedFileTypes :List[str]=None):
+        """
+        Args:
+            dataRemote (bool): whether data will be served from the local instance or requests forwarded
+                to a remote instance for handling.
+            allowedDirs (list): list of directories from which files are allowed to be read/writting. File
+                operations will not be permitted unless the file path is a child of an allowed directory.
+            allowedFileTypes (list): list of file extensions, such as '.dcm', '.txt', for which file
+                operations are permitted. No file operations will be done unless the file extension matches
+                one on the list.
+        """
         super().__init__(isRemote=dataRemote)
         if dataRemote is True:
             return
@@ -144,7 +167,7 @@ class DataInterface(RemoteableExtensible):
         return data
 
     def getNewestFile(self, filepattern: str) -> bytes:
-        """Searches for files matching filePattern and returns the most recently created one."""
+        """Searches for files matching filePattern and returns the data from the newest one."""
         data = None
         baseDir, filePattern = os.path.split(filepattern)
         self._checkAllowedDirs(baseDir)
@@ -218,9 +241,10 @@ class DataInterface(RemoteableExtensible):
                 data = fp.read()
         return data
 
-    def putFile(self, filename: str, data: StrOrBytes, compress: bool=False) -> None:
+    def putFile(self, filename: str, data: Union[str, bytes], compress: bool=False) -> None:
         """
-        Writes bytes or text file filename. In remote mode the file is written at the remote.
+        Create a file (filename) and write the bytes or text to it. 
+        In remote mode the file is written at the remote.
 
         Args:
             filename: Name of file to create
@@ -243,7 +267,7 @@ class DataInterface(RemoteableExtensible):
         return
 
     def listFiles(self, filepattern: str) -> List[str]:
-        """Lists files matching regex filePattern from the remote filesystem"""
+        """Lists files matching the regex filePattern"""
         fileDir, fileCheck = os.path.split(filepattern)
         self._checkAllowedDirs(fileDir)
         self._checkAllowedFileTypes(fileCheck)
@@ -259,10 +283,10 @@ class DataInterface(RemoteableExtensible):
         return fileList
 
     def getAllowedFileTypes(self) -> List[str]:
-        """Returns file extensions which remote filesystem will allow to read and write"""
+        """Returns the list of file extensions which are allowed for read and write"""
         return self.allowedFileTypes
 
-    def _checkAllowedDirs(self, dir):
+    def _checkAllowedDirs(self, dir: str) -> bool:
         if self.allowedDirs is None or len(self.allowedDirs) == 0:
             raise ValidationError('DataInterface: no allowed directories are set')
         if dir is None:
@@ -281,7 +305,8 @@ class DataInterface(RemoteableExtensible):
                 'Specify allowed directories with FileServer -d parameter.')
         return True
 
-    def _checkAllowedFileTypes(self, filename) -> bool:
+    def _checkAllowedFileTypes(self, filename: str) -> bool:
+        """ Class-private function for checking if a file is allowed."""
         if self.allowedFileTypes is None or len(self.allowedFileTypes) == 0:
             raise ValidationError('DataInterface: no allowed file types are set')
         if filename is None or filename == '':
@@ -298,7 +323,11 @@ class DataInterface(RemoteableExtensible):
                 "Specify allowed filetypes with FileServer -f parameter.")
         return True
 
-    def _filterFileList(self, fileList):
+    def _filterFileList(self, fileList: List[str]) -> List[str]:
+        """Class-private funtion to filter a list of files to include only allowed ones.
+            Args: fileList - list of files to filter
+            Returns: filtered fileList - containing only the allowed files
+        """
         if self.allowedFileTypes is None or len(self.allowedFileTypes) == 0:
             raise ValidationError('DataInterface: no allowed file types are set')
         if self.allowedFileTypes[0] == '*':
@@ -312,25 +341,13 @@ class DataInterface(RemoteableExtensible):
                 filteredList.append(filename)
         return filteredList
 
-# # This is a more specific class adding function the cloud client would run locally
-# class DataInterfaceClient(DataInterface):
-#     def __init__(self, dataRemote=False):
-#         super().__init__(dataRemote)
-#         localOnlyFunctions = [
-#             'uploadFilesFromList',
-#             'downloadFilesFromList',
-#             'uploadFolderToCloud',
-#             'uploadFilesToCloud',
-#             'downloadFolderFromCloud',
-#             'downloadFilesFromCloud',
-#         ]
-#         self.addLocalAttributes(localOnlyFunctions)
 
-### Helper Function to upload and download sets of files ###
-def uploadFilesFromList(dataInterface, fileList, outputDir, srcDirPrefix=None):
+#################################################################################
+### Helper Function to upload and download sets of files from or to the cloud ###
+#################################################################################
+def uploadFilesFromList(dataInterface, fileList :List[str], outputDir :str, srcDirPrefix=None) -> None:
     """
-    Copies files in fileList from the remote onto the system
-        where this call is being made.
+    Copies files in fileList from the remote onto the system where this call is being made.
     """
     for file in fileList:
         fileDir, filename = os.path.split(file)
@@ -349,8 +366,10 @@ def uploadFilesFromList(dataInterface, fileList, outputDir, srcDirPrefix=None):
         logging.info('upload: {} --> {}'.format(file, outputFilename))
         utils.writeFile(outputFilename, data)
 
-def downloadFilesFromList(dataInterface, fileList, outputDir, srcDirPrefix=None):
-    """Copies files in fileList from this computer to the remote."""
+def downloadFilesFromList(dataInterface, fileList :List[str], outputDir :str, srcDirPrefix=None) -> None:
+    """
+    Copies files in fileList from this computer to the remote.
+    """
     for file in fileList:
         if os.path.isdir(file):
             continue
@@ -367,8 +386,10 @@ def downloadFilesFromList(dataInterface, fileList, outputDir, srcDirPrefix=None)
         dataInterface.putFile(outputFilename, data)
     return
 
-def uploadFolderToCloud(dataInterface, srcDir, outputDir):
-    """Copies a folder (directory) from the remote to the system where this call is run"""
+def uploadFolderToCloud(dataInterface, srcDir :str, outputDir :str) -> None:
+    """
+    Copies a folder (directory) from the remote to the system where this call is run
+    """
     allowedFileTypes = dataInterface.getAllowedFileTypes()
     logging.info('Uploading folder {} to cloud'.format(srcDir))
     logging.info('UploadFolder limited to file types: {}'.format(allowedFileTypes))
@@ -379,7 +400,7 @@ def uploadFolderToCloud(dataInterface, srcDir, outputDir):
     srcPrefix = os.path.dirname(srcDir)
     uploadFilesFromList(dataInterface, fileList, outputDir, srcDirPrefix=srcPrefix)
 
-def uploadFilesToCloud(dataInterface, srcFilePattern, outputDir):
+def uploadFilesToCloud(dataInterface, srcFilePattern :str, outputDir :str):
     """
     Copies files matching (regex) srcFilePattern from the remote onto the system 
         where this call is being made.
@@ -388,8 +409,10 @@ def uploadFilesToCloud(dataInterface, srcFilePattern, outputDir):
     fileList = dataInterface.listFiles(srcFilePattern)
     uploadFilesFromList(dataInterface, fileList, outputDir)
 
-def downloadFolderFromCloud(dataInterface, srcDir, outputDir, deleteAfter=False):
-    """Copies a directory from the system where this call is made to the remote system."""
+def downloadFolderFromCloud(dataInterface, srcDir :str, outputDir :str, deleteAfter=False) -> None:
+    """
+    Copies a directory from the system where this call is made to the remote system.
+    """
     allowedFileTypes = dataInterface.getAllowedFileTypes()
     logging.info('Downloading folder {} from the cloud'.format(srcDir))
     logging.info('DownloadFolder limited to file types: {}'.format(allowedFileTypes))
@@ -407,7 +430,7 @@ def downloadFolderFromCloud(dataInterface, srcDir, outputDir, deleteAfter=False)
     if deleteAfter:
         utils.deleteFilesFromList(filteredList)
 
-def downloadFilesFromCloud(dataInterface, srcFilePattern, outputDir, deleteAfter=False):
+def downloadFilesFromCloud(dataInterface, srcFilePattern :str, outputDir :str, deleteAfter=False) -> None:
     """
     Copies files matching srcFilePattern from the system where this call is made
         to the remote system.
@@ -417,3 +440,20 @@ def downloadFilesFromCloud(dataInterface, srcFilePattern, outputDir, deleteAfter
     if deleteAfter:
         utils.deleteFilesFromList(fileList)
 
+
+# Previous - distinguished which functions should always run locally (i.e. upload and download
+# functions) using this class definition.
+#
+# # This is a more specific class adding function the cloud client would run locally
+# class DataInterfaceClient(DataInterface):
+#     def __init__(self, dataRemote=False):
+#         super().__init__(dataRemote)
+#         localOnlyFunctions = [
+#             'uploadFilesFromList',
+#             'downloadFilesFromList',
+#             'uploadFolderToCloud',
+#             'uploadFilesToCloud',
+#             'downloadFolderFromCloud',
+#             'downloadFilesFromCloud',
+#         ]
+#         self.addLocalAttributes(localOnlyFunctions)

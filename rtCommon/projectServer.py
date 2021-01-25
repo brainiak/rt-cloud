@@ -1,8 +1,10 @@
+"""
+Main (command-line) program for running the projectServer.
+Instantiates both the web interface and an RPC server for handling client script commnds.
+"""
 import os
 import sys
 import time
-import json
-import pickle
 import argparse
 import threading
 import logging
@@ -12,11 +14,9 @@ sys.path.append(rootPath)
 from rtCommon.webServer import Web
 from rtCommon.structDict import StructDict
 from rtCommon.utils import installLoggers
-from rtCommon.errors import InvocationError, StateError, RequestError
-from rtCommon.projectUtils import unpackDataMessage
-from rtCommon.wsRemoteService import encodeByteTypeArgs, decodeByteTypeArgs
-from rtCommon.projectServerRPC import startRPCThread, ProjectRPCService
-from rtCommon.webSocketHandlers import RequestHandler, DataWebSocketHandler
+from rtCommon.errors import InvocationError
+from rtCommon.projectServerRPC import startRPCThread, ProjectRPCService, RPCHandlers
+from rtCommon.webSocketHandlers import DataWebSocketHandler
 
 
 class ProjectServer:
@@ -45,7 +45,7 @@ class ProjectServer:
     def start(self):
         """Start the Web and RPC servers. This function doesn't return."""
         web = Web()
-        # web.start(self.params, self.args.config, testMode=self.args.test)
+        # run in a thread - web.start(self.params, self.args.config, testMode=self.args.test)
         webThread = threading.Thread(name='webServerThread',
                                     target=web.start,
                                     args=(self.params, self.args.config,),
@@ -57,12 +57,16 @@ class ProjectServer:
             time.sleep(0.1)
         self.web = web
 
+        # Make the websocket RPC handlers that will forward rpyc requests to the 
+        #   remote service over websocket connections
         rpcHandlers = RPCHandlers(Web.ioLoopInst, Web.webDisplayInterface)
+        # Add webSocket handlers for 'wsData' and 'wsSubject' urls, e.g. wss://server:port/wsData
         Web.addHandlers([(r'/wsData', DataWebSocketHandler,
                           dict(name='wsData', callback=rpcHandlers.dataWsCallback))])
         Web.addHandlers([(r'/wsSubject', DataWebSocketHandler,
                           dict(name='wsSubject', callback=rpcHandlers.subjectWsCallback))])
 
+        # Start the rpyc RPC server that the client script connects to
         rpcService = ProjectRPCService(dataRemote=self.args.dataRemote,
                                        subjectRemote=self.args.subjectRemote,
                                        webUI=Web.webDisplayInterface)
@@ -71,115 +75,9 @@ class ProjectServer:
         self.started = True
         startRPCThread(rpcService, hostname='localhost', port=12345)
 
-        # rpcThread = threading.Thread(name='rpcThread',
-        #                             target=startProjectRPCThread,
-        #                             args=(rpcService,),
-        #                             kwargs={'hostname': 'localhost',
-        #                                     'port': 12345})
-        # rpcThread.setDaemon(True)
-        # rpcThread.start()
-
     def stop(self):
         # TODO - stop RPCThread
         self.web.stop()
-
-# TODO: Perhaps move to ProjectServerRPC?
-class RPCHandlers:
-    def __init__(self, ioLoopInst, webDisplayInterface):
-        self.ioLoopInst = ioLoopInst
-        self.webUI = webDisplayInterface
-        self.handlers = {}
-        self.handlers['wsData'] = RequestHandler('wsData', ioLoopInst)
-        self.handlers['wsSubject'] = RequestHandler('wsSubject', ioLoopInst)
-
-    def dataWsCallback(self, client, message):
-        handler = self.handlers.get('wsData')
-        if handler is None:
-            raise StateError(f'RPC Handler wsData not registered')
-        try:
-            handler.callback(client, message)
-        except Exception as err:
-            self.setError('dataWsCallback: ' + format(err))
-
-    def subjectWsCallback(self, client, message):
-        handler = self.handlers.get('wsSubject')
-        if handler is None:
-            raise StateError(f'RPC Handler wsSubject not registered')
-        try:
-            handler.callback(client, message)
-        except Exception as err:
-            self.setError('subjectWsCallback: ' + format(err))
-
-    def dataRequest(self, cmd, timeout=60):
-        try:
-            return self.handleRPCRequest('wsData', cmd, timeout)
-        except Exception as err:
-            self.setError('DataRequest: ' + format(err))
-            raise err;
-
-    def subjectRequest(self, cmd, timeout=60):
-        try:
-            return self.handleRPCRequest('wsSubject', cmd, timeout)
-        except Exception as err:
-            self.setError('SubjectRequest: ' + format(err))
-            raise err;
-
-    def close_pending_requests(self, channelName):
-        handler = self.handlers.get(channelName)
-        if handler is None:
-            raise StateError(f'RPC Handler {channelName} not registered')
-        try:
-            handler.close_pending_requests()
-        except Exception as err:
-            self.setError('close_pending_requests: ' + format(err))
-
-    def setError(self, errStr):
-        errStr = 'RPC Handler: ' + errStr
-        print(errStr)
-        logging.error(errStr)
-        self.webUI.setUserError(errStr)
-
-    def handleRPCRequest(self, channelName, cmd, timeout=60):
-        """Process RPC requests using websocket RequestHandler to send the request"""
-        """Caller will catch exceptions"""
-        handler = self.handlers[channelName]
-        if handler is None:
-            raise StateError(f'RPC Handler {channelName} not registered')
-        savedError = None
-        incomplete = True
-        # print(f'handle request {cmd}')
-        if cmd.get('cmd') == 'rpc':
-            # if cmd is rpc, check and encode any byte args as base64
-            cmd = encodeByteTypeArgs(cmd)
-            # TODO - also encode numpy ints and floats as python ints and floats
-        while incomplete:
-            response = handler.doRequest(cmd, timeout)
-            if response.get('status') != 200:
-                errStr = 'handleDataRequest: status {}, err {}'.format(
-                            response.get('status'), response.get('error'))
-                self.setError(errStr)
-                raise RequestError(errStr)
-            try:
-                data = unpackDataMessage(response)
-            except Exception as err:
-                errStr = 'handleDataRequest: unpackDataMessage: {}'.format(err)
-                logging.error(errStr)
-                if savedError is None:
-                    savedError = errStr
-            incomplete = response.get('incomplete', False)
-            cmd['callId'] = response.get('callId', -1)
-            cmd['incomplete'] = incomplete
-        if savedError:
-            self.setError(savedError)
-            raise RequestError(savedError)
-        serializationType = response.get('dataSerialization')
-        if serializationType == 'json':
-            if type(data) is bytes:
-                data = data.decode()
-            data = json.loads(data)
-        elif serializationType == 'pickle':
-            data = pickle.loads(data)
-        return data
 
 
 if __name__ == "__main__":
@@ -219,7 +117,6 @@ if __name__ == "__main__":
 
     installLoggers(logging.INFO, logging.INFO, filename=os.path.join(currPath, f'logs/{args.projectName}.log'))
 
-    # start the webServer server
-
+    # start the projectServer
     projectServer = ProjectServer(args)
     projectServer.start()

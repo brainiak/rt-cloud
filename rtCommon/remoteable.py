@@ -1,20 +1,22 @@
-import inspect
-import pickle  # TODO remote this
-from rtCommon.errors import RequestError, StateError
+"""
+A set of classes that can be subclassed or extended to allow for automatically forwarding
+methods calls on the subclass to a remote RPC handler.
 
-'''
-On cloud side we will have a remoteInstance (with remoteCall stub) that calls 
+On cloud side we will have a remoteInstance (with remoteCall stub) that calls
 the networking crossbar to send the request to the remote.
 On the remote side we will have a RemoteHandler instance and when messages are received
 will dispatch them to the handler.
-'''
+"""
+import inspect
+from rtCommon.errors import RequestError, StateError
+
 
 # Possibility A - the "has a" model, returns a 'remote' instance, nothing to do with the original class
 class Remoteable(object):
-    '''
+    """
     A class that can be subclassed to allow remote invocation.
     When isRemote is True it returns a remote stub instance, when false it returns the real instance
-    '''
+    """
     def __new__(cls, isRemote=False):
         if isRemote is True:
             # instance = RemoteStub(cls.__name__)
@@ -28,12 +30,12 @@ class Remoteable(object):
 
 
 class RemoteStub(object):
-    '''
+    """
     A remote stub class where none of the attributes of the original class are defined.
     Therefore __getattr__ will be called for all attributes (i.e. intercepting normal calls)
     and this class overrides __getattr__ to forward the call request to a remote instance
     via the registered communication channel function.
-    '''
+    """
     def __init__(self, classType, isRemote=True):
         assert isRemote is True
         self.isRemote = True  # always true for the remote stup
@@ -75,12 +77,12 @@ class RemoteStub(object):
 # Possibility B - the "is a" model, subclass the remoteable class
 # Note - this just seems too complicated with the recursion of __getattribute__
 class RemoteableExtensible(object):
-    '''
+    """
     A class that can be subclassed to allow remote invocation. The remote and local versions
-    are the same class type (not a stub) and in the remote instance case attributes can 
+    are the same class type (not a stub) and in the remote instance case attributes can
     be registerd as 'local' meaning calls to them will be handled local, all other calls
     would be sent to the remote instance.
-    '''
+    """
     def __init__(self, isRemote=False):
         self.isRemote = isRemote
         self.commFunction = None
@@ -90,7 +92,6 @@ class RemoteableExtensible(object):
             'addLocalAttributes', 'registerCommFunction',
             'setRPCTimeout', 'isRunningRemote', 'isRemote'
             ]
-        # 'timeout',
 
     def isRunningRemote(self):
         return self.isRemote
@@ -145,13 +146,13 @@ class RemoteableExtensible(object):
 
 
 # TODO - support per client remote instances, either by having a per-client classInstanceDict
-#  or by supporting a 'new' function call, or by returning handles of the instances (although 
+#  or by supporting a 'new' function call, or by returning handles of the instances (although
 #  that might be more complext than needed)
 class RemoteHandler:
-    '''
+    """
     Class that runs at the remote and as message requests are received they are dispatched
     to this class for processing.
-    '''
+    """
     def __init__(self):
         self.classInstanceDict = {}
 

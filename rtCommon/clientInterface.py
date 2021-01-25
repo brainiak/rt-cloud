@@ -1,3 +1,21 @@
+"""
+This module will be imported by the experiment script (i.e. client) running in the cloud and 
+provide the interfaces for all functionality provided to the client by the rt-cloud
+projectServer.
+
+The client script instantiates a clientInterface object. It will automatically connect
+to the projectServer running on the localhost (i.e. same host as the client). If a 
+connection is established the interfaces listed below will be stubs that forward requests
+to remote servers that will handle the requsts. If the connection fails (i.e. there is no
+projectServer running), then local versions of the services will be instantiated, for example
+to access local files instead of remote files. The user will be prompted if local versions
+will be used.
+
+Client Service Interfaces provided (i.e. for the classification script client):
+    dataInterface - to read and write files from the remote server
+    subjectInterface - to send subject feedback and receive responses
+    webInterface - to set browser messages, update plots, send/receive configs
+"""
 import rpyc
 from rtCommon.dataInterface import DataInterface
 from rtCommon.subjectInterface import SubjectInterface
@@ -56,21 +74,29 @@ class ClientInterface:
                 raise err
 
     def isDataRemote(self):
+        """
+        Will return false if either no project server is running, or if a projectServer
+        is running with data being served locally by the projectServer (remember that the
+        projectServer and classification client script always run on the same computer).
+        """
         if self.rpcConn is not None:
             return self.rpcConn.root.isDataRemote()
         else:
             return False
 
     def isSubjectRemote(self):
+        """
+        Same semantics as isDataRemote above.
+        """
         if self.rpcConn is not None:
             return self.rpcConn.root.isSubjectRemote()
         else:
             return False
 
 class DataInterfaceOverrides(object):
-    '''Override the getImageData function of DataInterface 
+    """Override the getImageData function of DataInterface
        to return the actual data rather than an RPC reference
-    '''
+    """
 
     def __init__(self, remoteDataInterface):
         self.remote = remoteDataInterface

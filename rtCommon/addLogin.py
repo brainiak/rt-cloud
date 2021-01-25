@@ -1,3 +1,12 @@
+"""
+A command-line script to add or change a user/password for access to the web portal.
+The password file is store in rt-cloud/certs/passwd
+
+Examples:
+    $ python addLogin.py   # username and password will be requested at prompt
+    $ python addLogin.py -u <username> -p <password>
+    $ python addLogin.py -username <username> -password <password>
+"""
 import os
 import sys
 import getpass
@@ -8,7 +17,7 @@ import argparse
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(currPath)
 sys.path.append(rootPath)
-from rtCommon.webServer import loadPasswdFile, storePasswdFile
+from rtCommon.webHttpHandlers import loadPasswdFile, storePasswdFile
 
 passwordFile = 'certs/passwd'
 

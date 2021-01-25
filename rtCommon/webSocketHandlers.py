@@ -33,6 +33,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             websocketState.wsCallbacks[name] = defaultWebsocketCallback
 
     def open(self):
+        """Called when a new client connection is established"""
         user_id = self.get_secure_cookie("login")
         if not user_id:
             logging.warning(f'websocket {self.name} authentication failed')
@@ -52,6 +53,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
         print(f'{self.name} WebSocket: connected {self.request.remote_ip}')
 
     def on_close(self):
+        """Called when the client connection is closed"""
         logging.log(DebugLevels.L1, f"{self.name} WebSocket closed")
         websocketState.wsConnLock.acquire()
         try:
@@ -65,6 +67,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             websocketState.wsConnLock.release()
 
     def on_message(self, message):
+        """Called when a message is received from a client connection"""
         client_conn = self
         callback_func = websocketState.wsCallbacks.get(self.name)
         try:
@@ -123,16 +126,16 @@ def defaultWebsocketCallback(client, message):
 ###################
 '''
 Data Mesage Handler:
-This is for sending requests to fileWatcher and receiving replies (kind of an RPC)
+This is for sending requests to a remote service and receiving replies (kind of an RPC)
 Step 1: Prepare to send request, cache a callback structure which will match with the request
 Step 2: Send the request
 Step 3: Get replies, match the reply to the callback structure and signal a semaphore
 '''
 class RequestHandler:
     """
-    Class for handling data requests (such with a remote DataInterface). Each data requests is
+    Class for handling remote requests (such with a remote DataInterface). Each data requests is
     given a unique ID and callbacks from the client are matched to the original request and results
-    returned to the corresponding caller. 
+    returned to the corresponding caller.
     """
     def __init__(self, name, ioLoopInst):
         self.dataCallbacks = {}
@@ -144,7 +147,12 @@ class RequestHandler:
 
     # Top level function to make a remote request
     def doRequest(self, msg, timeout=None):
-        """Send a request over the web socket, i.e. to the remote FileWatcher."""
+        """
+        Send a request over the web socket, i.e. to the remote FileWatcher.
+        This is typically the only call that a user of this class would make.
+        It is the highest level call of this class, it uses the other methods to
+        complete the request.
+        """
         # print(f'doRequest: {msg}')
         call_id, conn = self.prepare_request(msg)
         isNewRequest = not msg.get('incomplete', False)

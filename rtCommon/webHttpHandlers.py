@@ -1,5 +1,5 @@
 """
-This module provides the callback handlers what the web server will utilize
+This module provides the callback handlers that the web server will utilize
     when handling and rendering html page reqeusts.
 """
 import os
@@ -25,6 +25,7 @@ class HttpHandler(tornado.web.RequestHandler):
 
     @tornado.web.authenticated
     def get(self):
+        """Handle a web GET request by returning the appropriate web content to render"""
         full_path = os.path.join(self.htmlDir, self.page)
         logging.log(DebugLevels.L6, f'{self.request.uri} request: pwd: {full_path}')
         self.httpLock.acquire()
