@@ -53,7 +53,6 @@ def processShouldExitThread():
         time.sleep(0.5)
 
 
-
 def generateDataParts(data, msg, compress):
     """
     A python "generator" that, for data > 10 MB, will create multi-part

@@ -129,6 +129,8 @@ class LogoutHandler(tornado.web.RequestHandler):
 
 
 def loadPasswdFile(filename):
+    if not os.path.exists(filename):
+        return {}
     with open(filename, 'r') as fh:
         entries = fh.readlines()
     passwdDict = {k: v for (k, v) in [line.strip().split(',') for line in entries]}
