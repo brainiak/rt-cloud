@@ -164,7 +164,6 @@ class RequestHandler:
         return response
 
     # Step 1 - Prepare the request, record the callback struct and ID for when the reply comes
-    # was sendDataMsgFromThreadAsync(msg):  - TODO remove
     def prepare_request(self, msg):
         """Prepate a request to be sent, including creating a callback structure and unique ID."""
         # Get data server connection the request will be sent on

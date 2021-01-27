@@ -148,7 +148,6 @@ def readRetryDicomFromDataInterface(dataInterface, filename, timeout=5):
         retries += 1
         try:
             data = dataInterface.watchFile(filename, timeout)
-            # TODO - Inject error here and see if commpipe remains open
             dicomImg = readDicomFromBuffer(data)
             # check that pixel array is complete
             dicomImg.convert_pixel_data()

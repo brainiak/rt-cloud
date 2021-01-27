@@ -140,7 +140,7 @@ def buildSubjectFoldersOnServer(cfg):
 ####################################################################################
 # from initialize import *
 # defaultConfig = 'conf/amygActivation.toml'
-# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9', 'commpipe': None, 'dataRemote': True})
+# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9'})
 ####################################################################################
 
 def main(argv=None):

@@ -279,7 +279,6 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         if verbose:
             print("| max activation value for TR %d is %d" %(this_TR, max_niftiData))
 
-        # TODO - fix this comment
         """
         INPUT:
             [1] projectComm (the communication pipe)

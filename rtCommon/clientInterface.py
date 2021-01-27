@@ -68,7 +68,9 @@ class ClientInterface:
                 self.dataInterface = DataInterface(dataRemote=False, allowedDirs=['*'], allowedFileTypes=['*'])
                 self.subjInterface = SubjectInterface(subjectRemote=False)
                 self.bidsInterface = BidsInterface(dataRemote=False)
-                # TODO: this can't run locally? There is no remote option for webDisplayService because it always runs local within the projectServer
+                # Without a webServer (projectServer) the webInterface won't be able to do
+                #   anything. Create a stub instance here with ioLoopInst=None so that calls
+                #   to it won't thow exceptions.
                 self.webInterface = WebDisplayInterface(ioLoopInst=None)
             else:
                 raise err
@@ -120,7 +122,7 @@ class DataInterfaceOverrides(object):
         val = rpyc.classic.obtain(ref)
         return val
 
-    # TODO
+    # TODO - make a more efficient getFile and putFile
     # def getFile():
     #  calls getFileMulti() repeatedly until all parts have been received and returns the data.
     #  note that for most files (<10M) there will only be one part, the reply will contain part x of y.

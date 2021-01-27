@@ -312,7 +312,7 @@ def split_tol(test_list, tol):
 # testing code--debug mode -- run in amygActivation directory
 # from amygActivation import *
 # defaultConfig = 'conf/sampleCfg.toml'
-# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9', 'commpipe': None, 'dataRemote': True})
+# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9'})
 # runIndex=0
 # TRFilenum=9
 

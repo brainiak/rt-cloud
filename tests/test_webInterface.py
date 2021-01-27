@@ -86,6 +86,7 @@ class TestWebInterface:
         # TODO - for some reason json.dumps() of a dict within a dict is failing
         #  within sendConfig. But it works in ipython. Temporarily json encoded
         #  the inner dict separately
+        # webInterface.sendConfig(testCfg, 'testfile')
         jCfg = json.dumps(testCfg)
         webInterface.sendConfig(jCfg, 'testfile')
         expectWebResult(ws, 'setConfig', 'value', jCfg)

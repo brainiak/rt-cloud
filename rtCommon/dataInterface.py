@@ -133,12 +133,10 @@ class DataInterface(RemoteableExtensible):
             retries += 1
             try:
                 data = self.watchFile(filename, timeout)
-                # TODO - Inject error here and see if commpipe remains open
                 dicomImg = readDicomFromBuffer(data)
                 # Convert pixel data to a numpy.ndarray internally.
                 # Note: the conversion cause error in pickle encoding
                 # dicomImg.convert_pixel_data()
-                # successful
                 self.streamInfo.imgIndex = imageIndex + 1
                 return dicomImg
             except TimeoutError as err:
