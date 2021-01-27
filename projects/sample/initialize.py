@@ -1,6 +1,6 @@
 """-----------------------------------------------------------------------------
 
-initialize.py (Last Updated: 01/16/2020)
+initialize.py (Last Updated: 01/26/2021)
 
 The purpose of this script is to initialize the rt-cloud session. Specifically,
 it will initiate any variables that need to be initiated (e.g., configuration
@@ -100,7 +100,7 @@ def initialize(cfg, dataInterface):
     #               from the stimulus computer)
     #       [2] srcPattern (the file pattern for the source directory)
     #       [3] outputDir (the directory where you want the files to go)
-    srcPattern = os.path.join(stimulusDir,'**')
+    srcPattern = os.path.join(stimulusDir, '**')
     uploadFilesToCloud(dataInterface, srcPattern, cloudDir)
 
     print(""
@@ -121,8 +121,6 @@ def main(argv=None):
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment config file (.json or .toml)')
-    argParser.add_argument('--dataRemote', '-x', default=False, action='store_true',
-                           help='retrieve files from the remote server')
     args = argParser.parse_args(argv)
 
     # load the experiment configuration file

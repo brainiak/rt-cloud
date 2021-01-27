@@ -10,9 +10,13 @@ Note: This service is intended as an example. In practice this subjectInterface 
 be instantiated within the presentation script and there it would use WsRemoteService
 to connect this instance to the remote projectServer where the classification is script running.
 """
-import time
+import os
+import sys
 import logging
 import threading
+currPath = os.path.dirname(os.path.realpath(__file__))
+rootPath = os.path.dirname(currPath)
+sys.path.append(rootPath)
 from rtCommon.subjectInterface import SubjectInterface
 from rtCommon.wsRemoteService import WsRemoteService, parseConnectionArgs
 from rtCommon.utils import installLoggers

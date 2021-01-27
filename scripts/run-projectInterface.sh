@@ -5,7 +5,7 @@ while test $# -gt 0
 do
   case "$1" in
     -h)
-      echo "$0 -p <projectName> [-d <projectDir>] [-c <toml_file>] [-m <main_script.py>] [-ip <local_ip_or_hostname>] [--localfiles] [--test]"
+      echo "$0 -p <projectName> [-d <projectDir>] [-c <toml_file>] [-m <main_script.py>] [-ip <local_ip_or_hostname>] [--localfiles] [--localsubject] [--test]"
       exit 0
       ;;
     -c) CFG=$2
@@ -19,6 +19,8 @@ do
     -m) MAIN_SCRIPT=$2
       ;;
     --localfiles) USELOCALFILES=1
+      ;;
+    --localsubject) USELOCALSUBJECT=1
       ;;
     --test) TEST_PARAM='-t'
       ;;
@@ -43,11 +45,16 @@ if [ ! -z $MAIN_SCRIPT ]; then
   MAIN_SCRIPT_PARAM="-m $MAIN_SCRIPT"
 fi
 
-R_PARAM=''
+DATA_REMOTE_PARAM=''
 if [ -z $USELOCALFILES ]; then
   # USELOCALFILES not set, use remote files
-  # TODO - have separate flags for dataRemote and subjectRemote
-  R_PARAM='-x -s'
+  DATA_REMOTE_PARAM='-x'
+fi
+
+SUBJECT_REMOTE_PARAM=''
+if [ -z $USELOCALSUBJECT ]; then
+  # USELOCALSUBJECT not set, use subject setting
+  SUBJECT_REMOTE_PARAM='-s'
 fi
 
 pushd web
@@ -67,5 +74,4 @@ if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "rtcloud" ]; then
 fi
 
 export PYTHONPATH=./rtCommon/:$PYTHONPATH
-echo python rtCommon/projectServer.py -p $PROJECT $CFG_PARAM $MAIN_SCRIPT_PARAM $R_PARAM  $TEST_PARAM
-python rtCommon/projectServer.py -p $PROJECT $CFG_PARAM $MAIN_SCRIPT_PARAM $R_PARAM  $TEST_PARAM
+python rtCommon/projectServer.py -p $PROJECT $CFG_PARAM $MAIN_SCRIPT_PARAM $DATA_REMOTE_PARAM $SUBJECT_REMOTE_PARAM $TEST_PARAM

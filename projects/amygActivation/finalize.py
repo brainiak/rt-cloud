@@ -1,20 +1,10 @@
 # Purpose: get experiment ready
 
 import os
-import glob
-import numpy as np
-from subprocess import call
-import time
-import nilearn
-from scipy import stats
-import scipy.io as sio
-import pickle
-import nibabel as nib
-import argparse
-import random
 import sys
-from datetime import datetime
-from dateutil import parser
+import glob
+import argparse
+import numpy as np
 
 # WHEN TESTING - COMMENT OUT
 currPath = os.path.dirname(os.path.realpath(__file__))
@@ -27,7 +17,6 @@ sys.path.append(rootPath)
 import rtCommon.utils as utils
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.dataInterface import downloadFilesFromList
-from rtCommon.structDict import StructDict
 #from rtCommon.dicomNiftiHandler import getTransform
 from rtCommon.imageHandling import getTransform
 from projects.amygActivation.initialize import initialize
@@ -57,11 +46,6 @@ def main(argv=None):
 	argParser = argparse.ArgumentParser()
 	argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
 						   help='experiment config file (.json or .toml)')
-	# This parameter is used for projectInterface
-	argParser.add_argument('--commpipe', '-q', default=None, type=str,
-						   help='Named pipe to communicate with projectInterface')
-	argParser.add_argument('--addr', '-a', default='localhost', type=str, 
-			   help='server ip address')
 	argParser.add_argument('--runs', '-r', default='', type=str,
 					   help='Comma separated list of run numbers')
 	argParser.add_argument('--scans', '-s', default='', type=str,

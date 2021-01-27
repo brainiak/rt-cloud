@@ -41,6 +41,7 @@ class ProjectServer:
              'port' : args.port,
             })
         self.web = None
+        # print(f'remote settings: {self.args.dataRemote}, {self.args.subjectRemote}')
 
     def start(self):
         """Start the Web and RPC servers. This function doesn't return."""

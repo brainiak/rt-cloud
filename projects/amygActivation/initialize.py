@@ -3,18 +3,10 @@
 # move and delete all sever data
 
 import os
-import glob
-import numpy as np
-from subprocess import call
-import time
-import nilearn
-from scipy import stats
-import scipy.io as sio
-import pickle
-import nibabel as nib
-import argparse
-import random
 import sys
+import time
+import argparse
+import numpy as np
 from datetime import datetime
 from dateutil import parser
 
@@ -28,10 +20,10 @@ sys.path.append(rootPath)
 
 import rtCommon.utils as utils
 from rtCommon.clientInterface import ClientInterface
-from rtCommon.structDict import StructDict
 #from rtCommon.dicomNiftiHandler import getTransform
 from rtCommon.imageHandling import getTransform
 from rtCommon.dataInterface import uploadFolderToCloud, uploadFilesFromList
+from rtCommon.errors import RequestError
 
 
 # obtain the full path for the configuration toml file
@@ -164,8 +156,6 @@ def main(argv=None):
     argParser = argparse.ArgumentParser()
     argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
                            help='experiment config file (.json or .toml)')
-    argParser.add_argument('--addr', '-a', default='localhost', type=str, 
-               help='server ip address')
     argParser.add_argument('--runs', '-r', default='', type=str,
                        help='Comma separated list of run numbers')
     argParser.add_argument('--scans', '-s', default='', type=str,

@@ -6,6 +6,7 @@ Note: When using services local to the projectServer, RPCs call do one hop, clie
 import rpyc
 import json
 import pickle
+import logging
 from rpyc.utils.server import ThreadedServer
 from rpyc.utils.helpers import classpartial
 from rtCommon.dataInterface import DataInterface

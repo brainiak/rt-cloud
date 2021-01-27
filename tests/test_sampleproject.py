@@ -31,7 +31,7 @@ class TestSampleProject:
                                                        dataRemote=False)
         client = ClientInterface()
         assert client.isDataRemote() == False
-        argv = []
+        argv = ['--noVerbose']
         ret = sample.main(argv)
         assert ret == 0
 
@@ -43,7 +43,19 @@ class TestSampleProject:
                                                        dataRemote=True)
         client = ClientInterface()
         assert client.isDataRemote() == True
-        argv = []
+        argv = ['--noVerbose']
+        ret = sample.main(argv)
+        assert ret == 0
+
+    def test_runWithInitWatch(self):
+        print("\nSampleProject::test_runWithDataRemote")
+        TestSampleProject.serversForTests.stopServers()
+        TestSampleProject.serversForTests.startServers(allowedDirs=allowedDirs,
+                                                       allowedFileTypes=allowedFileTypes,
+                                                       dataRemote=True)
+        client = ClientInterface()
+        assert client.isDataRemote() == True
+        argv = ['--useInitWatch', '--noVerbose']
         ret = sample.main(argv)
         assert ret == 0
 

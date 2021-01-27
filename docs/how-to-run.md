@@ -30,13 +30,13 @@ Example:
 
     bash scripts/run-scannerDataService.sh -s 125.130.21.34:8888 -d /tmp,/data/img -f .dcm,.txt
 
-**3) Start the feedbackReceiver.** The feedbackReceiver is started on the control room computer where PsychoPy or similar software will run to provide feedback to the subject in the MRI scanner. The *[username]* and *[password]* are the login credentials to the projectInterface because the feedbackReceiver must connect to the projectInterface to be able to receive classification results.
+**3) Start the SubjectService.** The subjectService is started on the presentation computer where PsychoPy or similar software will run to provide feedback to the subject in the MRI scanner. The *[username]* and *[password]* are the login credentials to the projectInterface because the subjectService must connect to the projectInterface to be able to receive classification results.
 
-    python rtCommon/feedbackReceiver.py -s [projectInterface_addr:port] -u [username] -p [password]
+    python rtCommon/subjectService.py -s [projectInterface_addr:port] -u [username] -p [password]
 
-Example:
+Example (run from the rt-cloud directory):
 
-    python rtCommon/feedbackReceiver.py -s 125.130.21.34:8888 -u user1 -p passwd1
+    python rtCommon/subjectService.py -s 125.130.21.34:8888 -u user1 -p passwd1
 
 ### **Running ProjectInterface Locally**
 The projectInterface can also be run on the control room computer where the dicom images are written. This is called running it 'locally'. When run locally the fileServer (scannerDataService) is not needed because the projectInterface can directly read the dicom images from disk.

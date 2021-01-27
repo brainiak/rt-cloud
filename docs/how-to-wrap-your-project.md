@@ -46,7 +46,7 @@ Write classification results back to the console computer using putFile
 
     dataInterface.putFile(fullpath_filename_to_save, text_to_save)
 
-Or use the subjectInterface to send results to a feedbackReceiver:
+Or use the subjectInterface to send results to a SubjectService which will be running on the presentation computer:
 
     subjInterface.setResult(runNum, int(TR_id), float(classification_result))
 

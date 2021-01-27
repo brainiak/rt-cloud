@@ -1,19 +1,12 @@
 # main script to run the processing of the experiment
 
 import os
-import glob
 import numpy as np
-import json	
 from datetime import datetime
-from dateutil import parser
 from subprocess import call
 import time
-import nilearn
 from nilearn.masking import apply_mask
-from scipy import stats
 import scipy.io as sio
-import pickle
-import nibabel as nib
 import argparse
 import sys
 import logging
@@ -28,6 +21,7 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 import rtCommon.utils as utils
 from rtCommon.clientInterface import ClientInterface
+from rtCommon.dataInterface import downloadFilesFromList
 from rtCommon.structDict import StructDict
 #import rtCommon.dicomNiftiHandler as dnh
 import rtCommon.imageHandling as ihd
@@ -39,7 +33,7 @@ defaultConfig = os.path.join(currPath, 'conf/amygActivation.toml')
 
 
 def getRegressorName(runNum):
-    """"Return station classification filename"""
+    """Return station classification filename"""
     # this is the actual run number, 1-based
     filename = "regressor_run-{0:02d}.mat".format(runNum)
     return filename
@@ -79,7 +73,7 @@ def makeRunReg(cfg, args, dataInterface, runNum, runFolder, saveMat=1):
             # make it into a list to use in the function
             fileList = [full_name]
             local_run_folder = os.path.join(cfg.local.subject_full_day_path, runId)
-            dataInterface.downloadFilesFromList(fileList, local_run_folder)
+            downloadFilesFromList(dataInterface, fileList, local_run_folder)
     # TO DO: put command here to download data to local!
     return regressor
 
@@ -208,9 +202,9 @@ def getRunFilename(sessionId, runId):
 	filename = "patternsData_run-{0:02d}_id-{1}_py.mat".format(runId, sessionId)
 	return filename
 
-def retrieveLocalFileAndSaveToCloud(localFilePath, pathToSaveOnCloud, dataInterface):
-	data = dataInterface.getFile(localFilePath)
-	utils.writeFile(pathToSaveOnCloud,data)
+def retrieveControlRoomFileAndSaveToCloud(controlRoomFilePath, pathToSaveOnCloud, dataInterface):
+	data = dataInterface.getFile(controlRoomFilePath)
+	utils.writeFile(pathToSaveOnCloud, data)
 
 def findBadVoxels(cfg, dataMatrix, previous_badVoxels=None):
     # remove bad voxels
@@ -345,12 +339,12 @@ def main():
     dataInterface = clientInterface.dataInterface
     subjInterface = clientInterface.subjInterface
     webInterface = clientInterface.webInterface
-    args.dataRemote = dataInterface.dataRemote
+    args.dataRemote = dataInterface.isRunningRemote()
 
     cfg = utils.loadConfigFile(args.config)
     cfg = initialize(cfg, args)
 
-    
+
     # DELETE ALL FILES IF FLAGGED (DEFAULT) # 
     if args.deleteTmpNifti == '1':
         deleteTmpFiles(cfg,args)

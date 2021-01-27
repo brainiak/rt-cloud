@@ -33,7 +33,7 @@ A fileServer is started on the scanner computer that can watch for files within 
 
 ## Installation
 
-#### Step 1: Install Mini-Conda and NodeJS
+#### **Step 1: Install Mini-Conda and NodeJS**
 *On the cloud computer where processing will take place, do these steps*
 1. Check if you have mini-conda already installed. In a terminal run <code>conda -V</code>
     - *Mac Specific:* [Install Mini-Conda](https://docs.conda.io/en/latest/miniconda.html)
@@ -50,7 +50,7 @@ A fileServer is started on the scanner computer that can watch for files within 
         - <code>sudo yum install epel-release</code>
         - <code>sudo yum install nodejs</code>
 
-#### Step 2: Install Realtime ProjectInterface on cloud VM (All OS types)
+#### **Step 2: Install Realtime ProjectInterface on cloud VM (All OS types)**
 *On the cloud computer where processing will take place, do these steps*
 1. Pull the source code <code>git clone https://github.com/brainiak/rt-cloud.git</code>
 2. <code>cd rt-cloud/</code>
@@ -69,7 +69,7 @@ A fileServer is started on the scanner computer that can watch for files within 
     - <code>bash scripts/add-user.sh -u [new_username] -p [password]</code>
 
 
-#### Step 3: Install FileServer or FeedbackReceiver on Console Computer (All OS Types)
+#### **Step 3: Install ScannerDataService or SubjectService on the Console and Presentation Computers (All OS Types)**
 *On the console computer where dicoms are written, do these steps*
 1. Repeat Step 1.1 above to install Mini-Conda
 2. Clone the rt-cloud code <code>git clone https://github.com/brainiak/rt-cloud.git</code>
@@ -93,9 +93,9 @@ For the sample we will run both the projectInterface and fileServer on the same 
         - <code>conda activate rtcloud</code>
         - <code>bash scripts/run-scannerDataService.sh -s localhost:8888 --test</code>
 3. Optional - Open another terminal to start the feedbackReciever
-    - Start the feedbackReceiver<br>
+    - Start the subjectService to send subject feedback to the presentation computer<br>
         - <code>conda activate rtcloud</code>
-        - <code>python rtCommon/feedbackReceiver.py -s localhost:8888 --test</code>
+        - <code>python rtCommon/subjectService.py -s localhost:8888 --test</code>
 4. Navigate web browser to URL http://localhost:8888
     - If prompted for username and password enter:<br>
         username 'test', password 'test'
