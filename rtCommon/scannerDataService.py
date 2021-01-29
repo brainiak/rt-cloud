@@ -8,6 +8,7 @@ BidsInterface functions to handle them.
 import os
 import argparse
 import logging
+import threading
 import brainiak.utils.fmrisim_real_time_generator as datagen
 from rtCommon.dataInterface import DataInterface
 from rtCommon.bidsInterface import BidsInterface
@@ -72,8 +73,13 @@ if __name__ == "__main__":
     if args.synthetic_data:
         # check if the dicoms are already created
         if not os.path.exists("/tmp/synthetic_dicom/rt_199.dcm"):
-            datagen.generate_data("/tmp/synthetic_dicom", {'save_dicom': True})
-    
+            genDataThread = threading.Thread(name='genDataThread',
+                                             target=datagen.generate_data,
+                                             args=("/tmp/synthetic_dicom",
+                                                   {'save_dicom': True, 'save_realtime': True},))
+            genDataThread.setDaemon(True)
+            genDataThread.start()
+
     print("Allowed file types {}".format(args.allowedFileTypes))
     print("Allowed directories {}".format(args.allowedDirs))
 

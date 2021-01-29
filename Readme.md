@@ -87,11 +87,11 @@ For the sample we will run both the projectInterface and fileServer on the same 
 1. Open a terminal
     - Start the projectInterface<br>
         - <code>conda activate rtcloud</code>
-        - <code>bash scripts/run-projectInterface.sh -p sample --test</code>
+        - <code>bash scripts/run-projectInterface.sh -p sample --dataRemote --subjectRemote --test</code>
 2. Open another terminal
     - Start the fileServer (now called scannerDataService)<br>
         - <code>conda activate rtcloud</code>
-        - <code>bash scripts/run-scannerDataService.sh -s localhost:8888 --test</code>
+        - <code>bash scripts/run-scannerDataService.sh -s localhost:8888 -d $PWD,/tmp --test</code>
 3. Optional - Open another terminal to start the feedbackReciever
     - Start the subjectService to send subject feedback to the presentation computer<br>
         - <code>conda activate rtcloud</code>
@@ -106,11 +106,11 @@ For the sample we will run both the projectInterface and fileServer on the same 
 1. Alternate to step 1 above
     - Start the projectInterface<br>
         - <code>conda activate rtcloud</code>
-        - <code>bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample-synthetic.toml --test</code> 
+        - <code>bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample-synthetic.toml --dataRemote --test</code>
 2.  Alternate to step 2 above
     - Start the fileServer (now called scannerDataService)<br>
         - <code>conda activate rtcloud</code>
-        - <code>bash scripts/run-scannerDataService.sh -s localhost:8888 --allow_synthetic_data --test</code> 
+        - <code>bash scripts/run-scannerDataService.sh -s localhost:8888 --synthetic-data --test</code>
 3. Same as step 3 above
 
 ## Next Steps
