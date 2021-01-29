@@ -20,7 +20,7 @@ sampleProjectDicomDir = os.path.join(rootDir,
     "projects/sample/dicomDir/20190219.0219191_faceMatching.0219191_faceMatching/")
 
 allowedDirs = ['/tmp', testDir, sampleProjectDicomDir]
-allowedFileTypes = ['.bin', '.txt', '.dcm']
+allowedFileTypes = ['.bin', 'txt', '.dcm']
 
 @pytest.fixture(scope="module")
 def dicomTestFilename():  # type: ignore

@@ -1,48 +1,22 @@
 #!/usr/bin/env bash
 
-# Default Parameters
-SERVER='localhost:8888'
-ALLOWDIRS='/tmp,/data'
-ALLOWFILES='.dcm,.mat,.txt'
+### Default Parameters Set within ScannerDataService ##
+# SERVER='localhost:8888'
+# ALLOWDIRS='/tmp,/data'
+# ALLOWFILES='.dcm,.mat,.txt'
+# Retry Connection Interval: 5 sec
 
-# get commandline params
-while test $# -gt 0
-do
-  case "$1" in
-    -h)
-      echo "$0 [-s <server:port>] [-d <allowed_dirs>] [-f <allowed_file_extensions] [-u username] [-p password]"
-      exit 0
-      ;;
-    -s) SERVER=$2
-      ;;
-    -d) ALLOWDIRS=$2
-      ;;
-    -f) ALLOWFILES=$2
-      ;;
-    -u) USERNAME=$2
-      ;;
-    -p) PASSWORD=$2
-      ;;
-    --test) TEST='--test'
-      ;;
-    --allow_synthetic_data) SYNTH='--synthetic-data'
-      ;;
-  esac
-  shift
+# get commandline args - process the -h help arg
+args=("${@}")
+for i in ${!args[@]}; do
+  if [[ ${args[i]} = "-h" ]]; then
+    echo "USAGE: $0 [-s <server>] [-u <username>] [-p <password>]"
+    echo -e "\t[-d <allowed_dirs>] [-f <allowed_file_types>] [--synthetic-data]"
+    echo -e "\t[-i <retry-connection-interval>] [--test]"
+    exit 0
+  fi
+  #echo "$i = ${args[i]}"
 done
-
-
-# check if experiment file is supplied with -e filename
-USER_PARAM=''
-if [ ! -z $USERNAME ]; then
-  USER_PARAM="-u $USERNAME"
-fi
-
-PASSWD_PARAM=''
-if [ ! -z $PASSWORD ]; then
-  PASSWD_PARAM="-p $PASSWORD"
-fi
-
 
 # activate conda python env
 source ~/.bashrc
@@ -50,4 +24,5 @@ conda deactivate
 conda activate rtcloud
 
 export PYTHONPATH=./rtCommon/:$PYTHONPATH
-python rtCommon/scannerDataService.py $USER_PARAM $PASSWD_PARAM -s $SERVER -d $ALLOWDIRS -f $ALLOWFILES $TEST $SYNTH
+echo "python rtCommon/scannerDataService.py ${args[@]}"
+python rtCommon/scannerDataService.py ${args[@]}

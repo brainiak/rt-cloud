@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-python -m pytest -s tests/
+python -m pytest -s -v tests/

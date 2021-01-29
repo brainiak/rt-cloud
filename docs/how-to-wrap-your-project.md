@@ -28,6 +28,12 @@ The clientInterface provides several interfaces for retrieving data, giving subj
     subjInterface = clientInterfaces.subjInterface
     webInterface  = clientInterfaces.webInterface
 
+Note: The clientInterfaces connect to remote services with the following mapping:
+
+    dataInterface --> scannerDataService
+    subjInterface --> subjectService
+    webInterface  --> user webbrowser
+
 ### **Retrieving DICOM Images from the Scanner Computer**
 
 Within your python script, use the `dataInterface` object to request remote files. For example, to retrieve dicom images as they are created, init a watch on the appropriate directory and then watch for them.

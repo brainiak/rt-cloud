@@ -76,8 +76,8 @@ class WsRemoteService:
                 ws.run_forever(sslopt={"ca_certs": certFile})
             except Exception as err:
                 logging.log(logging.INFO, "WsRemoteService Exception {}: {}".format(type(err).__name__, str(err)))
-                print('sleep {}'.format(args.interval))
-                time.sleep(args.interval)
+            print('sleep {}'.format(args.interval))
+            time.sleep(args.interval)
 
     @staticmethod
     def stop():
@@ -152,8 +152,10 @@ class WsRemoteService:
                         format(type(error), str(error)))
 
     @staticmethod
-    def on_close(client):
-        logging.info('connection closed')
+    def on_close(client, code, reason):
+        print('## Connection closed, check if projectServer allows remote services.')
+        print('## May need to restart projectServer with --dataRemote --subjectRemote options.')
+        logging.info(f'Connection closed {code} {reason}')
 
 
 def isNativeType(var):

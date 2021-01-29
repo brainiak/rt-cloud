@@ -24,6 +24,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
         a callback function that gets called when messages are received on this socket instance.
     """
     def initialize(self, name, callback=None):
+        """initialize method is called by Tornado with args provided to the addHandler call"""
         self.name = name
         if websocketState.wsConnectionLists.get(name) is None:
             websocketState.wsConnectionLists[name] = []
@@ -84,6 +85,24 @@ class DataWebSocketHandler(BaseWebSocketHandler):
         callback_func = websocketState.wsCallbacks.get(self.name)
         requestHandler = callback_func.__self__
         requestHandler.close_pending_requests(self.name)
+
+
+class RejectWebSocketHandler(tornado.websocket.WebSocketHandler):
+    """
+    A web socket handler that rejects connections on the web socket and returns a
+    pre-configured error with the rejection reason.
+    """
+    def initialize(self, rejectMsg):
+        self.rejectMsg = rejectMsg
+
+    # def prepare(self):
+    #     raise tornado.web.HTTPError('## wsData is local ##')
+    #     return
+
+    def open(self):
+        print(f'{self.rejectMsg}')
+        self.close(code=1, reason=self.rejectMsg)
+        return
 
 
 def sendWebSocketMessage(wsName, msg, conn=None):

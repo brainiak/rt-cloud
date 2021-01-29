@@ -58,9 +58,16 @@ class DataInterface(RemoteableExtensible):
         self.currentStreamId = 0
         self.streamInfo = None
         self.allowedDirs = allowedDirs
+        # Remove trailing slash from dir names
         if allowedDirs is not None:
             self.allowedDirs = [dir.rstrip('/') for dir in allowedDirs]
         self.allowedFileTypes = allowedFileTypes
+        # make sure allowed file extensions start with '.'
+        if allowedFileTypes is not None:
+            if allowedFileTypes[0] != '*':
+                for i in range(len(allowedFileTypes)):
+                    if not allowedFileTypes[i].startswith('.'):
+                        allowedFileTypes[i] = '.' + allowedFileTypes[i]
         self.fileWatchLock = threading.Lock()
         # instantiate local FileWatcher
         self.fileWatcher = FileWatcher()
