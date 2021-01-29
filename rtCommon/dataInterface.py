@@ -6,7 +6,7 @@ To support RPC calls from the client, there will be two instances of dataInterfa
 at the cloud projectServer which is a stub to forward requests (started with dataRemote=True),
 and another at the control room computer, run as a service and with dataRemote=False.
 
-When not using RPC, i.e. when the projectServer is run with --localfiles, there will be only
+When not using RPC, i.e. when the projectServer is run without --dataRemote, there will be only
 one instance of dataInterface, as part of the projectServer with dataRemote=False.
 """
 import os

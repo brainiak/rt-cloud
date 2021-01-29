@@ -10,11 +10,11 @@ From the cloud VM computer run the following command. See [Definitions Section](
 
     cd rtcloud/
     conda activate rtcloud
-    bash scripts/run-projectInterface.sh -p [your_project_name] -c [config_file] -ip [local_ip_addr]
+    bash scripts/run-projectInterface.sh -p [your_project_name] -c [config_file] -ip [local_ip_addr] --dataRemote --subjectRemote
 
 Example:
 
-    bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip 125.130.21.34
+    bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip 125.130.21.34 --dataRemote --subjectRemote
 
 The -p option is used to locate your project in the */rt-cloud/projects/* directory, the name specified should match your project directory name.
 
@@ -41,12 +41,12 @@ Example (run from the rt-cloud directory):
 ### **Running ProjectInterface Locally**
 The projectInterface can also be run on the control room computer where the dicom images are written. This is called running it 'locally'. When run locally the fileServer (scannerDataService) is not needed because the projectInterface can directly read the dicom images from disk.
 
-**1) Start the projectInterface** same command as above but add the --localfiles option
+**1) Start the projectInterface** same command as above but without the --dataRemote or --subjectRemote options
 
-    bash scripts/run-projectInterface.sh -p [your_project_name] -c [config_file] -ip [local_ip_addr] --localfiles
+    bash scripts/run-projectInterface.sh -p [your_project_name] -c [config_file] -ip [local_ip_addr]
 Example:
 
-    bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip 125.130.21.34 --localfiles
+    bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip 125.130.21.34
 
 
 
