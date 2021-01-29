@@ -1,9 +1,11 @@
-## Making your project cloud enabled
+# **Making your project cloud enabled**
 Make a new directory under rt-cloud/projects for your project.
-Use the sample project in rt-cloud/projects/sample as a template for making your python script cloud enabled. The sample.py script corresponds to the script for your experiment, and the projectMain.py script can be copied to your project directory and edit one line 'scriptToRun' to point to your script.
+Use the sample project in *rt-cloud/projects/sample* as a template for making your python script cloud enabled. The sample.py script corresponds to the script you will make for your experiment.
 
-### Project Code
+## **Project Code**
 You'll need to copy several blocks of code to your project to get it cloud enabled. These are:
+
+### **Initialization code**
 
 Accept at least the following command line parameters in your project python file:
 
@@ -14,48 +16,62 @@ Accept at least the following command line parameters in your project python fil
                            help='Comma separated list of run numbers')
     argParser.add_argument('--scans', '-s', default='', type=str,
                            help='Comma separated list of scan number')
-    # This parameter is used by projectInterface
-    argParser.add_argument('--commpipe', '-q', default=None, type=str,
-                           help='Named pipe to communicate with projectInterface')
-    argParser.add_argument('--filesremote', '-x', default=False, action='store_true',
-                           help='retrieve dicom files from the remote server')
     args = argParser.parse_args()
 
-Set up communication with the projectInterface
+Create an clientInterface instance for communicating with the projectInterface. The clientInterface automatically connects to a localhost projectInterface when created.
 
-    projectComm = projUtils.initProjectComm(args.commpipe, args.filesremote)
+    clientInterface = ClientInterface()
 
-Open a FileInterface object for reading and writing files
+The clientInterface provides several interfaces for retrieving data, giving subject feedback, and updating the user's webpage.
 
-    fileInterface = FileInterface(filesremote=args.filesremote, commPipes=projectComm)
+    dataInterface = clientInterfaces.dataInterface
+    subjInterface = clientInterfaces.subjInterface
+    webInterface  = clientInterfaces.webInterface
 
-Then within your python script, use the FileInterface object to request remote files. For example to retrieve dicom images as they are created, init a watch on the appropriate directory and then watch for them.
+Note: The clientInterfaces connect to remote services with the following mapping:
 
-    fileInterface.initWatch('/tmp/dicoms', 'samp*.dcm', minFileSize)
-    rawData = fileInterface.watchFile('/tmp/samp3.dcm')
+    dataInterface --> scannerDataService
+    subjInterface --> subjectService
+    webInterface  --> user webbrowser
 
-Or use the readRetryDicom helper function which returns the Dicom image data
+### **Retrieving DICOM Images from the Scanner Computer**
 
-    fileInterface.initWatch('/tmp/dicoms', 'samp*.dcm', minFileSize)
-    dicomData = readRetryDicomFromFileInterface(fileInterface, 'samp3.dcm', timeout=10)
+Within your python script, use the `dataInterface` object to request remote files. For example, to retrieve dicom images as they are created, init a watch on the appropriate directory and then watch for them.
 
-Write classification results back to the console computer using putTextFile
+    dataInterface.initWatch('/tmp/dicoms', 'samp*.dcm', minFileSize)
+    rawData = dataInterface.watchFile('/tmp/samp3.dcm')
 
-    fileInterface.putTextFile(fullpath_filename_to_save, text_to_save)
+Or use the readRetryDicom helper function which will retry several times across timeouts to retrieve the Dicom image data.
 
+    dataInterface.initWatch('/tmp/dicoms', 'samp*.dcm', minFileSize)
+    dicomData = readRetryDicomFromDataInterface(dataInterface, 'samp3.dcm', timeout=10)
+
+### **Send Classification Results for Subject Feedback**
+
+Write classification results back to the console computer using putFile
+
+    dataInterface.putFile(fullpath_filename_to_save, text_to_save)
+
+Or use the subjectInterface to send results to a SubjectService which will be running on the presentation computer:
+
+    subjInterface.setResult(runNum, int(TR_id), float(classification_result))
+
+### **Update the User's Webpage Display**
+Send data values to be graphed in the projectInterface web page
+
+    webInterface.plotDataPoint(runNum, int(TR_id), float(classification_result))
+
+### **Read Files from the Console Computer (such as configuration files)**
 Read files from the console computer using getFile
 
-    data = fileInterface.getFile(fullpath_filename)
+    data = dataInterface.getFile(fullpath_filename)
 
 Or read the newest file matching a file pattern such as 'samp*.dcm'
 
-    data = fileInterface.getNewestFile(fullpath_filepattern)
+    data = dataInterface.getNewestFile(fullpath_filepattern)
 
-Send data values to be graphed in the projectInterface web page
 
-    projUtils.sendResultToWeb(projectComm, run, tr, val)
-
-### Project Configuration
+### **Load Project Configurations**
 Use a TOML file for configuration settings. Use the loadConfigFile funtion to load your configurations into a structured object
 
     import rtCommon.utils as utils

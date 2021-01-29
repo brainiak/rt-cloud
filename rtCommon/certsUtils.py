@@ -1,3 +1,6 @@
+"""
+Utility functions for using ssl encrypted web connections
+"""
 import os
 import ssl
 import logging

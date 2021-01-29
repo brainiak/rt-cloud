@@ -7,6 +7,7 @@ const StatusPane = require('./statusPane.js')
 const XYPlotPane = require('./xyplotPane.js')
 const UploadFilesPane = require('./uploadFilesPane.js')
 const SessionPane = require('./sessionPane.js')
+const LogPane = require('./logPane.js')
 const { Tab, Tabs, TabList, TabPanel } = require('react-tabs')
 
 const elem = React.createElement;
@@ -45,6 +46,7 @@ class TopPane extends React.Component {
       error: '',
       plotVals: [[{x:0, y:0}], []], // results to plot
       logLines: [],
+      userLog: [],
       uploadedFileLog: [],
       sessionLog: [],
     }
@@ -61,7 +63,6 @@ class TopPane extends React.Component {
     this.uploadFiles = this.uploadFiles.bind(this);
     this.runSession = this.runSession.bind(this);
     this.createWebSocket = this.createWebSocket.bind(this)
-    this.formatConfigValues = this.formatConfigValues.bind(this)
     this.clearRunStatus = this.clearRunStatus.bind(this)
     this.clearPlots = this.clearPlots.bind(this)
     this.createWebSocket()
@@ -102,6 +103,9 @@ class TopPane extends React.Component {
     this.setState({runStatus: ''})
   }
 
+  // ###################################################
+  // #### Remote Server Methods (Outgoing Requests) ####
+  // ###################################################
   requestDefaultConfig() {
     var cmd = {cmd: 'getDefaultConfig'}
     var cmdStr = JSON.stringify(cmd)
@@ -131,13 +135,26 @@ class TopPane extends React.Component {
   startRun() {
     // clear previous log output
     this.setState({logLines: []})
+    this.setState({userLog: []})
     this.setState({error: ''})
 
-    var cfg = this.formatConfigValues(this.state.config)
+    var cfg = formatConfigValues(this.state.config)
     if (cfg == null) {
         return
     }
-    this.webSocket.send(JSON.stringify({cmd: 'run', config: cfg}))
+    this.webSocket.send(JSON.stringify({cmd: 'runScript', args: ['mainScript'], config: cfg}))
+  }
+
+  runSession(scriptType) {
+    // clear previous log output
+    var firstLogMsg = '##### ' + scriptType + ' #####'
+    this.setState({sessionLog: [firstLogMsg]})
+    this.setState({error: ''})
+    var cfg = formatConfigValues(this.state.config)
+    if (cfg == null) {
+        return
+    }
+    this.webSocket.send(JSON.stringify({cmd: 'runScript', args: [scriptType], config: cfg }))
   }
 
   stopRun() {
@@ -152,91 +169,132 @@ class TopPane extends React.Component {
                  }
     this.webSocket.send(JSON.stringify(cmdStr))
   }
+  // #### End Remote Server Methods (Outgoing Requests) ####
 
-  runSession(cmd) {
-    // clear previous log output
-    var firstLogMsg = '##### ' + cmd + ' #####'
-    this.setState({sessionLog: [firstLogMsg]})
-    this.setState({error: ''})
 
-    var cfg = this.formatConfigValues(this.state.config)
-    if (cfg == null) {
-        return
-    }
-    this.webSocket.send(JSON.stringify({cmd: cmd}))
+  // ##############################################
+  // #### Message handlers for server reqeusts ####
+  // ##############################################
+  on_userLog(request) {
+    var logItem = request['value'].trim()
+    var itemPos = this.state.userLog.length + 1
+    var newLine = elem('pre', { style: logLineStyle,  key: itemPos }, logItem)
+    // Need to use concat() to create a new logLines object or React won't know to re-render
+    var userLog = this.state.userLog.concat([newLine])
+    this.setState({userLog: userLog})
+    // Add all userLog messages to debugLog
+    this.debugLog(logItem)
   }
 
-  formatConfigValues(cfg) {
-    // After user changes on the web page we need to convert some values from strings
-    // First format runNum and scanNum to be numbers not strings
-    var runs = cfg['runNum']
-    var scans = cfg['scanNum']
-
-    // Handle runs values
-    if (Array.isArray(runs)) {
-      if (typeof runs[0] === 'string') {
-        if (runs.length > 1) {
-          runs = runs.map(Number);
-        } else {
-          runs = runs[0].split(',').map(Number);
-        }
-      }
-    }
-    if (typeof(runs) === 'string') {
-      runs = runs.split(',').map(Number);
-    }
-    cfg['runNum'] = runs
-
-    // Handle scan value
-    if (Array.isArray(scans)) {
-      if (typeof scans[0] === 'string') {
-        if (scans.length > 1) {
-          scans = scans.map(Number);
-        } else {
-          scans = scans[0].split(',').map(Number);
-        }
-      }
-    }
-    if (typeof(scans) === 'string') {
-      scans = scans.split(',').map(Number);
-    }
-    cfg['scanNum'] = scans
-
-    // Next change all true/false strings to booleans
-    // and change all number strings to numbers
-      for (let key in cfg) {
-        if (typeof cfg[key] === 'string') {
-          var value = cfg[key]
-          // check if the string should be a boolean
-          switch(value.toLowerCase()) {
-            case 'false':
-            case 'flase':
-            case 'fales':
-            case 'flsae':
-            case 'fasle':
-              cfg[key] = false
-              break;
-            case 'true':
-            case 'ture':
-            case 'treu':
-              cfg[key] = true
-              break;
-          }
-          var regexInt = /^\d+$/;
-          var regexFloat = /^[\d\.]+$/;
-          var regexIP = /\d+\.\d+.\d+\.\d+/;
-          if (regexInt.test(value) == true) {
-            // string should be an integer
-            cfg[key] = parseInt(value, 10)
-          } else if (regexFloat.test(value) == true &&
-                     regexIP.test(value) == false) {
-            // string should be a float
-            cfg[key] = parseFloat(value)
-          }
-        }
-      }
-      return cfg
+  on_sessionLog(request) {
+    var logItem = request['value'].trim()
+    var itemPos = this.state.sessionLog.length + 1
+    var newLine = elem('pre', { style: logLineStyle,  key: itemPos }, logItem)
+    // Need to use concat() to create a new logLines object or React won't know to re-render
+    var sessionLog = this.state.sessionLog.concat([newLine])
+    this.setState({sessionLog: sessionLog})
+    // Add all sessionLog messages to debugLog
+    this.debugLog(logItem)
   }
+
+  debugLog(logItem) {
+    var itemPos = this.state.logLines.length + 1
+    var newLine = elem('pre', { style: logLineStyle,  key: itemPos }, logItem)
+    // Need to use concat() to create a new logLines object or React won't know to re-render
+    var logLines = this.state.logLines.concat([newLine])
+    this.setState({logLines: logLines})
+  }
+  on_debugLog(request) {
+    var logItem = request['value'].trim()
+    this.debugLog(logItem)
+  }
+
+  on_userError(request) {
+    var errMsg = request['error']
+    console.log("## Got Error: " + errMsg)
+    this.setState({error: errMsg})
+    this.debugLog(errMsg)
+  }
+
+  // TODO - currently this does the same as userError, but make a separate detailed debug error message in Log tab
+  on_debugError(request) {
+    var errMsg = request['error']
+    console.log("## Got Error: " + errMsg)
+    this.setState({error: errMsg})
+    this.debugLog(errMsg)
+  }
+
+  on_runStatus(request) {
+    var status = request['status']
+    if (status == undefined || status.length == 0) {
+      status = ''
+    }
+    this.setState({runStatus: status})
+  }
+
+  on_uploadStatus(request) {
+    var fileName = request['file']
+    var itemPos = this.state.uploadedFileLog.length + 1
+    var newLine = elem('pre', { style: logLineStyle,  key: itemPos }, fileName)
+    // Need to use concat() to create a new logLines object or React won't know to re-render
+    var uploadedFileLog = this.state.uploadedFileLog.concat([newLine])
+    this.setState({uploadedFileLog: uploadedFileLog})
+  }
+
+  on_setConfig(request) {
+    var config = request['value']
+    var filename = request['filename']
+    this.setConfig(config)
+    this.setConfigFileName(filename)
+  }
+
+  on_setDataPoints(request) {
+    var dataPoints = request['value']
+    if (Array.isArray(dataPoints)) {
+      this.resultVals = []
+      for (let i = 0; i < dataPoints.length; i++) {
+          var runVals = dataPoints[i]
+          runVals.sort(arrayCompareXValue)
+          this.resultVals.push(runVals)
+      }
+      this.setState({plotVals: this.resultVals})
+    }
+  }
+
+  on_plotDataPoint(request) {
+    var runId = request['runId']
+    var vol = request['trId']
+    var resultVal = request['value']
+    // Make sure resultVals has at least as many arrays as runIds
+    for (let i = this.resultVals.length; i < runId; i++) {
+      this.resultVals.push([])
+    }
+    // clear plots with runId greater than the current one
+    // for (let i = runId; i < this.resultVals.length; i++) {
+    //   this.resultVals[i] = []
+    // }
+    // console.log(`resultValue: ${resultVal} ${vol} ${runId}`)
+    if (typeof(vol) == 'number') {
+      // ResultVals is zero-based and runId is 1-based, so resultVal index will be runId-1
+      var runResultVals = this.resultVals[runId-1]
+      // see if there is already a plot point for this vol (x-value)
+      var idx = arrayFindIndexByX(runResultVals, vol)
+      if (idx >= 0) {
+        // overwrite the existing point
+        runResultVals[idx] = {x: vol, y: resultVal}
+      } else {
+        // add new data point to resultVals for this runId
+        runResultVals.push({x: vol, y: resultVal})
+      }
+      runResultVals.sort(arrayCompareXValue)
+    } else {
+      // vol is not a number, clear the resultVals for this run
+      this.resultVals[runId-1] = []
+    }
+    this.setState({plotVals: this.resultVals})
+  }
+
+  // #### END Message handlers for server reqeusts ####
 
   createWebSocket() {
     var wsProtocol = 'wss://'
@@ -261,88 +319,16 @@ class TopPane extends React.Component {
       console.log("WebSocket ERROR: " + JSON.stringify(errorEvent, null, 4));
     };
     webSocket.onmessage = (messageEvent) => {
+      // Handle requests from WebDisplayInterface
       var wsMsg = messageEvent.data;
       var request = JSON.parse(wsMsg)
       // reset error message
       // this.setState({error: ''})
       var cmd = request['cmd']
-      if (cmd == 'config') {
-        var config = request['value']
-        var filename = request['filename']
-        this.setConfig(config)
-        this.setConfigFileName(filename)
-      } else if (cmd == 'userLog') {
-        var logItem = request['value'].trim()
-        var itemPos = this.state.logLines.length + 1
-        var newLine = elem('pre', { style: logLineStyle,  key: itemPos }, logItem)
-        // Need to use concat() to create a new logLines object or React won't know to re-render
-        var logLines = this.state.logLines.concat([newLine])
-        this.setState({logLines: logLines})
-      } else if (cmd == 'sessionLog') {
-        var logItem = request['value'].trim()
-        var itemPos = this.state.sessionLog.length + 1
-        var newLine = elem('pre', { style: logLineStyle,  key: itemPos }, logItem)
-        // Need to use concat() to create a new logLines object or React won't know to re-render
-        var sessionLog = this.state.sessionLog.concat([newLine])
-        this.setState({sessionLog: sessionLog})
-      } else if (cmd == 'runStatus') {
-        var status = request['status']
-        if (status == undefined || status.length == 0) {
-          status = ''
-        }
-        this.setState({runStatus: status})
-      } else if (cmd == 'uploadProgress') {
-        var fileName = request['file']
-        var itemPos = this.state.uploadedFileLog.length + 1
-        var newLine = elem('pre', { style: logLineStyle,  key: itemPos }, fileName)
-        // Need to use concat() to create a new logLines object or React won't know to re-render
-        var uploadedFileLog = this.state.uploadedFileLog.concat([newLine])
-        this.setState({uploadedFileLog: uploadedFileLog})
-      } else if (cmd == 'resultValue') {
-        var runId = request['runId']
-        var vol = request['trId']
-        var resultVal = request['value']
-        // Make sure resultVals has at least as many arrays as runIds
-        for (let i = this.resultVals.length; i < runId; i++) {
-          this.resultVals.push([])
-        }
-        // clear plots with runId greater than the current one
-        // for (let i = runId; i < this.resultVals.length; i++) {
-        //   this.resultVals[i] = []
-        // }
-        // console.log(`resultValue: ${resultVal} ${vol} ${runId}`)
-        if (typeof(vol) == 'number') {
-          // ResultVals is zero-based and runId is 1-based, so resultVal index will be runId-1
-          var runResultVals = this.resultVals[runId-1]
-          // see if there is already a plot point for this vol (x-value)
-          var idx = arrayFindIndexByX(runResultVals, vol)
-          if (idx >= 0) {
-            // overwrite the existing point
-            runResultVals[idx] = {x: vol, y: resultVal}
-          } else {
-            // add new data point to resultVals for this runId
-            runResultVals.push({x: vol, y: resultVal})
-          }
-          runResultVals.sort(arrayCompareXValue)
-        } else {
-          // vol is not a number, clear the resultVals for this run
-          this.resultVals[runId-1] = []
-        }
-        this.setState({plotVals: this.resultVals})
-      } else if (cmd == 'dataPoints') {
-        var dataPoints = request['value']
-        if (Array.isArray(dataPoints)) {
-          this.resultVals = []
-          for (let i = 0; i < dataPoints.length; i++) {
-              var runVals = dataPoints[i]
-              runVals.sort(arrayCompareXValue)
-              this.resultVals.push(runVals)
-          }
-          this.setState({plotVals: this.resultVals})
-        }
-      } else if (cmd == 'error') {
-        console.log("## Got Error: " + request['error'])
-        this.setState({error: request['error']})
+      // message handler functions are prepended with 'on_'
+      var cmd_handler = 'on_' + cmd
+      if (this[cmd_handler]) {
+        this[cmd_handler](request)
       } else {
         var errStr = "Unknown message type: " + cmd
         console.log(errStr)
@@ -360,11 +346,12 @@ class TopPane extends React.Component {
          elem(Tab, {}, 'Data Plots'),
          elem(Tab, {}, 'Session'),
          elem(Tab, {}, 'Settings'),
+         elem(Tab, {}, 'Log'),
          // elem(Tab, {}, 'Upload Files'),
        ),
        elem(TabPanel, {},
          elem(StatusPane,
-           {logLines: this.state.logLines,
+           {userLog: this.state.userLog,
             config: this.state.config,
             connected: this.state.connected,
             runStatus: this.state.runStatus,
@@ -409,6 +396,15 @@ class TopPane extends React.Component {
            }
          ),
        ),
+       elem(TabPanel, {},
+        elem(LogPane,
+          {logLines: this.state.logLines,
+           connected: this.state.connected,
+           runStatus: this.state.runStatus,
+           error: this.state.error,
+          }
+        ),
+      ),
        // elem(TabPanel, {},
        //   elem(UploadFilesPane,
        //     {uploadFiles: this.uploadFiles,
@@ -420,6 +416,78 @@ class TopPane extends React.Component {
      )
     return tp
   }
+}
+
+function formatConfigValues(cfg) {
+  // After user changes on the web page we need to convert some values from strings
+  // First format runNum and scanNum to be numbers not strings
+  var runs = cfg['runNum']
+  var scans = cfg['scanNum']
+
+  // Handle runs values
+  if (Array.isArray(runs)) {
+    if (typeof runs[0] === 'string') {
+      if (runs.length > 1) {
+        runs = runs.map(Number);
+      } else {
+        runs = runs[0].split(',').map(Number);
+      }
+    }
+  }
+  if (typeof(runs) === 'string') {
+    runs = runs.split(',').map(Number);
+  }
+  cfg['runNum'] = runs
+
+  // Handle scan value
+  if (Array.isArray(scans)) {
+    if (typeof scans[0] === 'string') {
+      if (scans.length > 1) {
+        scans = scans.map(Number);
+      } else {
+        scans = scans[0].split(',').map(Number);
+      }
+    }
+  }
+  if (typeof(scans) === 'string') {
+    scans = scans.split(',').map(Number);
+  }
+  cfg['scanNum'] = scans
+
+  // Next change all true/false strings to booleans
+  // and change all number strings to numbers
+    for (let key in cfg) {
+      if (typeof cfg[key] === 'string') {
+        var value = cfg[key]
+        // check if the string should be a boolean
+        switch(value.toLowerCase()) {
+          case 'false':
+          case 'flase':
+          case 'fales':
+          case 'flsae':
+          case 'fasle':
+            cfg[key] = false
+            break;
+          case 'true':
+          case 'ture':
+          case 'treu':
+            cfg[key] = true
+            break;
+        }
+        var regexInt = /^\d+$/;
+        var regexFloat = /^[\d\.]+$/;
+        var regexIP = /\d+\.\d+.\d+\.\d+/;
+        if (regexInt.test(value) == true) {
+          // string should be an integer
+          cfg[key] = parseInt(value, 10)
+        } else if (regexFloat.test(value) == true &&
+                   regexIP.test(value) == false) {
+          // string should be a float
+          cfg[key] = parseFloat(value)
+        }
+      }
+    }
+    return cfg
 }
 
 function Render() {

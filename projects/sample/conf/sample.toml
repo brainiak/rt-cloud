@@ -20,5 +20,5 @@ plotAutoRangeX = false
 plotAutoRangeY = true
 
 ## important variables about the dicom files
-dicomNamePattern = "001_0000{}_000{}.dcm"
+dicomNamePattern = "001_{SCAN:06d}_{TR:06d}.dcm"
 minExpectedDicomSize = 300000

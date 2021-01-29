@@ -1,19 +1,12 @@
 # main script to run the processing of the experiment
 
 import os
-import glob
 import numpy as np
-import json	
 from datetime import datetime
-from dateutil import parser
 from subprocess import call
 import time
-import nilearn
 from nilearn.masking import apply_mask
-from scipy import stats
 import scipy.io as sio
-import pickle
-import nibabel as nib
 import argparse
 import sys
 import logging
@@ -27,12 +20,12 @@ currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(os.path.dirname(currPath))
 sys.path.append(rootPath)
 import rtCommon.utils as utils
-#from rtCommon.readDicom import readDicomFromBuffer, readRetryDicomFromFileInterface
-from rtCommon.imageHandling import readDicomFromBuffer, readRetryDicomFromFileInterface
-import rtCommon.clientInterface as clientInterface
+from rtCommon.clientInterface import ClientInterface
+from rtCommon.dataInterface import downloadFilesFromList
 from rtCommon.structDict import StructDict
 #import rtCommon.dicomNiftiHandler as dnh
 import rtCommon.imageHandling as ihd
+from rtCommon.errors import ValidationError, InvocationError
 from initialize import initialize
 logLevel = logging.INFO
 
@@ -40,12 +33,12 @@ defaultConfig = os.path.join(currPath, 'conf/amygActivation.toml')
 
 
 def getRegressorName(runNum):
-    """"Return station classification filename"""
+    """Return station classification filename"""
     # this is the actual run number, 1-based
     filename = "regressor_run-{0:02d}.mat".format(runNum)
     return filename
 
-def makeRunReg(cfg, args, fileInterface, runNum, runFolder, saveMat=1):
+def makeRunReg(cfg, args, dataInterface, runNum, runFolder, saveMat=1):
     """ make regression for neurofeedback to use """
     # runIndex is 0-based, we'll save as the actual run name
     # get # TRs duration from config file
@@ -75,12 +68,12 @@ def makeRunReg(cfg, args, fileInterface, runNum, runFolder, saveMat=1):
         regData = StructDict()
         regData.regressor = regressor
         sio.savemat(full_name, regData, appendmat=False)
-        if args.filesremote:
+        if args.dataRemote:
             # save this back to local machine
             # make it into a list to use in the function
             fileList = [full_name]
             local_run_folder = os.path.join(cfg.local.subject_full_day_path, runId)
-            fileInterface.downloadFilesFromList(fileList, local_run_folder)
+            downloadFilesFromList(dataInterface, fileList, local_run_folder)
     # TO DO: put command here to download data to local!
     return regressor
 
@@ -91,10 +84,8 @@ def findConditionTR(regressor, condition):
 
 def convertToNifti(cfg, args, TRnum, scanNum, dicomData):
     #anonymizedDicom = anonymizeDicom(dicomData) # should be anonymized already
-    scanNumStr = str(scanNum).zfill(2)
-    fileNumStr = str(TRnum).zfill(3)
-    expected_dicom_name = cfg.dicomNamePattern.format(scanNumStr, fileNumStr)
-    if args.filesremote:
+    expected_dicom_name = cfg.dicomNamePattern.format(SCAN=scanNum, TR=TRnum)
+    if args.dataRemote:
         tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
     else:
         tempNiftiDir = os.path.join(cfg.local.dataDir, 'tmp/convertedNiftis')
@@ -137,7 +128,7 @@ def registerMNIToNewNifti(cfg, args, full_nifti_name):
     # transform BOLD to BOLD
     for m in np.arange(cfg.n_masks):
         # rerun for each mask
-        if args.filesremote:
+        if args.dataRemote:
             full_ROI_path = os.path.join(cfg.server.maskDir, cfg.MASK[m])
         else:
             full_ROI_path = os.path.join(cfg.local.maskDir, cfg.MASK[m])
@@ -211,9 +202,9 @@ def getRunFilename(sessionId, runId):
 	filename = "patternsData_run-{0:02d}_id-{1}_py.mat".format(runId, sessionId)
 	return filename
 
-def retrieveLocalFileAndSaveToCloud(localFilePath, pathToSaveOnCloud, fileInterface):
-	data = fileInterface.getFile(localFilePath)
-	utils.writeFile(pathToSaveOnCloud,data)
+def retrieveControlRoomFileAndSaveToCloud(controlRoomFilePath, pathToSaveOnCloud, dataInterface):
+	data = dataInterface.getFile(controlRoomFilePath)
+	utils.writeFile(pathToSaveOnCloud, data)
 
 def findBadVoxels(cfg, dataMatrix, previous_badVoxels=None):
     # remove bad voxels
@@ -236,17 +227,17 @@ def makeRunHeader(cfg, args, runIndex):
     # Output header 
     now = datetime.now() 
     print('**************************************************************************************************')
-    print('* amygActivation v.1.0') 
-    print('* Date/Time: ' + now.isoformat()) 
-    print('* Subject Number: ' + str(cfg.subjectNum)) 
-    print('* Subject Name: ' + str(cfg.subjectName)) 
-    print('* Run Number: ' + str(cfg.runNum[runIndex])) 
-    print('* Scan Number: ' + str(cfg.scanNum[runIndex])) 
-    print('* Real-Time Data: ' + str(cfg.rtData))     
-    print('* Filesremote: ' + str(args.filesremote)) 
-    print('* Dicom directory: ' + str(cfg.dicomDir)) 
+    print('* amygActivation v.1.0')
+    print('* Date/Time: ' + now.isoformat())
+    print('* Subject Number: ' + str(cfg.subjectNum))
+    print('* Subject Name: ' + str(cfg.subjectName))
+    print('* Run Number: ' + str(cfg.runNum[runIndex]))
+    print('* Scan Number: ' + str(cfg.scanNum[runIndex]))
+    print('* Real-Time Data: ' + str(cfg.rtData))
+    print('* dataRemote: ' + str(args.dataRemote))
+    print('* Dicom directory: ' + str(cfg.dicomDir))
     print('**************************************************************************************************')
-    # prepare for TR sequence 
+    # prepare for TR sequence
     print('{:10s}{:10s}{:10s}{:10s}'.format('run', 'filenum', 'TRindex', 'percent_change')) 
     runId = 'run-{0:02d}'.format(cfg.runNum[runIndex])
     return  runId
@@ -258,7 +249,7 @@ def makeTRHeader(cfg, runIndex, TRFilenum, TRindex, percent_change):
 
 def createRunFolder(cfg, args, runNum):
     runId = 'run-{0:02d}'.format(runNum)
-    if args.filesremote:
+    if args.dataRemote:
         runFolder = os.path.join(cfg.server.subject_full_day_path, runId)
     else:
         runFolder = os.path.join(cfg.local.subject_full_day_path, runId)
@@ -267,7 +258,7 @@ def createRunFolder(cfg, args, runNum):
     return runFolder
 
 def createTmpFolder(cfg,args):
-    if args.filesremote:
+    if args.dataRemote:
         tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
     else:
         tempNiftiDir = os.path.join(cfg.local.dataDir, 'tmp/convertedNiftis/')
@@ -277,7 +268,7 @@ def createTmpFolder(cfg,args):
     return
 
 def deleteTmpFiles(cfg,args):
-    if args.filesremote:
+    if args.dataRemote:
         tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
     else:
         tempNiftiDir = os.path.join(cfg.local.dataDir, 'tmp/convertedNiftis')
@@ -321,7 +312,7 @@ def split_tol(test_list, tol):
 # testing code--debug mode -- run in amygActivation directory
 # from amygActivation import *
 # defaultConfig = 'conf/sampleCfg.toml'
-# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9', 'commpipe': None, 'filesremote': True})
+# args = StructDict({'config':defaultConfig, 'runs': '1', 'scans': '9'})
 # runIndex=0
 # TRFilenum=9
 
@@ -342,17 +333,18 @@ def main():
     args = argParser.parse_args()
 
     # Initialize the RPC connection to the projectInterface
-    # This will give us a fileInterface for retrieving files and
+    # This will give us a dataInterface for retrieving files and
     # a subjectInterface for giving feedback
-    clientRPC = clientInterface.ClientRPC()
-    fileInterface = clientRPC.fileInterface
-    subjInterface = clientRPC.subjInterface
-    args.filesremote = fileInterface.areFilesremote()
+    clientInterface = ClientInterface()
+    dataInterface = clientInterface.dataInterface
+    subjInterface = clientInterface.subjInterface
+    webInterface = clientInterface.webInterface
+    args.dataRemote = dataInterface.isRunningRemote()
 
     cfg = utils.loadConfigFile(args.config)
     cfg = initialize(cfg, args)
 
-    
+
     # DELETE ALL FILES IF FLAGGED (DEFAULT) # 
     if args.deleteTmpNifti == '1':
         deleteTmpFiles(cfg,args)
@@ -362,9 +354,6 @@ def main():
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
     createTmpFolder(cfg,args)
-
-    # intialize watching in particular directory
-    fileInterface.initWatch(cfg.dicomDir, cfg.dicomNamePattern, cfg.minExpectedDicomSize) 
 
     #### MAIN PROCESSING ###
     nRuns = len(cfg.runNum)
@@ -384,7 +373,13 @@ def main():
         # create run folder
         runFolder = createRunFolder(cfg, args, runNum)
         scanNum = cfg.scanNum[runIndex]
-        regressor = makeRunReg(cfg, args, fileInterface, runNum, runFolder, saveMat=1)
+        regressor = makeRunReg(cfg, args, dataInterface, runNum, runFolder, saveMat=1)
+
+        # intialize data stream 
+        dicomScanNamePattern = utils.stringPartialFormat(cfg.dicomNamePattern, 'SCAN', scanNum)
+        streamId = dataInterface.initScannerStream(cfg.dicomDir, 
+                                                   dicomScanNamePattern,
+                                                   cfg.minExpectedDicomSize)
 
         happy_TRs = findConditionTR(regressor,int(cfg.HAPPY))
         happy_TRs_shifted = happy_TRs  + cfg.nTR_shift
@@ -409,9 +404,12 @@ def main():
             else:
                 timeout_file = 5
             A = time.time()
-            dicomFilename = getDicomFileName(cfg, scanNum, TRFilenum)
+            dicomFilename = dicomScanNamePattern.format(TR=TRFilenum)
             print(f'Get Dicom: {dicomFilename}')
-            dicomData = readRetryDicomFromFileInterface(fileInterface, dicomFilename, timeout=timeout_file)
+            dicomData = dataInterface.getImageData(streamId, int(TRFilenum), timeout_file)
+            if dicomData is None:
+                print('Error: getImageData returned None')
+                return
             full_nifti_name = convertToNifti(cfg, args, TRFilenum, scanNum, dicomData)
             print(full_nifti_name)
             print(cfg.MASK_transformed[cfg.useMask])
@@ -432,9 +430,14 @@ def main():
                 # now we want to always send this back to the local computer running the display
                 full_file_name_to_save =  os.path.join(cfg.local.subject_full_day_path, runId, file_name_to_save)
                 # Send classification result back to the console computer
-                fileInterface.putTextFile(full_file_name_to_save, text_to_save)
+                try:
+                    dataInterface.putFile(full_file_name_to_save, text_to_save)
+                except Exception as err:
+                    print('Error putFile: ' + str(err))
+                    return
                 # JUST TO PLOT ON WEB SERVER
-                subjInterface.sendClassificationResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
+                subjInterface.setResult(run, int(TRFilenum), float(runData.percent_change[TRindex]))
+                webInterface.plotDataPoint(run, int(TRFilenum), float(runData.percent_change[TRindex]))
             TRheader = makeTRHeader(cfg, runIndex, TRFilenum, TRindex, runData.percent_change[TRindex])
             TRindex += 1
 

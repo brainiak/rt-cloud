@@ -44,7 +44,7 @@ minExpectedDicomSize = 300000
 retrieveServerFiles = false
 enforceDeadlines = true
 calcClockSkewIters = 30
-dicomNamePattern = "001_0000{}_000{}.dcm" # depending on if you're using offline files, dicomNamePattern could be different
+dicomNamePattern = "001_{SCAN:06d}_{TR:06d}.dcm" # depending on if you're using offline files, dicomNamePattern could be different
 # Specify default run numbers
 runNum = [1]
 scanNum = [9]

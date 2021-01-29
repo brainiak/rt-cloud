@@ -1,68 +1,40 @@
 #!/usr/bin/env bash
 
-# get commandline params
-while test $# -gt 0
-do
-  case "$1" in
-    -h)
-      echo "$0 -p <projectName> [-d <projectDir>] [-c <toml_file>] [-m <main_script.py>] [-ip <local_ip_or_hostname>] [--localfiles] [--test]"
+# get commandline args
+args=("${@}")
+for i in ${!args[@]}; do
+    #echo "$i = ${args[i]}"
+    if [[ ${args[i]} = "-ip" ]]; then
+      # Get the IP addr value and remove the args from the list
+      IP=${args[i+1]}
+      unset 'args[i]'
+      unset 'args[i+1]'
+    elif [[ ${args[i]} = "-h" ]]; then
+      echo "USAGE: $0 -p <projectName> [-ip <local_ip_or_hostname>]"
+      echo -e "\t[-c <config_toml_file>] [-d <projectDir>]"
+      echo -e "\t[--dataRemote] [--subjectRemote] [--remote] [--test]"
+      echo -e "\t[-m <main_script>] [-i <initScript>] [-f <finalizeScript>]"
       exit 0
-      ;;
-    -c) CFG=$2
-      ;;
-    -ip) IP=$2
-      ;;
-    -p) PROJECT=$2
-      ;;
-    -d) PROJECT_DIR=$2
-      ;;
-    -m) MAIN_SCRIPT=$2
-      ;;
-    --localfiles) USELOCALFILES=1
-      ;;
-    --test) TEST_PARAM='-t'
-      ;;
-  esac
-  shift
+    fi
 done
-
-if [ -z $PROJECT ]; then
-  # USELOCALFILES not set, use remote files
-  echo 'must specify a project name with -p option'
-  exit 0
-fi
-
-# check if experiment file is supplied with -e filename
-CFG_PARAM=''
-if [ ! -z $CFG ]; then
-  CFG_PARAM="-c $CFG"
-fi
-
-MAIN_SCRIPT_PARAM=''
-if [ ! -z $MAIN_SCRIPT ]; then
-  MAIN_SCRIPT_PARAM="-m $MAIN_SCRIPT"
-fi
-
-R_PARAM=''
-if [ -z $USELOCALFILES ]; then
-  # USELOCALFILES not set, use remote files
-  R_PARAM='-x'
-fi
 
 pushd web
 npm run build
 popd
 
 if [ -z $IP ]; then
-  echo "Warning: no ip address supplied, credentials won't be updated"
+    echo "Warning: no ip address supplied, credentials won't be updated"
 else
-  bash scripts/make-sslcert.sh -ip $IP
+    echo "Adding $IP to ssl cert"
+    bash scripts/make-sslcert.sh -ip $IP
 fi
 
 # activate rtcloud conda env if needed
 if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "rtcloud" ]; then
-  source ~/.bashrc
-  conda activate rtcloud
+    source ~/.bashrc
+    conda activate rtcloud
 fi
 
-python rtCommon/projectServer.py -p $PROJECT $CFG_PARAM $MAIN_SCRIPT_PARAM $R_PARAM  $TEST_PARAM
+export PYTHONPATH=./rtCommon/:$PYTHONPATH
+echo "python rtCommon/projectServer.py ${args[@]}"
+python rtCommon/projectServer.py ${args[@]}

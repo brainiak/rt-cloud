@@ -1,11 +1,11 @@
+"""
+This module contains utility functions used internally by the rtcloud services
+"""
 import os
 import sys
 import re
-import json
 import time
 import zlib
-import glob
-import shutil
 import hashlib
 import logging
 import getpass
@@ -53,8 +53,18 @@ def processShouldExitThread():
         time.sleep(0.5)
 
 
-
 def generateDataParts(data, msg, compress):
+    """
+    A python "generator" that, for data > 10 MB, will create multi-part
+    messages of 10MB each to send the data incrementally
+    Args:
+        data (bytes): data to send
+        msg (dict): message header for the request
+        compress (bool): whether to compress the data befor sending
+    Returns:
+        Repeated calls return the next partial message to be sent until
+            None is returned
+    """
     dataSize = len(data)
     # update message for all data parts with the following info
     numParts = (dataSize + dataPartSize - 1) // dataPartSize
@@ -88,6 +98,16 @@ def generateDataParts(data, msg, compress):
 
 
 def encodeMessageData(message, data, compress):
+    """
+    b64 encode binary data in preparation for sending. Updates the message header
+    as needed
+    Args:
+        message (dict): message header
+        data (bytes): binary data
+        compress (bool): whether to compress binary data
+    Returns:
+        Modified message dict with appropriate fields filled in
+    """
     message['hash'] = hashlib.md5(data).hexdigest()
     dataSize = len(data)
     if compress or dataSize > (20*2**20):
@@ -104,6 +124,14 @@ def encodeMessageData(message, data, compress):
 
 
 def decodeMessageData(message):
+    """
+    Given a message encoded with encodeMessageData (above), decode that message.
+    Validate and retrive orignal bytes.
+    Args:
+        message (dict): encoded message to decode
+    Returns:
+        The byte data of the original message from the sender
+    """
     data = None
     if 'data' not in message:
         raise RequestError('decodeMessageData: data field not in response')
@@ -121,6 +149,16 @@ def decodeMessageData(message):
 
 
 def unpackDataMessage(msg):
+    """
+    Handles receiving multipart (an singlepart) data messages and returns the data bytes.
+    In the case of multipart messages a data cache is used to store intermediate parts
+    until all parts are received and the final data can be reconstructed.
+    Args:
+        msg (dict): Potentially on part of a multipart message to unpack
+    Returns:
+        None if not all multipart messages have been received yet, or
+        Data bytes if all multipart messages have been received.
+    """
     global multiPartDataCache
     try:
         if msg.get('status') != 200:
@@ -187,7 +225,9 @@ def unpackDataMessage(msg):
 
 
 def formatFileData(filename, data):
-    '''Convert raw bytes to a specific memory format such as dicom or matlab data'''
+    """
+    Convert raw bytes to a specific memory format such as dicom or matlab data
+    """
     fileExtension = Path(filename).suffix
     if fileExtension == '.mat':
         # Matlab file format
@@ -201,6 +241,10 @@ def formatFileData(filename, data):
 
 
 def login(serverAddr, username, password, testMode=False):
+    """
+    Logs in to a web service, prompting user for username/password as needed,
+    and returns a session_cookie to allow future requests without logging in.
+    """
     loginURL = os.path.join('https://', serverAddr, 'login')
     if testMode:
         loginURL = os.path.join('http://', serverAddr, 'login')
@@ -229,6 +273,9 @@ def login(serverAddr, username, password, testMode=False):
 
 
 def checkSSLCertAltName(certFilename, altName):
+    """
+    Check if altName is list as an alternate server name in the ssl certificate
+    """
     with open(certFilename, 'r') as fh:
         certData = fh.read()
     x509 = pyopenssl.OpenSSL.crypto.load_certificate(pyopenssl.OpenSSL.crypto.FILETYPE_PEM, certData)

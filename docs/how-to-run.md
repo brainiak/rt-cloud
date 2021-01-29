@@ -1,20 +1,20 @@
-# Running a Realtime Experiment
+# **Running a Realtime Experiment**
 
-## Running the ProjectInterface
+## **Running the ProjectInterface**
 The projectInterface is typically run on a VM in the cloud (i.e. a 'remote' computer) which does not have direct access to the dicom images. The advantage of a cloud VM is that any laptop browser can connect to it and no additional hardware or software installation is needed on the local computer. However the projectInterface can also be run on a 'local' computer, meaning on the same computer in the control room where the dicom images are written.
 
 
-### Running ProjectInterface in the Cloud
+### **Running ProjectInterface in the Cloud**
 **1) Start the projectInterface**<br>
 From the cloud VM computer run the following command. See [Definitions Section](#Definitions) for description of the parameters.
 
     cd rtcloud/
     conda activate rtcloud
-    bash scripts/run-projectInterface.sh -p [your_project_name] -c [config_file] -ip [local_ip_addr]
+    bash scripts/run-projectInterface.sh -p [your_project_name] -c [config_file] -ip [local_ip_addr] --dataRemote --subjectRemote
 
 Example:
 
-    bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip 125.130.21.34
+    bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip 125.130.21.34 --dataRemote --subjectRemote
 
 The -p option is used to locate your project in the */rt-cloud/projects/* directory, the name specified should match your project directory name.
 
@@ -22,36 +22,36 @@ The -c option points to your project configuration file in toml format.
 
 The -ip option is to update the ssl certificate with the ip address where the projectInterface runs. Use 'hostname -i' or Google 'what's my ip address' to get the ip address of that computer.
 
-**2) Start the fileServer.** The fileServer is started on the control room computer where the dicom images are written. It can forward those images to the projectInterface when requested by your project code. The *[username]* and *[password]* are the login credentials to the projectInterface because the fileServer must connect to the projectInterface to be able to serve files to it.
+**2) Start the fileServer (scannerDataService).** The fileServer is started on the control room computer where the dicom images are written. It can forward those images to the projectInterface when requested by your project code. The *[username]* and *[password]* are the login credentials to the projectInterface because the fileServer must connect to the projectInterface to be able to serve files to it.
 
-    bash scripts/run-fileserver.sh -s [projectInterface_addr:port] -d [allowed_dirs] -f [allowed_file_extensions] -u [username] -p [password]
-
-Example:
-
-    bash scripts/run-fileserver.sh -s 125.130.21.34:8888 -d /tmp,/data/img -f .dcm,.txt
-
-**3) Start the feedbackReceiver.** The feedbackReceiver is started on the control room computer where PsychoPy or similar software will run to provide feedback to the subject in the MRI scanner. The *[username]* and *[password]* are the login credentials to the projectInterface because the feedbackReceiver must connect to the projectInterface to be able to receive classification results.
-
-    python rtCommon/feedbackReceiver.py -s [projectInterface_addr:port] -u [username] -p [password]
+    bash scripts/run-scannerDataService.sh -s [projectInterface_addr:port] -d [allowed_dirs] -f [allowed_file_extensions] -u [username] -p [password]
 
 Example:
 
-    python rtCommon/feedbackReceiver.py -s 125.130.21.34:8888 -u user1 -p passwd1
-        
-### Running ProjectInterface Locally
-The projectInterface can also be run on the control room computer where the dicom images are written. This is called running it 'locally'. When run locally the fileServer is not needed because the projectInterface can directly read the dicom images from disk.
+    bash scripts/run-scannerDataService.sh -s 125.130.21.34:8888 -d /tmp,/data/img -f .dcm,.txt
 
-**1) Start the projectInterface** same command as above but add the --localfiles option
+**3) Start the SubjectService.** The subjectService is started on the presentation computer where PsychoPy or similar software will run to provide feedback to the subject in the MRI scanner. The *[username]* and *[password]* are the login credentials to the projectInterface because the subjectService must connect to the projectInterface to be able to receive classification results.
 
-    bash scripts/run-projectInterface.sh -p [your_project_name] -c [config_file] -ip [local_ip_addr] --localfiles
+    python rtCommon/subjectService.py -s [projectInterface_addr:port] -u [username] -p [password]
+
+Example (run from the rt-cloud directory):
+
+    python rtCommon/subjectService.py -s 125.130.21.34:8888 -u user1 -p passwd1
+
+### **Running ProjectInterface Locally**
+The projectInterface can also be run on the control room computer where the dicom images are written. This is called running it 'locally'. When run locally the fileServer (scannerDataService) is not needed because the projectInterface can directly read the dicom images from disk.
+
+**1) Start the projectInterface** same command as above but without the --dataRemote or --subjectRemote options
+
+    bash scripts/run-projectInterface.sh -p [your_project_name] -c [config_file] -ip [local_ip_addr]
 Example:
 
-    bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip 125.130.21.34 --localfiles
+    bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip 125.130.21.34
 
 
 
 
-## Connecting with the Browser
+## **Connecting with the Browser**
 ### SSL Certificate Installation
 The connection between your web browser and the projectInterface is encrypted using SSL for security. In order for your browser to trust the connection to the projectInterface, the SSL certificate created during the projectInterface installation process must be added to a list of trusted certificates on your browser computer.
 
@@ -83,7 +83,7 @@ Copy the ssl certificate **rtcloud/certs/rtcloud.crt** to your computer running 
 There are several security mechanisms
 - **Encryption** - Using SSL connections means all data is encrypted in transit.
 - **Password** - A username and password mean that only authorized users can connect to the projectInterface.
-- **Restricted diretories** - The fileserver restricts which directories it will return files from.
+- **Restricted directories** - The fileserver restricts which directories it will return files from.
 - **Restricted file types** - The fileserver restricts which file types (denoted by the file extension, e.g. .dcm) it will return.
 - **Direction of connection** - The fileserver doesn't allow connections to it. The fileserver always initiates the connection going to the projectInterface.
 

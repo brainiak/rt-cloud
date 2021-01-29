@@ -1,20 +1,10 @@
 # Purpose: get experiment ready
 
 import os
-import glob
-import numpy as np
-from subprocess import call
-import time
-import nilearn
-from scipy import stats
-import scipy.io as sio
-import pickle
-import nibabel as nib
-import argparse
-import random
 import sys
-from datetime import datetime
-from dateutil import parser
+import glob
+import argparse
+import numpy as np
 
 # WHEN TESTING - COMMENT OUT
 currPath = os.path.dirname(os.path.realpath(__file__))
@@ -25,8 +15,8 @@ sys.path.append(rootPath)
 #sys.path.append('/jukebox/norman/amennen/github/brainiak/rt-cloud/')
 
 import rtCommon.utils as utils
-import rtCommon.clientInterface as clientInterface
-from rtCommon.structDict import StructDict
+from rtCommon.clientInterface import ClientInterface
+from rtCommon.dataInterface import downloadFilesFromList
 #from rtCommon.dicomNiftiHandler import getTransform
 from rtCommon.imageHandling import getTransform
 from projects.amygActivation.initialize import initialize
@@ -38,7 +28,7 @@ defaultConfig = os.path.join(currPath, 'conf/amygActivation.toml')
 def finalize(cfg, args):
 	# first find the number of runs completed
 	run_path = os.path.join(cfg.local.subject_full_day_path, 'run*')
-	if args.filesremote:
+	if args.dataRemote:
 		run_path = os.path.join(cfg.server.subject_full_day_path, 'run*')
 	nRuns_completed = len(glob.glob(run_path))
 	return nRuns_completed
@@ -48,7 +38,7 @@ def main(argv=None):
 	This is the main function that is called when you run 'finialize.py'.
 
 	Here, you will load the configuration settings specified in the toml configuration 
-	file, initiate the class fileInterface, and set up some directories and other 
+	file, initiate the class dataInterface, and set up some directories and other 
 	important things through 'finalize()'
 	"""
 
@@ -56,11 +46,6 @@ def main(argv=None):
 	argParser = argparse.ArgumentParser()
 	argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
 						   help='experiment config file (.json or .toml)')
-	# This parameter is used for projectInterface
-	argParser.add_argument('--commpipe', '-q', default=None, type=str,
-						   help='Named pipe to communicate with projectInterface')
-	argParser.add_argument('--addr', '-a', default='localhost', type=str, 
-			   help='server ip address')
 	argParser.add_argument('--runs', '-r', default='', type=str,
 					   help='Comma separated list of run numbers')
 	argParser.add_argument('--scans', '-s', default='', type=str,
@@ -68,9 +53,9 @@ def main(argv=None):
 	args = argParser.parse_args(argv)
 
 	# establish the RPC connection to the projectInterface
-	clientRPC = clientInterface.ClientRPC()
-	fileInterface = clientRPC.fileInterface
-	args.filesremote = fileInterface.areFilesremote()
+	clientInterface = ClientInterface()
+	dataInterface = clientInterface.dataInterface
+	args.dataRemote = clientInterface.isDataRemote()
 
 	# load the experiment configuration file
 	cfg = utils.loadConfigFile(args.config)
@@ -80,7 +65,7 @@ def main(argv=None):
 	# copy subject folders from server to local
 	# subject-specific folder
 	# everything in temp/convertedNiftis
-	if args.filesremote:
+	if args.dataRemote:
 		print('Files Remote Case')
 		# we don't need the tmp/convertedNiftis so first remove those
 		tempNiftiDir = os.path.join(cfg.server.dataDir, 'tmp/convertedNiftis/')
@@ -96,7 +81,7 @@ def main(argv=None):
 			runFolder = os.path.join(cfg.server.subject_full_day_path, runId, '*')
 			listOfFiles = glob.glob(runFolder)
 			runFolder_local = os.path.join(cfg.local.subject_full_day_path, runId)
-			fileInterface.downloadFilesFromList(listOfFiles, runFolder_local)
+			downloadFilesFromList(dataInterface, listOfFiles, runFolder_local)
 			print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			print('downloading data to local computer: ', runFolder)
 		# next delete the entire subject folder on the cloud

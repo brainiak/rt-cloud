@@ -1,12 +1,13 @@
 """This module provides classes for handling web socket communication in the web interface."""
 import time
 import json
-import threading
 import logging
+import threading
 import tornado.websocket
 from rtCommon.structDict import StructDict
-from rtCommon.utils import DebugLevels
+from rtCommon.utils import DebugLevels, trimDictBytes
 from rtCommon.errors import StateError
+
 
 # Maintain websocket local state (using class as a struct)
 class websocketState:
@@ -23,6 +24,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
         a callback function that gets called when messages are received on this socket instance.
     """
     def initialize(self, name, callback=None):
+        """initialize method is called by Tornado with args provided to the addHandler call"""
         self.name = name
         if websocketState.wsConnectionLists.get(name) is None:
             websocketState.wsConnectionLists[name] = []
@@ -32,6 +34,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             websocketState.wsCallbacks[name] = defaultWebsocketCallback
 
     def open(self):
+        """Called when a new client connection is established"""
         user_id = self.get_secure_cookie("login")
         if not user_id:
             logging.warning(f'websocket {self.name} authentication failed')
@@ -48,9 +51,10 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             wsConnections.append(self)
         finally:
             websocketState.wsConnLock.release()
-        # print(f'{self.name} WebSocket: connected {self.request.remote_ip}')
+        print(f'{self.name} WebSocket: connected {self.request.remote_ip}')
 
     def on_close(self):
+        """Called when the client connection is closed"""
         logging.log(DebugLevels.L1, f"{self.name} WebSocket closed")
         websocketState.wsConnLock.acquire()
         try:
@@ -64,6 +68,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             websocketState.wsConnLock.release()
 
     def on_message(self, message):
+        """Called when a message is received from a client connection"""
         client_conn = self
         callback_func = websocketState.wsCallbacks.get(self.name)
         try:
@@ -79,7 +84,25 @@ class DataWebSocketHandler(BaseWebSocketHandler):
         # get the corresponding RequestHandler object so we can clear any waiting threads
         callback_func = websocketState.wsCallbacks.get(self.name)
         requestHandler = callback_func.__self__
-        requestHandler.close_pending_requests()
+        requestHandler.close_pending_requests(self.name)
+
+
+class RejectWebSocketHandler(tornado.websocket.WebSocketHandler):
+    """
+    A web socket handler that rejects connections on the web socket and returns a
+    pre-configured error with the rejection reason.
+    """
+    def initialize(self, rejectMsg):
+        self.rejectMsg = rejectMsg
+
+    # def prepare(self):
+    #     raise tornado.web.HTTPError('## wsData is local ##')
+    #     return
+
+    def open(self):
+        print(f'{self.rejectMsg}')
+        self.close(code=1, reason=self.rejectMsg)
+        return
 
 
 def sendWebSocketMessage(wsName, msg, conn=None):
@@ -122,26 +145,44 @@ def defaultWebsocketCallback(client, message):
 ###################
 '''
 Data Mesage Handler:
-This is for sending requests to fileWatcher and receiving replies (kind of an RPC)
+This is for sending requests to a remote service and receiving replies (kind of an RPC)
 Step 1: Prepare to send request, cache a callback structure which will match with the request
 Step 2: Send the request
 Step 3: Get replies, match the reply to the callback structure and signal a semaphore
 '''
 class RequestHandler:
     """
-    Class for handling data requests (such with a remote FileInterface). Each data requests is
+    Class for handling remote requests (such with a remote DataInterface). Each data requests is
     given a unique ID and callbacks from the client are matched to the original request and results
-    returned to the corresponding caller. 
+    returned to the corresponding caller.
     """
-    def __init__(self, name):
+    def __init__(self, name, ioLoopInst):
         self.dataCallbacks = {}
         self.dataSequenceNum = 0
         self.cbPruneTime = 0
         self.callbackLock = threading.Lock()
         self.name = name
+        self.ioLoopInst = ioLoopInst
+
+    # Top level function to make a remote request
+    def doRequest(self, msg, timeout=None):
+        """
+        Send a request over the web socket, i.e. to the remote FileWatcher.
+        This is typically the only call that a user of this class would make.
+        It is the highest level call of this class, it uses the other methods to
+        complete the request.
+        """
+        # print(f'doRequest: {msg}')
+        call_id, conn = self.prepare_request(msg)
+        isNewRequest = not msg.get('incomplete', False)
+        cmd = msg.get('cmd')
+        logging.log(DebugLevels.L6, f'wsRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
+        if isNewRequest is True:
+            self.ioLoopInst.add_callback(sendWebSocketMessage, wsName=self.name, msg=json.dumps(msg), conn=conn)
+        response = self.get_response(call_id, timeout=timeout)
+        return response
 
     # Step 1 - Prepare the request, record the callback struct and ID for when the reply comes
-    # was sendDataMsgFromThreadAsync(msg):  - TODO remove
     def prepare_request(self, msg):
         """Prepate a request to be sent, including creating a callback structure and unique ID."""
         # Get data server connection the request will be sent on
@@ -149,7 +190,10 @@ class RequestHandler:
         try:
             wsConnections = websocketState.wsConnectionLists.get(self.name)
             if wsConnections is None or len(wsConnections) == 0:
-                raise StateError("webServer: FileServer not connected. Please run the fileServer.")
+                serviceName = 'DataService'
+                if self.name == 'wsSubject':
+                    serviceName = 'SubjectService'
+                raise StateError(f"RemoteService: {serviceName} not connected. Please start the remote service.")
             reqConn = wsConnections[-1]  # always use most recent connection
         finally:
             websocketState.wsConnLock.release()
@@ -173,7 +217,7 @@ class RequestHandler:
                 self.dataCallbacks[callId] = callbackStruct
             finally:
                 self.callbackLock.release()
-            # Web.ioLoopInst.add_callback(Web.sendDataMessage, msg)
+            # self.ioLoopInst.add_callback(Web.sendDataMessage, msg)
         return callId, reqConn
 
     # Step 2: Receive a reply and match up the orig callback structure, 
@@ -191,8 +235,8 @@ class RequestHandler:
         callId = response.get('callId', -1)
         origCmd = response.get('cmd', 'NoCommand')
         logging.log(DebugLevels.L6, "callback {}: {} {}".format(callId, origCmd, status))
-        numParts = response.get('numParts')
-        partId = response.get('partId')
+        # numParts = response.get('numParts')
+        # partId = response.get('partId')
         # print(f'callback {callId}: {origCmd} {status} numParts {numParts} partId {partId}')
         # Thread Synchronized Section
         self.callbackLock.acquire()
@@ -231,6 +275,7 @@ class RequestHandler:
         # wait for semaphore signal indicating a callback for this callId has occured
         signaled = callbackStruct.semaphore.acquire(timeout=timeout)
         if signaled is False:
+            trimDictBytes(callbackStruct.msg)
             raise TimeoutError("sendDataMessage: Data Request Timed Out({}) {}".
                                 format(timeout, callbackStruct.msg))
         self.callbackLock.acquire()
@@ -253,6 +298,7 @@ class RequestHandler:
                     print(f'callback num responses not zero {response}')
                 self.dataCallbacks.pop(callId, None)
         except IndexError:
+            trimDictBytes(callbackStruct.msg)
             raise StateError('sendDataMessage: callbackStruct.response is None for command {}'.
                                 format(callbackStruct.msg))
         finally:
@@ -309,3 +355,5 @@ class RequestHandler:
             logging.error(f'RequestHandler {self.name} pruneCallbacks: error {err}')
         finally:
             self.callbackLock.release()
+
+

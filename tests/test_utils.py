@@ -7,9 +7,12 @@ import random
 import pathlib
 import numpy as np  # type: ignore
 from glob import iglob
+from pathlib import Path
 import rtCommon.utils as utils  # type: ignore
 import rtCommon.validationUtils as vutils  # type: ignore
 from rtCommon.structDict import MatlabStructDict  # type: ignore
+from rtCommon.addLogin import addUserPassword
+from rtCommon.webHttpHandlers import loadPasswdFile
 
 
 @pytest.fixture(scope="module")
@@ -157,6 +160,43 @@ class TestPearsonsMeanCorr:
         n2t = np.transpose(n2)
         res = vutils.pearsons_mean_corr(n1t, n2t)
         assert res > 0.999
+
+class TestUtils:
+    def test_delete(self):
+        fileList = ['/tmp/testdir/d1/test1.txt', '/tmp/testdir/d1/d2/test2.txt',
+                    '/tmp/testdir/d1/d2/d3/test3.txt', '/tmp/testdir/d1/d2/d3/test4.txt']
+        for file in fileList:
+            utils.writeFile(file, 'hello', binary=False)
+
+        # test delete files from list
+        assert os.path.exists(fileList[-1])
+        utils.deleteFilesFromList(fileList)
+        assert not os.path.exists(fileList[-1])
+        assert os.path.isdir('/tmp/testdir/d1/d2/d3')
+
+        # test delete folder
+        for file in fileList:
+            utils.writeFile(file, 'hello', binary=False)
+        utils.deleteFolder('/tmp/testdir/d1')
+        assert not os.path.isdir('/tmp/testdir/d1')
+
+        # test delete files recursively in folders, but leave folders in place
+        for file in fileList:
+            utils.writeFile(file, 'hello', binary=False)
+        utils.deleteFolderFiles('/tmp/testdir/d1')
+        assert os.path.isdir('/tmp/testdir/d1/d2/d3')
+
+class TestAddUser:
+    def test_adduser(self):
+        testPasswordFile = '/tmp/testdir/test_pwd_file'
+        # start with empty file
+        if os.path.exists(testPasswordFile):
+            os.remove(testPasswordFile)
+        addUserPassword('a_user', 'a_password', testPasswordFile, retypePasswd=False)
+        addUserPassword('b_user', 'b_password', testPasswordFile, retypePasswd=False)
+        pwds = loadPasswdFile(testPasswordFile)
+        assert 'a_user' in pwds
+        assert 'b_user' in pwds
 
 
 if __name__ == "__main__":

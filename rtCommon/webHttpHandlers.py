@@ -1,5 +1,5 @@
 """
-This module provides the callback handlers what the web server will utilize
+This module provides the callback handlers that the web server will utilize
     when handling and rendering html page reqeusts.
 """
 import os
@@ -15,8 +15,8 @@ maxDaysLoginCookieValid = 0.5
 
 class HttpHandler(tornado.web.RequestHandler):
     """Generic web handler object that is initialized with the page name to render when called."""
-    def initialize(self, webObject, page):
-        self.web = webObject
+    def initialize(self, htmlDir, page):
+        self.htmlDir = htmlDir
         self.page = page
         self.httpLock = threading.Lock()
 
@@ -25,7 +25,8 @@ class HttpHandler(tornado.web.RequestHandler):
 
     @tornado.web.authenticated
     def get(self):
-        full_path = os.path.join(self.web.htmlDir, self.page)
+        """Handle a web GET request by returning the appropriate web content to render"""
+        full_path = os.path.join(self.htmlDir, self.page)
         logging.log(DebugLevels.L6, f'{self.request.uri} request: pwd: {full_path}')
         self.httpLock.acquire()
         try:
@@ -39,15 +40,17 @@ class LoginHandler(tornado.web.RequestHandler):
     loginAttempts = {}
     loginRetryDelay = 10
 
-    def initialize(self, webObject):
-        self.web = webObject
+    def initialize(self, htmlDir, page, testMode):
+        self.htmlDir = htmlDir
+        self.webLoginPage = page
+        self.testMode = testMode
 
     def get(self):
         params = {
             "error_msg": '',
             "nextpage": self.get_argument("next", "/")
         }
-        full_path = os.path.join(self.web.htmlDir, self.web.webLoginPage)
+        full_path = os.path.join(self.htmlDir, self.webLoginPage)
         self.render(full_path,  **params)
 
     def post(self):
@@ -55,7 +58,7 @@ class LoginHandler(tornado.web.RequestHandler):
         try:
             login_name = self.get_argument("name")
             login_passwd = self.get_argument("password")
-            if self.web.testMode is True:
+            if self.testMode is True:
                 if login_name == login_passwd == 'test':
                     self.set_secure_cookie("login", login_name, expires_days=maxDaysLoginCookieValid)
                     self.redirect(self.get_query_argument('next', '/'))
@@ -87,7 +90,7 @@ class LoginHandler(tornado.web.RequestHandler):
             "error_msg": errorReply,
             "nextpage": self.get_query_argument('next', '/')
         }
-        full_path = os.path.join(self.web.htmlDir, self.web.webLoginPage)
+        full_path = os.path.join(self.htmlDir, self.webLoginPage)
         self.render(full_path,  **params)
 
     def checkRetry(self, user):
@@ -117,8 +120,8 @@ class LoginHandler(tornado.web.RequestHandler):
 
 class LogoutHandler(tornado.web.RequestHandler):
     """Clears the secure-cookie so that users will need to re-authenticate."""
-    def initialize(self, webObject):
-        self.web = webObject
+    def initialize(self):
+        pass
 
     def get(self):
         self.clear_cookie("login")
@@ -126,6 +129,8 @@ class LogoutHandler(tornado.web.RequestHandler):
 
 
 def loadPasswdFile(filename):
+    if not os.path.exists(filename):
+        return {}
     with open(filename, 'r') as fh:
         entries = fh.readlines()
     passwdDict = {k: v for (k, v) in [line.strip().split(',') for line in entries]}

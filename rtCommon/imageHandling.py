@@ -15,6 +15,7 @@ import subprocess
 import warnings
 import numpy as np  # type: ignore
 import nibabel as nib
+import pydicom
 from rtCommon.errors import StateError, ValidationError, InvocationError, RequestError
 from nilearn.image import new_img_like
 with warnings.catch_warnings():
@@ -120,7 +121,7 @@ def writeDicomToBuffer(dicomImg):
     return data
 
 
-def readDicomFromBuffer(data):
+def readDicomFromBuffer(data) -> pydicom.dataset.FileDataset:
     """
     This function reads data that is in binary mode and then converts it into a
     structure that can be read as a dicom file. This is necessary because files are
@@ -134,11 +135,11 @@ def readDicomFromBuffer(data):
     return dicomImg
 
 
-def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
+def readRetryDicomFromDataInterface(dataInterface, filename, timeout=5):
     """
     This function is waiting and watching for a dicom file to be sent to the cloud
     from the scanner. It dodes this by calling the 'watchFile()' function in the
-    'fileInterface.py'
+    'dataInterface.py'
 
     Used externally (and internally).
     """
@@ -146,8 +147,7 @@ def readRetryDicomFromFileInterface(fileInterface, filename, timeout=5):
     while retries < 5:
         retries += 1
         try:
-            data = fileInterface.watchFile(filename, timeout)
-            # TODO - Inject error here and see if commpipe remains open
+            data = dataInterface.watchFile(filename, timeout)
             dicomImg = readDicomFromBuffer(data)
             # check that pixel array is complete
             dicomImg.convert_pixel_data()

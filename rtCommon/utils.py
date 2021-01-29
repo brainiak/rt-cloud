@@ -19,10 +19,6 @@ from .structDict import MatlabStructDict, isStructuredArray, recurseCreateStruct
 from .errors import InvocationError
 
 
-class TooManySubStructsError(ValueError):
-    pass
-
-
 def parseMatlabStruct(top_struct) -> MatlabStructDict:
     '''Load matlab data file and convert it to a MatlabStructDict object for
        easier python access. Expect only one substructure array, and use that
@@ -32,7 +28,7 @@ def parseMatlabStruct(top_struct) -> MatlabStructDict:
     substruct_names = [key for key in top_struct.keys() if isStructuredArray(top_struct[key])]
     # if len(substruct_names) > 1:
     #     # Currently we only support one sub structured array
-    #     raise TooManySubStructsError(
+    #     raise ValueError(
     #         "Too many substructs: {}".format(substruct_names))
     substruct_name = substruct_names[0] if len(substruct_names) > 0 else None
     matstruct = MatlabStructDict(top_struct, substruct_name)
@@ -194,12 +190,13 @@ def runCmdCheckOutput(cmd, outputRegex):
 
 
 def demoDelay(demoStep, prevEventTime):
-    '''Given demoStep in seconds, calculate how long to sleep until the next
+    """Provides a delay of demoStep seconds from the previous event time (i.e. sleeps)
+       Given demoStep in seconds, calculate how long to sleep until the next
        clock cycle will be reached that is an even value of demoStep.
        Then sleep that amount of time.
        If prevEventTime is specified and we are more than 1 demo step since the
        prevEvent then don't sleep.
-    '''
+    """
     now = time.time()
     if (now > prevEventTime + demoStep) or (demoStep == 0):
         return now
@@ -274,6 +271,26 @@ def getGitCodeId():
         commitId = commitB.decode("utf-8").rstrip()
         gitCodeId = branchName + ":" + commitId
     return gitCodeId
+
+
+def stringPartialFormat(text, tag, val) -> str:
+    # define a private function (a closure)
+    def formatMatch(matchObj):
+        matchStr = matchObj.group(0)
+        matchStr = matchStr.replace(tag, '')
+        replStr = matchStr.format(val)
+        return replStr
+    pattern = '{' + tag + '.*?}'
+    result = re.sub(pattern, formatMatch, text)
+    return result
+
+
+def trimDictBytes(msg, trimSize=64):
+    keys = list(msg.keys())
+    for key in keys:
+        if type(msg[key]) in (str, bytes, bytearray):
+            if len(msg[key]) > trimSize:
+                msg.pop(key, None)
 
 
 '''

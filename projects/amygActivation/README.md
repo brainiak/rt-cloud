@@ -75,7 +75,7 @@ Young 2014 run struture:
         - Make sure to change the rtcloudDir to be the cloud directory. And to make sure to have this config file on the cloud server as well.
 
 
-## Setup: one computer, with the local setting
+## Setup: one computer, with the data local setting
 
 In this case, you don’t need the file server at all, because the project will do all processing within one computer. Thus, you only need to start the web server.
 
@@ -95,17 +95,17 @@ In this case, you don’t need the file server at all, because the project will 
     - Run the projectInterface script, giving it the correct project
 
       ```
-      bash scripts/run-projectInterface.sh -p amygActivation -c projects/amygActivation/conf/amygActivation_local.toml --localfiles
+      bash scripts/run-projectInterface.sh -p amygActivation -c projects/amygActivation/conf/amygActivation_local.toml
       ```
 
-        1. The -`-localfiles` flag sets the `args.filesremote` to be true in all subsequent project code (default is false)
+        1. The `-p` indicates which project to run. The project will be assumed to live in the rt-cloud/projects/ directory with the name supplied by -p, unless a path is explicitly set using `-d <projectDirectory>`
         2. The `-c`  input tells the web server which config file to use in all subsequent code. It is very important to put the correct config file that you edited here. I would suggest making multiple config files with the different settings so you can just change it here when you’re running in different ways.
 2. Go to the web browser to run the experiment
     - Go to [https://localhost:8888/](https://localhost:8888/login?next=%2F)
     - Login with your username from rt-cloud installation
 
 
-## Setup: one computer, without the local setting
+## Setup: one computer, without the data local setting
 
 This will help test to see what the rt-cloud system does. Even though everything will be performed on one computer, it will still set up a separate data/server directory for cloud processing. This will help understand the separation between computers.
 
@@ -126,7 +126,7 @@ This will help test to see what the rt-cloud system does. Even though everything
     - Run the projectInterface script, giving it the correct project
 
       ```
-      bash scripts/run-projectInterface.sh -p amygActivation -c projects/amygActivation/conf/amygActivation_local.toml
+      bash scripts/run-projectInterface.sh -p amygActivation -c projects/amygActivation/conf/amygActivation_local.toml --dataRemote
       ```
 
 2. Start the file server
@@ -190,7 +190,7 @@ This will help test to see what the rt-cloud system does. Even though everything
     - Run the projectInterface script, giving it the correct project, config file, and IP address
 
       ```
-      bash scripts/run-projectInterface.sh -p amygActivation -c projects/amygActivation/conf/amygActivation_cloud.toml -p amygActivation -ip SERVER_IP
+      bash scripts/run-projectInterface.sh -p amygActivation -c projects/amygActivation/conf/amygActivation_cloud.toml -p amygActivation --dataRemote -ip SERVER_IP
         ```
 
 3. LOCAL COMPUTER: Start the file server

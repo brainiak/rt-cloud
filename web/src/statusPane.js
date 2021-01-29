@@ -68,7 +68,7 @@ class StatusPane extends React.Component {
         <button onClick={this.stopBttnOnClick}>Stop</button>
         <p>{errorStr}</p>
         <hr />
-        <AutoscrolledList items={this.props.logLines} height="600px" />
+        <AutoscrolledList items={this.props.userLog} height="600px" />
       </div>
     );
   }
