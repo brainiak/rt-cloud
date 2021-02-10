@@ -36,3 +36,8 @@ class BidsInterface(RemoteableExtensible):
         msg = f"Echo: {val}"
         print(msg)
         return msg
+
+    def testMethod(self, *args, **kwargs):
+        print(f'received args: {args}, kwargs: {kwargs}')
+        res = [args, kwargs]
+        return res

@@ -113,6 +113,8 @@ if __name__ == "__main__":
                            help='subject feedback/response to remote service')
     argParser.add_argument('--remote', '-r', default=False, action='store_true',
                            help='user remote services for both data and subject interface')
+    argParser.add_argument('--port', default=8888, type=int,
+                           help='Network port that the projectServer will listen for requests on')
     argParser.add_argument('--test', '-t', default=False, action='store_true',
                            help='start webServer in test mode, unsecure')
     args = argParser.parse_args()

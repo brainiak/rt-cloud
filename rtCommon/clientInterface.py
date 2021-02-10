@@ -50,9 +50,9 @@ class ClientInterface:
                                             # "allow_all_attrs": True,
                                            })
             # Need to provide an override class of DataInstance to return data from getImage
-            self.dataInterface = DataInterfaceOverrides(rpcConn.root.DataInterface)
-            self.subjInterface = rpcConn.root.SubjectInterface
-            self.bidsInterface = rpcConn.root.BidsInterface
+            self.dataInterface = WrapRpycObject(rpcConn.root.DataInterface)
+            self.subjInterface = WrapRpycObject(rpcConn.root.SubjectInterface)
+            self.bidsInterface = WrapRpycObject(rpcConn.root.BidsInterface)
             # WebDisplay is always run within the projectServer (i.e. not a remote service)
             self.webInterface = rpcConn.root.WebDisplayInterface
             self.rpcConn = rpcConn
@@ -95,32 +95,27 @@ class ClientInterface:
         else:
             return False
 
-class DataInterfaceOverrides(object):
-    """Override the getImageData function of DataInterface
-       to return the actual data rather than an RPC reference
+class WrapRpycObject(object):
     """
-
-    def __init__(self, remoteDataInterface):
-        self.remote = remoteDataInterface
+    Rpyc commands return a rpyc.core.netref object to as a reference to the remote object.
+    This class wraps all calls to the remote in order to dereference the rpyc.core.netref
+    and return the actual object using rpyc.classic.obtain(ref)
+    """
+    def __init__(self, remoteInterface):
+        self.remote = remoteInterface
 
     def __getattribute__(self, name):
-        """
-        If this override class implements a function, then return it.
-        Otherwise return the remoteInstance verion of the function.
-        Note: __getattribute__ is called for every reference whereas
-            __getattr__ is only called for missing references
-        """
-        try:
-            attr = object.__getattribute__(self, name)
-        except AttributeError:
-            return getattr(self.remote, name)
-        return attr
+        remote = object.__getattribute__(self, 'remote')
+        attr = getattr(remote, name)
+        if hasattr(attr, '__call__'):
+            def newfunc(*args, **kwargs):
+                ref = attr(*args, **kwargs)
+                result = rpyc.classic.obtain(ref)
+                return result
+            return newfunc
+        else:
+            return attr
 
-    # Override getImageData to return by value rather than by reference
-    def getImageData(self, streamId: int, imageIndex: int=None, timeout: int=5):
-        ref = self.remote.getImageData(streamId, imageIndex, timeout)
-        val = rpyc.classic.obtain(ref)
-        return val
 
     # TODO - make a more efficient getFile and putFile
     # def getFile():

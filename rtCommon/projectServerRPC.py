@@ -13,7 +13,7 @@ from rtCommon.dataInterface import DataInterface
 from rtCommon.subjectInterface import SubjectInterface
 from rtCommon.bidsInterface import BidsInterface
 from rtCommon.errors import StateError, RequestError
-from rtCommon.projectUtils import unpackDataMessage
+from rtCommon.projectUtils import unpackDataMessage, npToPy
 from rtCommon.wsRemoteService import encodeByteTypeArgs
 from rtCommon.webSocketHandlers import RequestHandler
 
@@ -207,7 +207,9 @@ class RPCHandlers:
         if cmd.get('cmd') == 'rpc':
             # if cmd is rpc, check and encode any byte args as base64
             cmd = encodeByteTypeArgs(cmd)
-            # TODO - also encode numpy ints and floats as python ints and floats
+            # Convert numpy arguments to native python types
+            cmd['args'] = npToPy(cmd.get('args', ()))
+            cmd['kwargs'] = npToPy(cmd.get('kwargs', {}))
         while incomplete:
             response = handler.doRequest(cmd, timeout)
             if response.get('status') != 200:

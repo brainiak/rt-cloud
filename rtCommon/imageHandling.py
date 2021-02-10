@@ -10,6 +10,7 @@ nifti files, which is a file format that is better for data analyses.
 
 import os
 import time
+import uuid
 import logging
 import subprocess
 import warnings
@@ -243,7 +244,7 @@ def getTransform(target_orientation, dicom_orientation):
 
 def saveAsNiftiImage(dicomDataObject, fullNiftiFilename, cfg, reference):
     """
-    This function takes in a dicom data object written in bytess, what you expect
+    This function takes in a dicom data object written in bytes, what you expect
     the dicom file to be called (we will use the same name format for the nifti
     file), and the config file while will have (1) the axes transformation for the
     dicom file and (2) the header information from a reference scan.
@@ -278,7 +279,15 @@ def readNifti(niftiFilename):
     return nifitImg
 
 
-def convertDicomImgToNifti(dicomImg, dicomFilename='/tmp/convert.dcm'):
+def convertDicomImgToNifti(dicomImg, dicomFilename=None):
+    '''
+    Given an in-memory dicomImg, convert it to an in-memory niftiImg
+    Note: due to how nibabel niftiImage works, it is just a pointer to a file
+          on disk, so we can't delete the niftiFile while niftiImage is
+          is in use.
+    '''
+    if dicomFilename is None:
+        dicomFilename = os.path.join('/tmp', 'tmp_nifti_' + uuid.uuid4().hex + '.dcm')
     writeDicomFile(dicomImg, dicomFilename)
     # swap .dcm extension with .nii extension
     base, ext = os.path.splitext(dicomFilename)
@@ -287,4 +296,9 @@ def convertDicomImgToNifti(dicomImg, dicomFilename='/tmp/convert.dcm'):
     # concvert dicom file to nifti file
     convertDicomFileToNifti(dicomFilename, niftiFilename)
     niftiImg = readNifti(niftiFilename)
+    # cleanup the tmp files created
+    os.remove(dicomFilename)
+    # A nibabel nifti object is just a reference to a file on disk, 
+    #   so we can't delete the tmp file yet
+    # os.remove(niftiFilename)
     return niftiImg
