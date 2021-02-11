@@ -36,12 +36,12 @@ Note: The clientInterfaces connect to remote services with the following mapping
 
 ### **Retrieving DICOM Images from the Scanner Computer**
 
-Within your python script, use the `dataInterface` object to request remote files. For example, to retrieve dicom images as they are created, init a watch on the appropriate directory and then watch for them.
+Within your python script, use the `dataInterface` object to request remote files. For example, to retrieve DICOM images as they are created, init a watch on the appropriate directory and then watch for them.
 
     dataInterface.initWatch('/tmp/dicoms', 'samp*.dcm', minFileSize)
     rawData = dataInterface.watchFile('/tmp/samp3.dcm')
 
-Or use the readRetryDicom helper function which will retry several times across timeouts to retrieve the Dicom image data:
+Or use the readRetryDicom helper function which will retry several times across timeouts to retrieve the DICOM image data:
 
     dataInterface.initWatch('/tmp/dicoms', 'samp*.dcm', minFileSize)
     dicomData = readRetryDicomFromDataInterface(dataInterface, 'samp3.dcm', timeout=10)
@@ -109,7 +109,7 @@ Start the projectInterface without the --dataRemote or --subjectRemote options. 
     bash scripts/run-projectInterface.sh -p [your_project_name]
 
 ### **Running the subjectService remotely, but read DICOM data from the disk of the projectInterface computer**
-Start the projectInterface only specifying --subjectRemote. Then start a subjectService on a different computer that will connect to the projectInterface. The scannerDataService will be automatically be created internally by the projectInterface to read data from the projectInterface computer.
+Start the projectInterface only specifying --subjectRemote. Then start a subjectService on a different computer that will connect to the projectInterface. The scannerDataService will automatically be created internally by the projectInterface to read data from the projectInterface computer.
 
     bash scripts/run-projectInterface.sh -p [your_project_name] --subjectRemote
 

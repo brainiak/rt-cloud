@@ -1,7 +1,7 @@
 # **Running a Realtime Experiment**
 
 ## **Running the ProjectInterface**
-The projectInterface is typically run on a VM in the cloud (i.e. a 'remote' computer) which does not have direct access to the dicom images. The advantage of a cloud VM is that any laptop browser can connect to it and no additional hardware or software installation is needed on the control room computer. However the projectInterface can also be run on a 'local' computer, meaning on the same computer in the control room where the dicom images are written.
+The projectInterface is typically run on a VM in the cloud (i.e. a 'remote' computer) which does not have direct access to the DICOM images. The advantage of a cloud VM is that any laptop browser can connect to it and no additional hardware or software installation is needed on the control room computer. However the projectInterface can also be run on a 'local' computer, meaning on the same computer in the control room where the DICOM images are written.
 
 
 ### **Running ProjectInterface in the Cloud**
@@ -41,7 +41,7 @@ Example (run from the rt-cloud directory):
     bash scripts/run-subjectService.sh -s 125.130.21.34:8888 -u user1 -p passwd1
 
 ### **Running ProjectInterface Locally**
-The projectInterface can also be run on the control room computer where the dicom images are written. This is called running it 'locally'. When run locally the fileServer (scannerDataService) is not needed because the projectInterface can directly read the dicom images from disk.
+The projectInterface can also be run on the control room computer where the DICOM images are written. This is called running it 'locally'. When run locally the fileServer (scannerDataService) is not needed because the projectInterface can directly read the DICOM images from disk.
 
 **1) Start the projectInterface:** same command as above but without the --dataRemote or --subjectRemote options
 
@@ -99,4 +99,4 @@ There are several security mechanisms
 - **[projectInterface_addr:port]** - The network address and port number that the projectInterface is listening on. The default port is 8888. E.g. '-s 125.130.21.34:8888'
 - **[your_project_name]** - The name of the subdirectory under the *rtcloud/projects/* directory which contains your project specific code. Your script should use the same name as the directory, i.e. sample.py, so that the projectInterface can find it.
 - **[run]** - An fMRI scanner aquisition block of images. For example running the scanner to collect a block of 200 scans with a TR image repetition time of 2 seconds; this run will take 400 seconds and generate 200 DICOM images.
-- **[scan]** - The file sequence number corresponding to a run. For example, in the image name '001_000014_000005.dcm', the scan number is 14 and the TR number is 5.
+- **[scan]** - The file sequence number corresponding to a run. For example, in the image name '001_000014_000005.dcm', the scan number is 14 and the image volume number (TR id) is 5.
