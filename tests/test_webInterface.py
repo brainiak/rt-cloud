@@ -83,19 +83,14 @@ class TestWebInterface:
         expectWebResult(ws, 'setDataPoints', 'value', dataPoints)
 
         testCfg = {'val1': 'a', 'val2': 'b'}  # dict(val = 'test')
-        # TODO - for some reason json.dumps() of a dict within a dict is failing
-        #  within sendConfig. But it works in ipython. Temporarily json encoded
-        #  the inner dict separately
-        # webInterface.sendConfig(testCfg, 'testfile')
-        jCfg = json.dumps(testCfg)
-        webInterface.sendConfig(jCfg, 'testfile')
-        expectWebResult(ws, 'setConfig', 'value', jCfg)
+        webInterface.sendConfig(testCfg, 'testfile')
+        expectWebResult(ws, 'setConfig', 'value', testCfg)
 
 
 def expectWebResult(ws, cmdName, key, value):
     jres = ws.recv()
     res = json.loads(jres)
-    print(res)
+    # print(res)
     assert res.get('cmd') == cmdName
     assert res.get(key) == value
 
@@ -105,7 +100,7 @@ def runCmd(ws, cmd):
     ws.send(jcmd)
     result = ws.recv()
     vals = json.loads(result)
-    print(vals)
+    # print(vals)
     assert vals.get('error') is None
     return vals
 

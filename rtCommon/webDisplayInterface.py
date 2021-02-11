@@ -5,6 +5,7 @@ internally within projectServer for setting log and error messages within the we
 """
 import json
 import numbers
+from rtCommon.projectUtils import npToPy
 from rtCommon.webSocketHandlers import sendWebSocketMessage
 from rtCommon.errors import RequestError
 
@@ -22,7 +23,7 @@ class WebDisplayInterface:
         """Set a log message in the user log area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'userLog', 'value': logStr}
-            self._sendMessageToWeb(json.dumps(cmd))
+            self._sendMessageToWeb(cmd)
         else:
             print("UserLog: " + logStr)
 
@@ -30,7 +31,7 @@ class WebDisplayInterface:
         """Set a log message in the session log area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'sessionLog', 'value': logStr}
-            self._sendMessageToWeb(json.dumps(cmd))
+            self._sendMessageToWeb(cmd)
         else:
             print("SessionLog: " + logStr)
 
@@ -38,7 +39,7 @@ class WebDisplayInterface:
         """Set a log message in the debug log area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'debugLog', 'value': logStr}
-            self._sendMessageToWeb(json.dumps(cmd))
+            self._sendMessageToWeb(cmd)
         else:
             print("DebugLog: " + logStr)
 
@@ -46,7 +47,7 @@ class WebDisplayInterface:
         """Set an error message in the error display area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'userError', 'error': errStr}
-            self._sendMessageToWeb(json.dumps(cmd))
+            self._sendMessageToWeb(cmd)
         else:
             print("UseError: " + errStr)
 
@@ -54,7 +55,7 @@ class WebDisplayInterface:
         """Set an error message in the debug display area of the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'debugError', 'error': errStr}
-            self._sendMessageToWeb(json.dumps(cmd))
+            self._sendMessageToWeb(cmd)
         else:
             print("DebugError: " + errStr)
 
@@ -62,14 +63,14 @@ class WebDisplayInterface:
         """Indicate run status in the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'runStatus', 'status': statusStr}
-            self._sendMessageToWeb(json.dumps(cmd))
+            self._sendMessageToWeb(cmd)
         else:
             print("RunStatus: " + statusStr)
 
     def sendUploadStatus(self, fileStr):
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'uploadStatus', 'file': fileStr}
-            self._sendMessageToWeb(json.dumps(cmd))
+            self._sendMessageToWeb(cmd)
         else:
             print("UploadStatus: " + fileStr)
 
@@ -77,7 +78,7 @@ class WebDisplayInterface:
         """Send the project configurations to the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'setConfig', 'value': config, 'filename': filename}
-            self._sendMessageToWeb(json.dumps(cmd))
+            self._sendMessageToWeb(cmd)
         else:
             print("sendConfig: " + filename)
 
@@ -85,7 +86,7 @@ class WebDisplayInterface:
         """Send previously plotted data points to the web page"""
         if self.ioLoopInst is not None:
             cmd = {'cmd': 'setDataPoints', 'value': self.dataPoints}
-            self._sendMessageToWeb(json.dumps(cmd))
+            self._sendMessageToWeb(cmd)
         else:
             print("sendPreviousDataPoints: " + self.dataPoints)
 
@@ -140,6 +141,8 @@ class WebDisplayInterface:
     def _sendMessageToWeb(self, msg):
         """Helper function used by the other methods to send a message to the web page"""
         if self.ioLoopInst is not None:
-            self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsUser', msg=msg)
+            msg = npToPy(msg)
+            json_msg = json.dumps(msg)
+            self.ioLoopInst.add_callback(sendWebSocketMessage, wsName='wsUser', msg=json_msg)
         else:
             print(f'WebDisplayMsg {msg}')

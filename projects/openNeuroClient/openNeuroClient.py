@@ -1,6 +1,7 @@
 # import important modules
 import os
 import sys
+import numpy
 import argparse
 
 currPath = os.path.dirname(os.path.realpath(__file__))
@@ -40,6 +41,10 @@ def main(argv=None):
 
     res = bidsInterface.echo("test")
     print(res)
+
+    required_metadata = {'subject':'04', 'task':'story', 'suffix':'bold', 'datatype':'func','run' : 1}
+    res = bidsInterface.testMethod(4, 'hello', required_metadata, mdata=required_metadata, test1=9.0, test2=numpy.float32(9), test3='yes')
+    print(f'testMethod returned {res}')
 
     # load the experiment configuration file
     # cfg = loadConfigFile(args.config)

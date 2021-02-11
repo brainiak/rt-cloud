@@ -32,29 +32,34 @@ Note: The clientInterfaces connect to remote services with the following mapping
 
     dataInterface --> scannerDataService
     subjInterface --> subjectService
-    webInterface  --> user webbrowser
+    webInterface  --> user web browser
 
 ### **Retrieving DICOM Images from the Scanner Computer**
 
-Within your python script, use the `dataInterface` object to request remote files. For example, to retrieve dicom images as they are created, init a watch on the appropriate directory and then watch for them.
+Within your python script, use the `dataInterface` object to request remote files. For example, to retrieve DICOM images as they are created, init a watch on the appropriate directory and then watch for them.
 
     dataInterface.initWatch('/tmp/dicoms', 'samp*.dcm', minFileSize)
     rawData = dataInterface.watchFile('/tmp/samp3.dcm')
 
-Or use the readRetryDicom helper function which will retry several times across timeouts to retrieve the Dicom image data.
+Or use the readRetryDicom helper function which will retry several times across timeouts to retrieve the DICOM image data:
 
     dataInterface.initWatch('/tmp/dicoms', 'samp*.dcm', minFileSize)
     dicomData = readRetryDicomFromDataInterface(dataInterface, 'samp3.dcm', timeout=10)
 
+Or use the streaming interface to receive image data:
+
+    streamId = dataInterface.initScannerStream('/tmp/dicoms', 'samp*.dcm', minFileSize)
+    dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout=10)
+
 ### **Send Classification Results for Subject Feedback**
 
-Write classification results back to the console computer using putFile
-
-    dataInterface.putFile(fullpath_filename_to_save, text_to_save)
-
-Or use the subjectInterface to send results to a SubjectService which will be running on the presentation computer:
+Send classification results to the presentation computer using the subjectInterface setResult() command:
 
     subjInterface.setResult(runNum, int(TR_id), float(classification_result))
+
+Or send classification results to a file on the scanner computer (where scannerDataService is running) which can be read in by a script (e.g. using a toolkit like PsychToolbox) for subject feedback.
+
+    dataInterface.putFile(fullpath_filename_to_save, text_to_save)
 
 ### **Update the User's Webpage Display**
 Send data values to be graphed in the projectInterface web page
@@ -96,3 +101,19 @@ The following fields must be present in the config toml file for the projectInte
   - plotXRangeHigh = 20
   - plotYRangeLow = -1
   - plotYRangeHigh = 1
+
+## **Some Alternate Configurations For Your Experiment**
+### **Running everything on the same computer**
+Start the projectInterface without the --dataRemote or --subjectRemote options. No need to start any other services, local versions of them will be created internally by the projectInterface.
+
+    bash scripts/run-projectInterface.sh -p [your_project_name]
+
+### **Running the subjectService remotely, but read DICOM data from the disk of the projectInterface computer**
+Start the projectInterface only specifying --subjectRemote. Then start a subjectService on a different computer that will connect to the projectInterface. The scannerDataService will automatically be created internally by the projectInterface to read data from the projectInterface computer.
+
+    bash scripts/run-projectInterface.sh -p [your_project_name] --subjectRemote
+
+### **Reading both remote and local data**
+Start the projectInterface with the --dataRemote option and connect to it with a scannerDataService from another computer. In addition create another instance of dataInterface() within your script specifying dataRemote=False. This second dataInterface can watch for DICOM files created locally and the remote dataInterface can get/put files to the remote scannerDataInterface (for example to write a text file with the classification results for use by PsychToolbox).
+
+    dataInterface2 = DataInterface(dataRemote=False, allowedDirs=['*'], allowedFileTypes=['*'])

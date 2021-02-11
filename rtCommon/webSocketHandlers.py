@@ -178,7 +178,8 @@ class RequestHandler:
         cmd = msg.get('cmd')
         logging.log(DebugLevels.L6, f'wsRequest, {cmd}, call_id {call_id} newRequest {isNewRequest}')
         if isNewRequest is True:
-            self.ioLoopInst.add_callback(sendWebSocketMessage, wsName=self.name, msg=json.dumps(msg), conn=conn)
+            json_msg = json.dumps(msg)
+            self.ioLoopInst.add_callback(sendWebSocketMessage, wsName=self.name, msg=json_msg, conn=conn)
         response = self.get_response(call_id, timeout=timeout)
         return response
 

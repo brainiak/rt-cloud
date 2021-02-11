@@ -206,7 +206,7 @@ class WsBrowserRequestHandler:
     def on_stop(self):
         """Stop execution of the currently running project script (only one can run at a time)"""
         if self.runInfo.threadId is not None:
-            # TODO - stopRun need to be made global or runSesson part of this class
+            # TODO - stopRun needs to be made global or runSesson part of this class
             self.runInfo.stopRun = True
             self.runInfo.threadId.join(timeout=1)
             if not self.runInfo.threadId.is_alive():
@@ -354,10 +354,10 @@ class WsBrowserRequestHandler:
         # get the list of file to upload
         fileList = dataInterface.listFiles(srcFile)
         if len(fileList) == 0:
-            # TODO - make sendUploadProgress() commadn
+            # TODO - make sendUploadProgress() command
             self.webUI.sendUploadStatus('No Matching Files')
             return
-        
+
         uploadFilesFromList(dataInterface, fileList, CommonOutputDir)
         # TODO - break long fileList into parts and provide periodic progress message
         # self.webUI.sendUploadStatus(fileName)

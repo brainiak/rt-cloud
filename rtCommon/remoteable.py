@@ -8,6 +8,7 @@ On the remote side we will have a RemoteHandler instance and when messages are r
 will dispatch them to the handler.
 """
 import inspect
+import rpyc
 from rtCommon.errors import RequestError, StateError
 
 
@@ -52,8 +53,12 @@ class RemoteStub(object):
         self.commFunction = commFunction
 
     def remoteCall(self, attribute, *args, **kwargs) -> any:
-        # print(f'remoteCall class: {self.classname}, attribute: {attribute}, args: {args}, kwargs: {kwargs}')
+        # args and kwargs may be of type rpyc.core.netref.type if rpyc was used to
+        #   send this request from the client script to the projectServer; pull the actual object
+        args = rpyc.classic.obtain(args)
+        kwargs = rpyc.classic.obtain(kwargs)
         callStruct = {'cmd': 'rpc', 'class': self.classname, 'attribute': attribute, 'args': args, 'kwargs': kwargs}
+        # print(f'remoteCall: {callStruct}}')
         timeout = self.timeout
         if 'rpc_timeout' in kwargs:
             timeout = kwargs.pop('rpc_timeout')
@@ -104,10 +109,12 @@ class RemoteableExtensible(object):
         self.commFunction = commFunction
 
     def remoteCall(self, attribute, *args, **kwargs) -> any:
-        # TODO - automatcially detect and convert numpy variables to native python type (using np item())
-        # if isinstance(arg, numpy.generic): arg.item()
-        # print(f'remoteCall class: {type(self).__name__}, attribute: {attribute}, args: {args}, kwargs: {kwargs}')
+        # args and kwargs may be of type rpyc.core.netref.type if rpyc was used to
+        #   send this request to the projectServer from the client script, pull the actual object
+        args = rpyc.classic.obtain(args)
+        kwargs = rpyc.classic.obtain(kwargs)
         callStruct = {'cmd': 'rpc', 'class': type(self).__name__, 'attribute': attribute, 'args': args, 'kwargs': kwargs}
+        # print(f'### remoteCall callStruct: {callStruct}')
         timeout = self.timeout
         if 'rpc_timeout' in kwargs:
             timeout = kwargs.pop('rpc_timeout')

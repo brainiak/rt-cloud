@@ -6,9 +6,11 @@ import time
 import random
 import pathlib
 import numpy as np  # type: ignore
+import numpy
 from glob import iglob
 from pathlib import Path
 import rtCommon.utils as utils  # type: ignore
+import rtCommon.projectUtils as putils  # type: ignore
 import rtCommon.validationUtils as vutils  # type: ignore
 from rtCommon.structDict import MatlabStructDict  # type: ignore
 from rtCommon.addLogin import addUserPassword
@@ -144,13 +146,11 @@ class TestCompareMatStructs:
         assert not vutils.isMeanWithinThreshold(a, .09)
 
 
-class TestCompareMatFiles:
+class TestValidationUtils:
     def test_compareMatFiles(self, matTestFilename):
         res = vutils.compareMatFiles(matTestFilename, matTestFilename)
         assert vutils.isMeanWithinThreshold(res, 0)
 
-
-class TestPearsonsMeanCorr:
     def test_pearsonsMeanCorr(self):
         n1 = np.array([[1, 2, 3, 4, 5],
                        [np.nan, np.nan, np.nan, np.nan, np.nan]])
@@ -197,6 +197,22 @@ class TestAddUser:
         pwds = loadPasswdFile(testPasswordFile)
         assert 'a_user' in pwds
         assert 'b_user' in pwds
+
+class TestProjectUtils:
+    def test_npToPy(self):
+        data1 = {'subject': '04', 'task': 'story', 'suffix': 'bold', 'datatype': 'func', 'run': 1}
+        data2 = {'a1': (1, 'two', 3.0),
+                 'a2': {'np': numpy.float32(3), 'pyint': 4, 'str': 'five'},
+                 'a3': [6.0, 'seven', numpy.int(8), {'a', numpy.float32(5), 'c'}]}
+        data2_py = {'a1': (1, 'two', 3.0),
+                    'a2': {'np': 3.0, 'pyint': 4, 'str': 'five'},
+                    'a3': [6.0, 'seven', 8.0, {'a', 5.0, 'c'}]}
+        kwargs = {'mdata': data2, 'test1': 9.0, 'test2': numpy.float32(9), 'test3': 'yes'}
+        kwargs_py = {'mdata': data2_py, 'test1': 9.0, 'test2': 9.0, 'test3': 'yes'}
+        args = (4, 'hello', data1, kwargs)
+        args_py = (4, 'hello', data1, kwargs_py)
+        res = putils.npToPy(args)
+        assert res == args_py
 
 
 if __name__ == "__main__":

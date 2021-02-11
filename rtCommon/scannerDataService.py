@@ -9,7 +9,6 @@ import os
 import argparse
 import logging
 import threading
-import brainiak.utils.fmrisim_real_time_generator as datagen
 from rtCommon.dataInterface import DataInterface
 from rtCommon.bidsInterface import BidsInterface
 from rtCommon.wsRemoteService import WsRemoteService, parseConnectionArgs
@@ -58,8 +57,6 @@ if __name__ == "__main__":
                         help="Allowed directories to server files from - comma separated list")
     parser.add_argument('-f', action="store", dest="allowedFileTypes", default=defaultAllowedTypes,
                         help="Allowed file types - comma separated list")
-    parser.add_argument('--synthetic-data', default=False, action='store_true',
-                        help='Generate synthetic data for the run')
     args, _ = parser.parse_known_args(namespace=connectionArgs)
 
     if type(args.allowedDirs) is str:
@@ -67,18 +64,6 @@ if __name__ == "__main__":
 
     if type(args.allowedFileTypes) is str:
         args.allowedFileTypes = args.allowedFileTypes.split(',')
-
-    # if generate synthetic data
-    # this is used for test and simulation
-    if args.synthetic_data:
-        # check if the dicoms are already created
-        if not os.path.exists("/tmp/synthetic_dicom/rt_199.dcm"):
-            genDataThread = threading.Thread(name='genDataThread',
-                                             target=datagen.generate_data,
-                                             args=("/tmp/synthetic_dicom",
-                                                   {'save_dicom': True, 'save_realtime': True},))
-            genDataThread.setDaemon(True)
-            genDataThread.start()
 
     print("Allowed file types {}".format(args.allowedFileTypes))
     print("Allowed directories {}".format(args.allowedDirs))

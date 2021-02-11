@@ -1,7 +1,7 @@
 # **Running a Realtime Experiment**
 
 ## **Running the ProjectInterface**
-The projectInterface is typically run on a VM in the cloud (i.e. a 'remote' computer) which does not have direct access to the dicom images. The advantage of a cloud VM is that any laptop browser can connect to it and no additional hardware or software installation is needed on the local computer. However the projectInterface can also be run on a 'local' computer, meaning on the same computer in the control room where the dicom images are written.
+The projectInterface is typically run on a VM in the cloud (i.e. a 'remote' computer) which does not have direct access to the DICOM images. The advantage of a cloud VM is that any laptop browser can connect to it and no additional hardware or software installation is needed on the control room computer. However the projectInterface can also be run on a 'local' computer, meaning on the same computer in the control room where the DICOM images are written.
 
 
 ### **Running ProjectInterface in the Cloud**
@@ -22,7 +22,8 @@ The -c option points to your project configuration file in toml format.
 
 The -ip option is to update the ssl certificate with the ip address where the projectInterface runs. Use 'hostname -i' or Google 'what's my ip address' to get the ip address of that computer.
 
-**2) Start the fileServer (scannerDataService).** The fileServer is started on the control room computer where the dicom images are written. It can forward those images to the projectInterface when requested by your project code. The *[username]* and *[password]* are the login credentials to the projectInterface because the fileServer must connect to the projectInterface to be able to serve files to it.
+**2) Start the scannerDataService**<br>
+The scannerDataService is started on the control room computer where the DICOM images are written by the scanner. It can forward those images to the projectInterface when requested by your project code. The *[username]* and *[password]* are the login credentials to the projectInterface because the scannerDataService must connect to the projectInterface to be able to serve files to it.
 
     bash scripts/run-scannerDataService.sh -s [projectInterface_addr:port] -d [allowed_dirs] -f [allowed_file_extensions] -u [username] -p [password]
 
@@ -30,25 +31,24 @@ Example:
 
     bash scripts/run-scannerDataService.sh -s 125.130.21.34:8888 -d /tmp,/data/img -f .dcm,.txt
 
-**3) Start the SubjectService.** The subjectService is started on the presentation computer where PsychoPy or similar software will run to provide feedback to the subject in the MRI scanner. The *[username]* and *[password]* are the login credentials to the projectInterface because the subjectService must connect to the projectInterface to be able to receive classification results.
+**3) Start the SubjectService**<br>
+The subjectService is started on the presentation computer where PsychoPy or similar software will run to provide feedback to the subject in the MRI scanner. The *[username]* and *[password]* are the login credentials to the projectInterface because the subjectService must connect to the projectInterface to be able to receive classification results.
 
-    python rtCommon/subjectService.py -s [projectInterface_addr:port] -u [username] -p [password]
+    bash scripts/run-subjectService.sh -s [projectInterface_addr:port] -u [username] -p [password]
 
 Example (run from the rt-cloud directory):
 
-    python rtCommon/subjectService.py -s 125.130.21.34:8888 -u user1 -p passwd1
+    bash scripts/run-subjectService.sh -s 125.130.21.34:8888 -u user1 -p passwd1
 
 ### **Running ProjectInterface Locally**
-The projectInterface can also be run on the control room computer where the dicom images are written. This is called running it 'locally'. When run locally the fileServer (scannerDataService) is not needed because the projectInterface can directly read the dicom images from disk.
+The projectInterface can also be run on the control room computer where the DICOM images are written. This is called running it 'locally'. When run locally the fileServer (scannerDataService) is not needed because the projectInterface can directly read the DICOM images from disk.
 
-**1) Start the projectInterface** same command as above but without the --dataRemote or --subjectRemote options
+**1) Start the projectInterface:** same command as above but without the --dataRemote or --subjectRemote options
 
     bash scripts/run-projectInterface.sh -p [your_project_name] -c [config_file] -ip [local_ip_addr]
 Example:
 
     bash scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip 125.130.21.34
-
-
 
 
 ## **Connecting with the Browser**
@@ -97,4 +97,6 @@ There are several security mechanisms
         - Linux: <code>hostname -i</code>
 - **[username] [password]** - The username and password to login to the projectInterface. This was created with the adduser.sh script during installation of the projectInterface.
 - **[projectInterface_addr:port]** - The network address and port number that the projectInterface is listening on. The default port is 8888. E.g. '-s 125.130.21.34:8888'
-- **[your_project_name]** - The name of the subdirectory under the *rtcloud/projects/* directory which contains your project specific code
+- **[your_project_name]** - The name of the subdirectory under the *rtcloud/projects/* directory which contains your project specific code. Your script should use the same name as the directory, i.e. sample.py, so that the projectInterface can find it.
+- **[run]** - An fMRI scanner aquisition block of images. For example running the scanner to collect a block of 200 scans with a TR image repetition time of 2 seconds; this run will take 400 seconds and generate 200 DICOM images.
+- **[scan]** - The file sequence number corresponding to a run. For example, in the image name '001_000014_000005.dcm', the scan number is 14 and the image volume number (TR id) is 5.
