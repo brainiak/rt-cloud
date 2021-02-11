@@ -69,7 +69,7 @@ Once the above installation only needs to be run once, then the projectInterface
 
     docker run -it --rm -v certs:/rt-cloud/certs -v $PROJS_DIR:/rt-cloud/projects -p 8888:8888  brainiak/rtcloud:1.0 scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip $IP
 
-#### Alternate simpler calls using the run-docker.sh script
+## Alternate simpler calls using the run-docker.sh script
 The rt-cloud githup repo has a run-docker.sh script that encapsulates the docker specific call parameters in the above calls. This can make it simpler to call the functions you want within the docker image. The following show the previous commands using the run-docker.sh helper script.
 
     scripts/run-docker.sh scripts/make-sslcert.sh -ip $IP
