@@ -54,25 +54,3 @@ def runBidsInterfaceTest(bidsInterface):
     kwargs_py = npToPy(kwargs)
     res[0] == args_py
     res[1] == kwargs_py
-
-
-    # import pdb; pdb.set_trace()
-    # assert res[0][0] == args_py[0]
-    # assert res[0][1] == args_py[1]
-    # assert compare_dict(res[0][2], args_py[2])
-    # assert compare_dict(res[1], kwargs_py)
-    # # For some reason comparing dictionaries d1==d2 fails to match even though each key and item match
-    # # comparing d1.keys == d2.keys fails, but list(d1.keys()) == list(d2.keys()) succeeds
-    # assert res[1] == kwargs_py
-
-# def compare_dict(a, b):
-#     akeys = list(a.keys())
-#     bkeys = list(b.keys())
-#     assert akeys == bkeys
-#     for key in akeys:
-#         if type(a[key]) is dict:
-#             compare_dict(a[key], b[key])
-#         else:
-#             print(f'A comp B: {a[key]} {b[key]}, {type(a[key])}, {type(b[key])}')
-#             assert a[key] == b[key]
-#     return True
