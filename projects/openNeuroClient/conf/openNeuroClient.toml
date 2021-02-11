@@ -1,3 +1,4 @@
+title = 'OpenNeuro Client'
 subjectName = "sub-01"
 subjectDay = 1
 runNum = [1]
