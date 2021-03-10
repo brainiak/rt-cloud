@@ -32,15 +32,17 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
     run = cfg.runNum[0]
     entities = {'subject': subject, 'run': run, 'suffix': 'bold', 'datatype': 'func'}
     webInterface.clearRunPlot(run)
-    # Create a new bids archive from the incrementals
-    bidsArchivePath = os.path.join('/tmp', 'bids_archive_' + uuid.uuid4().hex)
-    newArchive = BidsArchive(bidsArchivePath)
+    if cfg.writeBidsArchive is True:
+        # Create a new bids archive from the incrementals
+        bidsArchivePath = os.path.join('/tmp', 'bids_archive_' + uuid.uuid4().hex)
+        newArchive = BidsArchive(bidsArchivePath)
     # Initialize the bids stream
     streamId = bidsInterface.initOpenNeuroStream(cfg.dsAccessionNumber, **entities)
     numVols = bidsInterface.getNumVolumes(streamId)
     for idx in range(numVols):
         bidsIncremental = bidsInterface.getIncremental(streamId, idx)
-        newArchive.appendIncremental(bidsIncremental)
+        if cfg.writeBidsArchive is True:
+            newArchive.appendIncremental(bidsIncremental)
         imageData = bidsIncremental.imageData
         avg_niftiData = numpy.mean(imageData)
         print("| average activation value for TR %d is %f" %(idx, avg_niftiData))
@@ -55,6 +57,8 @@ def main(argv=None):
                            help='Comma separated list of run numbers')
     argParser.add_argument('--yesToPrompts', '-y', default=False, action='store_true',
                            help='automatically answer tyes to any prompts')
+    argParser.add_argument('--archive', '-a', default=False, action='store_true',
+                           help='Create a Bids Archive from the incoming Bids Incrementals.')
     args = argParser.parse_args(argv)
 
     # load the experiment configuration file
@@ -64,6 +68,9 @@ def main(argv=None):
     if args.runs is not None:
         print("runs: ", args.runs)
         cfg.runNum = [int(x) for x in args.runs.split(',')]
+
+    if args.archive is True:
+        cfg.writeBidsArchive = True
 
     # Initialize the RPC connection to the projectInterface
     # This will give us a dataInterface for retrieving files and
