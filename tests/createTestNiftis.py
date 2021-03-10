@@ -47,7 +47,13 @@ def createNiftiTestFiles(shouldValidate: bool = True):
     Create base 3D NIfTI1 file all others are created from
     """
     convertDicomFileToNifti(test_dicomPath, test_3DNifti1Path)
-    nifti1_3D = nib.load(test_3DNifti1Path)
+
+    # When loading a NIfTI image, a mmap is created to its data. When
+    # overwriting that same image using the mmap'd data, sometimes a bus error
+    # can occur. This is because the file is truncated when writing starts, so
+    # the mmap doesn't point to data anymore. Loading the file into memory
+    # (mmap=False) fixes this issue.
+    nifti1_3D = nib.load(test_3DNifti1Path, mmap=False)
 
     # Extract the TR time, then eliminate pixel dimension data past 3rd
     # dimension, as a 3D image really should only have 3D data, and having more
