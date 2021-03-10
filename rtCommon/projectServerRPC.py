@@ -12,6 +12,7 @@ from rpyc.utils.helpers import classpartial
 from rtCommon.dataInterface import DataInterface
 from rtCommon.subjectInterface import SubjectInterface
 from rtCommon.bidsInterface import BidsInterface
+from rtCommon.exampleInterface import ExampleInterface
 from rtCommon.errors import StateError, RequestError
 from rtCommon.projectUtils import unpackDataMessage, npToPy
 from rtCommon.wsRemoteService import encodeByteTypeArgs
@@ -28,6 +29,7 @@ class ProjectRPCService(rpyc.Service):
     exposed_SubjectInterface = None
     exposed_BidsInterface = None
     exposed_WebDisplayInterface = None
+    exposed_ExampleInterface = None
 
     def __init__(self, dataRemote=False, subjectRemote=False, webUI=None):
         """
@@ -53,6 +55,7 @@ class ProjectRPCService(rpyc.Service):
         ProjectRPCService.exposed_BidsInterface = BidsInterface(dataRemote=dataRemote)
         ProjectRPCService.exposed_SubjectInterface = SubjectInterface(subjectRemote=subjectRemote)
         ProjectRPCService.exposed_WebDisplayInterface = webUI
+        ProjectRPCService.exposed_ExampleInterface = ExampleInterface(dataRemote=dataRemote)
 
     def exposed_isDataRemote(self):
         return self.dataRemote
@@ -73,6 +76,8 @@ class ProjectRPCService(rpyc.Service):
             ProjectRPCService.exposed_DataInterface.registerCommFunction(commFunction)
         if ProjectRPCService.exposed_BidsInterface is not None:
             ProjectRPCService.exposed_BidsInterface.registerCommFunction(commFunction)
+        if ProjectRPCService.exposed_ExampleInterface is not None:
+            ProjectRPCService.exposed_ExampleInterface.registerCommFunction(commFunction)
 
     @staticmethod
     def registerSubjectCommFunction(commFunction):

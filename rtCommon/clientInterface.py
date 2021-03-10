@@ -21,6 +21,7 @@ from rtCommon.dataInterface import DataInterface
 from rtCommon.subjectInterface import SubjectInterface
 from rtCommon.webDisplayInterface import WebDisplayInterface
 from rtCommon.bidsInterface import BidsInterface
+from rtCommon.exampleInterface import ExampleInterface
 from rtCommon.errors import RequestError
 
 
@@ -53,6 +54,7 @@ class ClientInterface:
             self.dataInterface = WrapRpycObject(rpcConn.root.DataInterface)
             self.subjInterface = WrapRpycObject(rpcConn.root.SubjectInterface)
             self.bidsInterface = WrapRpycObject(rpcConn.root.BidsInterface)
+            self.exampleInterface = WrapRpycObject(rpcConn.root.ExampleInterface)
             # WebDisplay is always run within the projectServer (i.e. not a remote service)
             self.webInterface = rpcConn.root.WebDisplayInterface
             self.rpcConn = rpcConn
@@ -68,6 +70,7 @@ class ClientInterface:
                 self.dataInterface = DataInterface(dataRemote=False, allowedDirs=['*'], allowedFileTypes=['*'])
                 self.subjInterface = SubjectInterface(subjectRemote=False)
                 self.bidsInterface = BidsInterface(dataRemote=False)
+                self.exampleInterface = ExampleInterface(dataRemote=False)
                 # Without a webServer (projectServer) the webInterface won't be able to do
                 #   anything. Create a stub instance here with ioLoopInst=None so that calls
                 #   to it won't thow exceptions.

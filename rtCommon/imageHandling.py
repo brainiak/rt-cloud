@@ -274,9 +274,23 @@ def convertDicomFileToNifti(dicomFilename, niftiFilename):
     subprocess.run(cmd, shell=False, stdout=subprocess.DEVNULL)
 
 
-def readNifti(niftiFilename):
-    nifitImg = nib.load(niftiFilename)
-    return nifitImg
+def niftiToMem(niftiImg):
+    '''
+    Fully load Nifti image into memory and remove any file-backing.
+    NiftiImage by default contains a pointer to the image file for the data.
+    '''
+    niftiBytes = niftiImg.to_bytes()
+    niftiMemImg = niftiImg.__class__.from_bytes(niftiBytes)
+    return niftiMemImg
+
+
+def readNifti(niftiFilename, memCached=True):
+    niftiImg = nib.load(niftiFilename)
+    # When memCached is True we want to load the image all in memory so, for example,
+    #   it can be sent remotely.
+    if memCached is True:
+        niftiImg = niftiToMem(niftiImg)
+    return niftiImg
 
 
 def convertDicomImgToNifti(dicomImg, dicomFilename=None):
@@ -300,5 +314,5 @@ def convertDicomImgToNifti(dicomImg, dicomFilename=None):
     os.remove(dicomFilename)
     # A nibabel nifti object is just a reference to a file on disk, 
     #   so we can't delete the tmp file yet
-    # os.remove(niftiFilename)
+    os.remove(niftiFilename)
     return niftiImg

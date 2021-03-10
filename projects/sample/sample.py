@@ -389,13 +389,9 @@ def main(argv=None):
     # for updating what is displayed on the experimenter's webpage.
     clientInterfaces = ClientInterface(yesToPrompts=args.yesToPrompts)
     dataInterface = clientInterfaces.dataInterface
+    bidsInterface = clientInterfaces.bidsInterface
     subjInterface = clientInterfaces.subjInterface
     webInterface  = clientInterfaces.webInterface
-
-    # Also try the placeholder for bidsInterface (an upcoming feature)
-    bidsInterface = clientInterfaces.bidsInterface
-    res = bidsInterface.echo("test")
-    print(res)
 
     # obtain paths for important directories (e.g. location of dicom files)
     if cfg.imgDir is None:

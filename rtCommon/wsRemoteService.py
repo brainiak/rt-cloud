@@ -160,7 +160,7 @@ class WsRemoteService:
 
 def isNativeType(var):
     nativeTypes = (int, float, str, bytes, list, dict, set, tuple, bytearray, memoryview, range, complex)
-    if var in nativeTypes:
+    if type(var) in nativeTypes:
         return True
     return False
 
