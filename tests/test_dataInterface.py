@@ -11,7 +11,7 @@ import rtCommon.utils as utils
 from tests.backgroundTestServers import BackgroundTestServers
 from tests.common import rtCloudPath, test_dicomPath
 
-test_sampleProjectDicomPath = os.path.join(rtCloudPath,
+sampleProjectDicomDir = os.path.join(rtCloudPath,
     "projects/sample/dicomDir/20190219.0219191_faceMatching.0219191_faceMatching/")
 
 # Note these tests will test the local version of DataInterface (not remote)
@@ -21,7 +21,7 @@ tmpDir = os.path.join(testDir, 'tmp/')
 rootDir = os.path.dirname(testDir)
 
 
-allowedDirs = ['/tmp', testDir, test_sampleProjectDicomPath]
+allowedDirs = ['/tmp', testDir, sampleProjectDicomDir]
 allowedFileTypes = ['.bin', 'txt', '.dcm']
 
 @pytest.fixture(scope="module")
@@ -166,12 +166,12 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
     assert len(fileList) == 2
 
     # Test initScannerStream and getImageData
-    streamId = dataInterface.initScannerStream(test_sampleProjectDicomPath,
+    streamId = dataInterface.initScannerStream(sampleProjectDicomDir,
                                                "001_000013_{TR:06d}.dcm",
                                                300*1024)
     for i in range(10):
         streamImage = dataInterface.getImageData(streamId)
-        directPath = os.path.join(test_sampleProjectDicomPath, "001_000013_{TR:06d}.dcm".format(TR=i))
+        directPath = os.path.join(sampleProjectDicomDir, "001_000013_{TR:06d}.dcm".format(TR=i))
         directImageData = dataInterface.getFile(directPath)
         directImage = readDicomFromBuffer(directImageData)
         print(f"Stream sequential check: image {i}")
@@ -179,7 +179,7 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
 
     for i in [5,2,7]:
         streamImage = dataInterface.getImageData(streamId, i)
-        directPath = os.path.join(test_sampleProjectDicomPath, "001_000013_{TR:06d}.dcm".format(TR=i))
+        directPath = os.path.join(sampleProjectDicomDir, "001_000013_{TR:06d}.dcm".format(TR=i))
         directImageData = dataInterface.getFile(directPath)
         directImage = readDicomFromBuffer(directImageData)
         print(f"Stream seek check: image {i}")
@@ -226,8 +226,8 @@ def runLocalFileValidationTests(dataInterface):
     assert dataInterface._checkAllowedDirs('/tmp/t1') == True
     assert dataInterface._checkAllowedDirs(testDir) == True
     assert dataInterface._checkAllowedDirs(testDir + '//t2/') == True
-    assert dataInterface._checkAllowedDirs(test_sampleProjectDicomPath) == True
-    assert dataInterface._checkAllowedDirs(test_sampleProjectDicomPath + '//t2') == True
+    assert dataInterface._checkAllowedDirs(sampleProjectDicomDir) == True
+    assert dataInterface._checkAllowedDirs(sampleProjectDicomDir + '//t2') == True
     with pytest.raises(ValidationError):
         dataInterface._checkAllowedDirs('/data/')
 

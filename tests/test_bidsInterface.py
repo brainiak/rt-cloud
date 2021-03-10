@@ -41,7 +41,7 @@ class TestBidsInterface:
         bidsInterface = clientInterface.bidsInterface
         dicomStreamTest(bidsInterface)
         openNeuroStreamTest(bidsInterface)
-    
+
     # bidsInterface created locally by the client (no projectServer)
     def test_clientLocalBidsInterface(self):
         TestBidsInterface.serversForTests.stopServers()
@@ -54,7 +54,7 @@ def dicomStreamTest(bidsInterface):
     # initialize the stream
     entities = {'subject': '01', 'task': 'test', 'run': 1, 'suffix': 'bold', 'datatype': 'func'}
     print(f'### {test_sampleProjectDicomPath}')
-    streamId = bidsInterface.initDicomBidsStream(test_sampleProjectDicomPath, 
+    streamId = bidsInterface.initDicomBidsStream(test_sampleProjectDicomPath,
                                                  "001_000013_{TR:06d}.dcm", 300*1024, **entities)
 
     for idx in [*range(10), 5, 2, 7]:

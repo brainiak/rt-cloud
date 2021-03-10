@@ -1,10 +1,10 @@
 """
-This module will be imported by the experiment script (i.e. client) running in the cloud and 
+This module will be imported by the experiment script (i.e. client) running in the cloud and
 provide the interfaces for all functionality provided to the client by the rt-cloud
 projectServer.
 
 The client script instantiates a clientInterface object. It will automatically connect
-to the projectServer running on the localhost (i.e. same host as the client). If a 
+to the projectServer running on the localhost (i.e. same host as the client). If a
 connection is established the interfaces listed below will be stubs that forward requests
 to remote servers that will handle the requsts. If the connection fails (i.e. there is no
 projectServer running), then local versions of the services will be instantiated, for example
@@ -27,7 +27,7 @@ from rtCommon.errors import RequestError
 
 class ClientInterface:
     """
-    This class provides the API that an experiment script can use to communicate with the 
+    This class provides the API that an experiment script can use to communicate with the
     project server. It provides both a DataInterface for reading or writing files, and a
     SubjectInterface for sending/receiving feedback and response to the subject in the MRI scanner.
     """
@@ -39,7 +39,7 @@ class ClientInterface:
         try:
             safe_attrs = rpyc.core.protocol.DEFAULT_CONFIG.get('safe_attrs')
             safe_attrs.add('__format__')
-            rpcConn = rpyc.connect('localhost', 12345, 
+            rpcConn = rpyc.connect('localhost', 12345,
                                    config={
                                             "allow_public_attrs": True,
                                             "safe_attrs": safe_attrs,

@@ -36,7 +36,7 @@ class BidsInterface(RemoteableExtensible):
     def __init__(self, dataRemote=False):
         """
         Args:
-            dataRemote (bool): Set to true for the passthroug instance that will forward requests.
+            dataRemote (bool): Set to true for a passthrough instance that will forward requests.
                                Set to false for the actual instance running remotely
         """
         super().__init__(isRemote=dataRemote)

@@ -108,6 +108,7 @@ def incrementAcquisitionValues(incremental: BidsIncremental) -> None:
             previousValue = float(previousValue)
             incremental.setMetadataField(field, previousValue + increment)
 
+
 """ ----- END HELPERS ----- """
 
 
@@ -451,6 +452,7 @@ def test3DAppend(bidsArchive3D, validBidsI, imageMetadata):
     assert image.header['xyzt_units'] == 10
 
 """
+
 
 # Test appending changes nothing if no already existing image to append to and
 # specified not to create path

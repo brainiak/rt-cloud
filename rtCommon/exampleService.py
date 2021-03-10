@@ -1,5 +1,5 @@
 """
-An example remote command-line service, for example as would be run at the scanner computer 
+An example remote command-line service, for example as would be run at the scanner computer
 or the presentation computer to receive requests from the the classification script.
 
 This service instantiates an ExampleInterface for serving sending/receiving example requests
