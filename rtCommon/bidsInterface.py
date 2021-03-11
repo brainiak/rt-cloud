@@ -1,6 +1,6 @@
 """
 BidsInterface is a client interface (i.e. for the experiment script running in the cloud) that
-provides data access to BIDs data.
+provides data access to BIDS data.
 
 To support RPC calls from the client, there will be two instances of dataInterface, one
 at the cloud projectServer which is a stub to forward requests (started with dataRemote=True),
@@ -11,6 +11,7 @@ one instance of dataInterface, as part of the projectServer with dataRemote=Fals
 """
 import os
 import glob
+import tempfile
 import nibabel as nib
 from rtCommon.remoteable import RemoteableExtensible
 from rtCommon.bidsArchive import BidsArchive
@@ -18,12 +19,12 @@ from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsCommon import getDicomMetadata
 from rtCommon.imageHandling import convertDicomImgToNifti
 from rtCommon.dataInterface import DataInterface
-from rtCommon.errors import ValidationError, RequestError
+from rtCommon.errors import ValidationError, RequestError, MissingMetadataError
 
 
 class BidsInterface(RemoteableExtensible):
     """
-    Provides functions for accessing remote or local BIDs data depending on if dateRemote flag
+    Provides functions for accessing remote or local BIDS data depending on if dataRemote flag
     is set true or false.
 
     If dataRemote=True, then the RemoteExtensible parent class takes over and forwards all
@@ -65,6 +66,7 @@ class BidsInterface(RemoteableExtensible):
         Returns:
             streamId: An identifier used when calling stream functions, such as getIncremental()
         """
+        # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
         dicomBidsStream = DicomToBidsStream(dicomDir, dicomFilePattern, dicomMinSize, **entities)
         self.streamMap[streamId] = dicomBidsStream
@@ -80,6 +82,7 @@ class BidsInterface(RemoteableExtensible):
         Returns:
             streamId: An identifier used when calling stream functions, such as getIncremental()
         """
+        # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
         bidsStream = BidsStream(datasetPath, **entities)
         self.streamMap[streamId] = bidsStream
@@ -95,6 +98,7 @@ class BidsInterface(RemoteableExtensible):
         Returns:
             streamId: An identifier used when calling stream functions, such as getIncremental()
         """
+        # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
         openNeuroStream = OpenNeuroStream(dsAccessionNumber, **entities)
         self.streamMap[streamId] = openNeuroStream
@@ -150,7 +154,10 @@ class DicomToBidsStream():
                 define the particular subject/run of the data to stream
         """
         # TODO - make sure dicomPattern has {TR} in it
-        # TODO - restrict allowed directories, check that dicomDir is in allowed dir
+        if 'subject' not in entities.keys():
+            raise MissingMetadataError("Entities must include 'subject' field")
+        if 'task' not in entities.keys():
+            raise MissingMetadataError("Entities must include 'task' field")
         if 'suffix' not in entities.keys():
             entities['suffix'] = 'bold'
         if 'datatype' not in entities.keys():
@@ -158,9 +165,10 @@ class DicomToBidsStream():
         self.entities = entities
         self.dicomDir = dicomDir
         self.dicomFilePattern = dicomFilePattern
+        # TODO - restrict allowed directories, check that dicomDir is in allowed dir
         self.dataInterface = DataInterface(dataRemote=False, allowedDirs=['*'], allowedFileTypes=['.dcm'])
         self.dicomStreamId = self.dataInterface.initScannerStream(dicomDir, dicomFilePattern, dicomMinSize)
-        self.initialized = True
+        self.nextVol = 0
 
     def getNumVolumes(self) -> int:
         """
@@ -178,12 +186,19 @@ class DicomToBidsStream():
         Returns:
             BidsIncremental for the matched DICOM for the run/volume
         """
+        if volIdx >= 0:
+            # reset the next volume to the user specified volume
+            self.nextVol = volIdx
+        else:
+            # use the default next volume
+            pass
         # wait for the dicom and create a bidsIncremental
-        dcmImg = self.dataInterface.getImageData(self.dicomStreamId, volIdx)
+        dcmImg = self.dataInterface.getImageData(self.dicomStreamId, self.nextVol)
         dicomMetadata = getDicomMetadata(dcmImg)
         dicomMetadata.update(self.entities)
         niftiImage = convertDicomImgToNifti(dcmImg)
         incremental = BidsIncremental(niftiImage, dicomMetadata)
+        self.nextVol += 1
         return incremental
 
 
@@ -232,11 +247,17 @@ class BidsStream:
         """
         # TODO - when we have BidsRun
         # return self.bidsRun.getIncremental(volIdx)
-        if volIdx < 0:
-            volIdx = self.nextVol
-        if volIdx < self.numVolumes:
+        if volIdx >= 0:
+            # reset the next volume to the user specified volume
+            self.nextVol = volIdx
+        else:
+            # use the default next volume
+            pass
+
+        if self.nextVol < self.numVolumes:
+            incremental = BidsIncremental(self.imgVolumes[self.nextVol], self.metadata)
             self.nextVol += 1
-            return BidsIncremental(self.imgVolumes[volIdx], self.metadata)
+            return incremental
         else:
             return None
 
@@ -244,7 +265,7 @@ class BidsStream:
 class OpenNeuroStream(BidsStream):
     """
     A BidsStream from an OpenNeuro dataset. The OpenNeuro dataset will be automatically
-    downloaded at the remote as needed to satisfy the stream of data.
+    downloaded, as needed, on the computer where this stream is intialized.
     """
     def __init__(self, dsAccessionNumber, **entities):
         """
@@ -278,7 +299,8 @@ def tmpDownloadOpenNeuro(dsAccessNumber, subject, run) -> str:
         Absolute path to where the dataset has been downloaded.
 
     """
-    tmpDir = '/tmp/openneuro'
+    tmpDir = tempfile.gettempdir()
+    print(f'OpenNeuro Data cached to {tmpDir}')
     datasetDir = os.path.join(tmpDir, dsAccessNumber)
     # check if already downloaded
     includePattern = f'sub-{subject}/func/*run-{run:02d}*'

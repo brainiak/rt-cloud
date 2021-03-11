@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import subprocess
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,9 @@ test_3DNifti2Path = os.path.join(test_inputDirPath, test_nifti2_3DFile)
 test_4DNifti1Path = os.path.join(test_inputDirPath, test_nifti1_4DFile)
 test_4DNifti2Path = os.path.join(test_inputDirPath, test_nifti2_4DFile)
 
+# test constants
+testPort = 8921
+tmpDir = tempfile.gettempdir()
 
 def isValidBidsArchive(archivePath: str, logFullOutput: bool = False) -> bool:
     result = subprocess.run(['which', 'bids-validator'], stdout=subprocess.PIPE,

@@ -2,9 +2,9 @@
 An example remote command-line service, for example as would be run at the scanner computer
 or the presentation computer to receive requests from the the classification script.
 
-This service instantiates an ExampleInterface for serving sending/receiving example requests
+This service instantiates an ExampleInterface for sending/receiving example requests
 to the projectServer in the cloud. It connects to the remote projectServer. Once a connection
-is established it waits for requets and invokes the ExampleInterface functions to handle them.
+is established it waits for requests and invokes the ExampleInterface functions to handle them.
 
 """
 import os
@@ -37,7 +37,7 @@ class ExampleService:
         self.wsRemoteService.addHandlerClass(ExampleInterface, self.exampleInterface)
 
     def runDetached(self):
-        """Starts the receiver in it's own thread."""
+        """Starts the receiver in its own thread."""
         self.recvThread = threading.Thread(name='recvThread',
                                            target=self.wsRemoteService.runForever)
         self.recvThread.setDaemon(True)

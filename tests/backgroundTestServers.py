@@ -1,6 +1,7 @@
 import os
 import time
 import platform
+import tempfile
 import threading
 import multiprocessing
 # sys.path.append(rootPath)
@@ -9,11 +10,10 @@ from rtCommon.scannerDataService import ScannerDataService
 from rtCommon.subjectService import SubjectService
 from rtCommon.exampleService import ExampleService
 from rtCommon.projectServer import ProjectServer
+from tests.common import testPort, testPath, tmpDir
 
-testDir = os.path.dirname(__file__)
-tmpDir = os.path.join(testDir, 'tmp/')
 
-defaultAllowedDirs = [testDir, tmpDir]
+defaultAllowedDirs = [testPath, tmpDir]
 defaultAllowedFileTypes = ['*.dcm', '*.txt', '*.bin']
 
 
@@ -70,7 +70,7 @@ defaultCfg = StructDict({'sessionId': "test",
 
 defaultProjectArgs = StructDict({'config': defaultCfg,
                                  'mainScript': 'projects/sample/sample.py',
-                                 'port': 8921,
+                                 'port': testPort,
                                  'test': True})
 
 class BackgroundTestServers:
@@ -81,6 +81,8 @@ class BackgroundTestServers:
         self.exampleProc = None
         if platform.system() == "Darwin":
             try:
+                # Prior to Python 3.8, 'fork' was the default on MacOS,
+                #  but it could lead to crashes of some subprocesses.
                 multiprocessing.set_start_method('spawn')
             except Exception as err:
                 print(f'multiprocess err: {err}')
@@ -105,7 +107,7 @@ class BackgroundTestServers:
 
         if dataRemote is True:
             # Start the dataService running
-            args = StructDict({'server': 'localhost:8921',
+            args = StructDict({'server': f'localhost:{testPort}',
                                'interval': 0.1,
                                'allowedDirs': allowedDirs,
                                'allowedFileTypes': allowedFileTypes,
@@ -122,7 +124,7 @@ class BackgroundTestServers:
 
         if subjectRemote is True:
             # Start the subjectService running
-            args = StructDict({'server': 'localhost:8921',
+            args = StructDict({'server': f'localhost:{testPort}',
                                'interval': 0.1,
                                'username': 'test',
                                'password': 'test',
@@ -138,7 +140,7 @@ class BackgroundTestServers:
 
         if exampleRemote is True:
             # Start the exampleService running
-            args = StructDict({'server': 'localhost:8921',
+            args = StructDict({'server': f'localhost:{testPort}',
                                'interval': 0.1,
                                'username': 'test',
                                'password': 'test',
@@ -157,13 +159,17 @@ class BackgroundTestServers:
     def stopServers(self):
         if self.projectProc is not None:
             self.projectProc.kill()
+            self.projectProc.join()
             self.projectProc = None
         if self.dataProc is not None:
             self.dataProc.kill()
+            self.dataProc.join()
             self.dataProc = None
         if self.subjectProc is not None:
             self.subjectProc.kill()
+            self.subjectProc.join()
             self.subjectProc = None
         if self.exampleProc is not None:
             self.exampleProc.kill()
+            self.exampleProc.join()
             self.exampleProc = None

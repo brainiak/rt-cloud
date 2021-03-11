@@ -4,6 +4,7 @@ import sys
 import numpy
 import uuid
 import argparse
+import tempfile
 
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(os.path.dirname(currPath))
@@ -15,7 +16,8 @@ from rtCommon.clientInterface import ClientInterface
 from rtCommon.bidsArchive import BidsArchive
 
 # path for default configuration toml file
-defaultConfig = os.path.join(currPath, 'conf/openNeuroClient.toml')
+defaultConfig = os.path.join(currPath, 'conf', 'openNeuroClient.toml')
+tmpDir = tempfile.gettempdir()
 
 
 def doRuns(cfg, bidsInterface, subjInterface, webInterface):
@@ -34,7 +36,8 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
     webInterface.clearRunPlot(run)
     if cfg.writeBidsArchive is True:
         # Create a new bids archive from the incrementals
-        bidsArchivePath = os.path.join('/tmp', 'bids_archive_' + uuid.uuid4().hex)
+        bidsArchivePath = os.path.join(tmpDir, 'bids_archive_' + uuid.uuid4().hex)
+        print(f'BIDS Archive will be written to {bidsArchivePath}')
         newArchive = BidsArchive(bidsArchivePath)
     # Initialize the bids stream
     streamId = bidsInterface.initOpenNeuroStream(cfg.dsAccessionNumber, **entities)

@@ -54,5 +54,5 @@ def runExampleInterfaceTest(exampleInterface):
     print(f'testMethod returned {res}')
     args_py = npToPy(args)
     kwargs_py = npToPy(kwargs)
-    res[0] == args_py
-    res[1] == kwargs_py
+    assert tuple(res[0]) == args_py
+    assert res[1] == kwargs_py

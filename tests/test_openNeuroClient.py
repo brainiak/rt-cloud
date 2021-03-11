@@ -5,12 +5,12 @@ from rtCommon.structDict import StructDict
 from rtCommon.clientInterface import ClientInterface
 from projects.openNeuroClient import openNeuroClient
 from tests.backgroundTestServers import BackgroundTestServers
-from tests.common import testPath, rtCloudPath
+from tests.common import rtCloudPath, testPort, tmpDir
 
-tmpDir = os.path.join(testPath, 'tmp/')
-openNeuroClientProjectPath = os.path.join(rtCloudPath, 'projects/openNeuroClient')
+openNeuroProjectPath = os.path.join(rtCloudPath, 'projects', 'openNeuroClient')
+openNeuroClientPath = os.path.join(openNeuroProjectPath, 'openNeuroClient.py')
 
-allowedDirs =  ['/tmp', openNeuroClientProjectPath]
+allowedDirs =  [tmpDir, openNeuroProjectPath]
 allowedFileTypes = ['.dcm', '.txt']
 
 openNeuroCfg = StructDict({'sessionId': "openNeuroTest",
@@ -22,8 +22,8 @@ openNeuroCfg = StructDict({'sessionId': "openNeuroTest",
 
 
 openNeuroArgs = StructDict({'config': openNeuroCfg,
-                            'mainScript': 'projects/openNeuroClient/openNeuroClient.py',
-                            'port': 8921,
+                            'mainScript': openNeuroClientPath,
+                            'port': testPort,
                             'test': True})
 
 class TestOpenNeuroClient:
@@ -65,7 +65,6 @@ class TestOpenNeuroClient:
     def test_runWithoutProjectInterface(self):
         print("\nOpenNeuroClient::test_runWithoutProjectInterface:")
         TestOpenNeuroClient.serversForTests.stopServers()
-        time.sleep(0.1)
         argv = ['-y']
         ret = openNeuroClient.main(argv)
         assert ret == 0

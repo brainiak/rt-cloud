@@ -9,8 +9,8 @@ from rtCommon.bidsCommon import getDicomMetadata
 from tests.backgroundTestServers import BackgroundTestServers
 from tests.common import rtCloudPath
 
-test_sampleProjectDicomPath = os.path.join(rtCloudPath,
-    "projects/sample/dicomDir/20190219.0219191_faceMatching.0219191_faceMatching/")
+test_sampleProjectDicomPath = os.path.join(rtCloudPath, 'projects', 'sample',
+    'dicomDir', '20190219.0219191_faceMatching.0219191_faceMatching')
 
 class TestBidsInterface:
     serversForTests = None
@@ -50,6 +50,17 @@ class TestBidsInterface:
         openNeuroStreamTest(bidsInterface)
 
 
+def readLocalDicomIncremental(volIdx, entities):
+    # read the incremental locally for test comparison
+    dicomPath = os.path.join(test_sampleProjectDicomPath, "001_000013_{TR:06d}.dcm".format(TR=volIdx))
+    dicomImg = readDicomFromFile(dicomPath)
+    dicomMetadata = getDicomMetadata(dicomImg)
+    dicomMetadata.update(entities)
+    niftiImg = convertDicomImgToNifti(dicomImg)
+    localIncremental = BidsIncremental(niftiImg, dicomMetadata)
+    return localIncremental
+
+
 def dicomStreamTest(bidsInterface):
     # initialize the stream
     entities = {'subject': '01', 'task': 'test', 'run': 1, 'suffix': 'bold', 'datatype': 'func'}
@@ -57,19 +68,29 @@ def dicomStreamTest(bidsInterface):
     streamId = bidsInterface.initDicomBidsStream(test_sampleProjectDicomPath,
                                                  "001_000013_{TR:06d}.dcm", 300*1024, **entities)
 
-    for idx in [*range(10), 5, 2, 7]:
+    # Test that not specifying volIdx to getIncremental starts from the beginning in order
+    for idx in [*range(3)]:
         # get the incremental from the stream
-        streamIncremental = bidsInterface.getIncremental(streamId, volIdx=idx)
-        # read the incremental locally for test comparison
-        dicomPath = os.path.join(test_sampleProjectDicomPath, "001_000013_{TR:06d}.dcm".format(TR=idx))
-        dicomImg = readDicomFromFile(dicomPath)
-        dicomMetadata = getDicomMetadata(dicomImg)
-        dicomMetadata.update(entities)
-        niftiImg = convertDicomImgToNifti(dicomImg)
-        localIncremental = BidsIncremental(niftiImg, dicomMetadata)
+        streamIncremental = bidsInterface.getIncremental(streamId)
+        localIncremental = readLocalDicomIncremental(idx, entities)
         print(f"Dicom stream check: image {idx}")
         assert streamIncremental == localIncremental
-    pass
+
+    # Next provide a specific volume
+    volIdx = 7
+    streamIncremental = bidsInterface.getIncremental(streamId, volIdx=volIdx)
+    localIncremental = readLocalDicomIncremental(volIdx, entities)
+    print(f"Dicom stream check: image {idx}")
+    assert streamIncremental == localIncremental
+
+    # Resume without specifying volumes
+    for idx in [*range(8, 10)]:
+        # get the incremental from the stream
+        streamIncremental = bidsInterface.getIncremental(streamId)
+        localIncremental = readLocalDicomIncremental(idx, entities)
+        print(f"Dicom stream check: image {idx}")
+        assert streamIncremental == localIncremental
+
 
 def openNeuroStreamTest(bidsInterface):
     dsAccessionNumber = 'ds002338'
@@ -87,6 +108,13 @@ def openNeuroStreamTest(bidsInterface):
 
     for idx in [5, 2, 7]:
         streamIncremental = bidsInterface.getIncremental(streamId, volIdx=idx)
+        localIncremental = localBidsArchive.getIncremental(idx, **localEntities)
+        print(f"OpenNeuro stream check: image {idx}")
+        assert streamIncremental == localIncremental
+
+    # Resume without specifying volumes
+    for idx in [*range(8, 10)]:
+        streamIncremental = bidsInterface.getIncremental(streamId)
         localIncremental = localBidsArchive.getIncremental(idx, **localEntities)
         print(f"OpenNeuro stream check: image {idx}")
         assert streamIncremental == localIncremental

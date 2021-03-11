@@ -312,7 +312,5 @@ def convertDicomImgToNifti(dicomImg, dicomFilename=None):
     niftiImg = readNifti(niftiFilename)
     # cleanup the tmp files created
     os.remove(dicomFilename)
-    # A nibabel nifti object is just a reference to a file on disk,
-    #   so we can't delete the tmp file yet
     os.remove(niftiFilename)
     return niftiImg
