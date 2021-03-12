@@ -177,10 +177,14 @@ class DicomToBidsStream():
         """
         raise NotImplementedError('getNumVolumes not implemented for DicomBidsStream')
 
-    def getIncremental(self, volIdx) -> BidsIncremental:
+    def getIncremental(self, volIdx=-1) -> BidsIncremental:
         """
         Get the BIDS incremental for the corresponding DICOM image indicated
             by the volIdx, where volIdx is equivalent to TR id.
+        VolIdx acts similar to a file_seek pointer. If a volIdx >= 0 is supplied
+            the volume pointer is advanced to that position. If no volIdx or
+            a volIdx < 0 is supplied, then the next image volume after the previous
+            position is returned and the pointer is incremented.
         Args:
             volIdx: The volume index (or TR) within the run to retrieve.
         Returns:
@@ -237,9 +241,13 @@ class BidsStream:
         # return self.bidsRun.getNumVolumes()
         return self.numVolumes
 
-    def getIncremental(self, volIdx) -> BidsIncremental:
+    def getIncremental(self, volIdx=-1) -> BidsIncremental:
         """
         Get a BIDS incremental for the indicated index in the current subject/run
+        VolIdx acts similar to a file_seek pointer. If a volIdx >= 0 is supplied
+            the volume pointer is advanced to that position. If no volIdx or
+            a volIdx < 0 is supplied, then the next image volume after the previous
+            position is returned and the pointer is incremented.
         Args:
             volIdx: The volume index (or TR) within the run to retrieve.
         Returns:
