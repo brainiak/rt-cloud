@@ -5,6 +5,7 @@ from tests.backgroundTestServers import BackgroundTestServers
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.structDict import StructDict
 from rtCommon.projectUtils import login
+from tests.common import testPort
 
 
 class TestWebInterface:
@@ -106,7 +107,7 @@ def runCmd(ws, cmd):
 
 
 def connectWebClient():
-    sessionCookie = login('localhost:8921', 'test', 'test', testMode=True)
+    sessionCookie = login(f'localhost:{testPort}', 'test', 'test', testMode=True)
     ws = websocket.WebSocket()
-    ws.connect('ws://localhost:8921/wsUser', cookie="login="+sessionCookie)
+    ws.connect(f'ws://localhost:{testPort}/wsUser', cookie="login="+sessionCookie)
     return ws

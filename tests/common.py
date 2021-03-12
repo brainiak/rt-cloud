@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import subprocess
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,9 @@ test_nifti2_4DFile = \
     'test_input_4d_nifti2_func_ses-01_task-story_run-01_bold.nii'
 
 # absolute paths derived from above names
-test_inputDirPath = os.path.join(os.path.dirname(__file__), test_inputDirName)
+testPath = os.path.dirname(__file__)
+rtCloudPath = os.path.dirname(testPath)
+test_inputDirPath = os.path.join(testPath, test_inputDirName)
 test_dicomPath = os.path.join(test_inputDirPath, test_dicomFile)
 test_dicomTruncPath = os.path.join(test_inputDirPath, test_dicomTruncFile)
 test_3DNifti1Path = os.path.join(test_inputDirPath, test_nifti1_3DFile)
@@ -28,6 +31,9 @@ test_3DNifti2Path = os.path.join(test_inputDirPath, test_nifti2_3DFile)
 test_4DNifti1Path = os.path.join(test_inputDirPath, test_nifti1_4DFile)
 test_4DNifti2Path = os.path.join(test_inputDirPath, test_nifti2_4DFile)
 
+# test constants
+testPort = 8921
+tmpDir = tempfile.gettempdir()
 
 def isValidBidsArchive(archivePath: str, logFullOutput: bool = False) -> bool:
     result = subprocess.run(['which', 'bids-validator'], stdout=subprocess.PIPE,

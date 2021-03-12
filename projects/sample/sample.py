@@ -12,7 +12,7 @@ various scripts, functions, etc. we have developed for your use! The functions
 we will reference are in 'rt-cloud/rtCommon/'.
 
 Finally, this script is called from the projectInterface which has a web interface
-and accepts commands to 'start' or 'stop' a run. When the 'start' button is 
+and accepts commands to 'start' or 'stop' a run. When the 'start' button is
 pressed it will run this scirpt passing in whatever conifgurations have been
 set in the web page as a configuration file. Note that projectInterface is
 started from the script 'run-projectInterface.sh'.
@@ -80,7 +80,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
 
     INPUT:
         [1] cfg - configuration file with important variables)
-        [2] dataInterface - this will allow this script runnin in the cloud to access 
+        [2] dataInterface - this will allow this script runnin in the cloud to access
                 files from the stimulus computer, which receives dicom files directly
                 from the MRI Scanner console
         [3] subjInterface - this allows sending feedback (e.g. classification results)
@@ -103,7 +103,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         types are allowed (meaning, we are able to read them in)... in this example,
         at the very least we need to have access to dicom and txt file types.
     use the function 'allowedFileTypes' in 'fileClient.py' to check this!
-    If allowedTypes doesn't include the file types we need to use then the 
+    If allowedTypes doesn't include the file types we need to use then the
         file service (scannerDataService) running at the control room computer will
         need to be restarted with the correct list of allowed types provided.
 
@@ -130,7 +130,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         "-----------------------------------------------------------------------------")
 
     #  If a dicomNamePattern is supplied in the config file, such as
-    #  "001_{SCAN:06d}_{TR:06d}.dcm", then call stringPartialFormat() to 
+    #  "001_{SCAN:06d}_{TR:06d}.dcm", then call stringPartialFormat() to
     #  set the SCAN number for the series of Dicoms we will be streaming.
     dicomScanNamePattern = stringPartialFormat(cfg.dicomNamePattern, 'SCAN', scanNum)
 
@@ -167,7 +167,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
             [3] cfg.minExpectedDicomSize (a check on size to make sure we don't
                     accidentally grab a dicom before it's fully acquired)
         """
-        streamId = dataInterface.initScannerStream(cfg.dicomDir, 
+        streamId = dataInterface.initScannerStream(cfg.dicomDir,
                                                 dicomScanNamePattern,
                                                 cfg.minExpectedDicomSize)
 
@@ -175,7 +175,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     """
     We will use the function plotDataPoint in webInterface whenever we
       want to send values to the web browser so that they can be plotted in the
-      --Data Plots-- tab. 
+      --Data Plots-- tab.
     However at the start of a run we will want to clear the plot, and we can use
     clearRunPlot(runId), or clearAllPlots() also in the webInterface object.
     """
@@ -235,7 +235,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
 
         else:  # use Stream functions
             """
-            Use dataInterface.getImageData(streamId) to query a stream, waiting for a 
+            Use dataInterface.getImageData(streamId) to query a stream, waiting for a
                 dicom file to be written by the scanner and then reading the dicom file
                 once it is available.
             INPUT:
@@ -256,7 +256,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         if dicomData is None:
             print('Error: getImageData returned None')
             return
-   
+
         dicomData.convert_pixel_data()
 
         if cfg.isSynthetic:
@@ -389,13 +389,9 @@ def main(argv=None):
     # for updating what is displayed on the experimenter's webpage.
     clientInterfaces = ClientInterface(yesToPrompts=args.yesToPrompts)
     dataInterface = clientInterfaces.dataInterface
+    bidsInterface = clientInterfaces.bidsInterface
     subjInterface = clientInterfaces.subjInterface
     webInterface  = clientInterfaces.webInterface
-
-    # Also try the placeholder for bidsInterface (an upcoming feature)
-    bidsInterface = clientInterfaces.bidsInterface
-    res = bidsInterface.echo("test")
-    print(res)
 
     # obtain paths for important directories (e.g. location of dicom files)
     if cfg.imgDir is None:

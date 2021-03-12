@@ -4,13 +4,14 @@ import time
 import projects.sample.sample as sample
 from tests.backgroundTestServers import BackgroundTestServers
 from rtCommon.clientInterface import ClientInterface
+from tests.common import rtCloudPath
 
-testDir = os.path.dirname(__file__)
-rootPath = os.path.dirname(testDir)
-samplePath = os.path.join(rootPath,'projects/sample')
-tmpDir = os.path.join(testDir, 'tmp/')
+test_sampleProjectPath = os.path.join(rtCloudPath, 'projects', 'sample')
+test_sampleProjectDicomPath = os.path.join(test_sampleProjectPath,
+    'dicomDir', '20190219.0219191_faceMatching.0219191_faceMatching')
 
-allowedDirs =  ['/tmp', samplePath]
+# leaving '/tmp' as an allowed directory because the sample.py project currently uses '/tmp'
+allowedDirs =  ['/tmp', test_sampleProjectPath]
 allowedFileTypes = ['.dcm', '.txt']
 
 class TestSampleProject:

@@ -82,7 +82,7 @@ class WsRemoteService:
     @staticmethod
     def stop():
         WsRemoteService.shouldExit = True
-    
+
     @staticmethod
     def send_response(client, response):
         WsRemoteService.commLock.acquire()
@@ -160,7 +160,7 @@ class WsRemoteService:
 
 def isNativeType(var):
     nativeTypes = (int, float, str, bytes, list, dict, set, tuple, bytearray, memoryview, range, complex)
-    if var in nativeTypes:
+    if type(var) in nativeTypes:
         return True
     return False
 
@@ -180,7 +180,7 @@ def encodeByteTypeArgs(cmd) -> dict:
     for i, arg in enumerate(args):
         if type(arg) is bytes:
             byteArgIndices.append(i)
-    
+
     if len(byteArgIndices) != 0:
         # convert args from tuple to list so we can modify it
         args = list(args)
@@ -195,7 +195,7 @@ def encodeByteTypeArgs(cmd) -> dict:
 
     # Check and encode keyword args also
     kwargs = cmd.get('kwargs', {})
-    byteKwargKeys = []      
+    byteKwargKeys = []
     for key, arg in kwargs.items():
         if type(arg) is bytes:
             byteKwargKeys.append(key)
@@ -259,8 +259,5 @@ def parseConnectionArgs():
     if checkSSLCertAltName(certFile, addr) is False:
         # Addr not listed in sslCert, recreate ssl Cert
         makeSSLCertFile(addr)
-    
+
     return args
-
-
-    

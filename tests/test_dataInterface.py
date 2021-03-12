@@ -9,26 +9,23 @@ from rtCommon.imageHandling import readDicomFromBuffer
 from rtCommon.errors import ValidationError, RequestError
 import rtCommon.utils as utils
 from tests.backgroundTestServers import BackgroundTestServers
+from tests.common import rtCloudPath, test_dicomPath, testPath, tmpDir
 
 # Note these tests will test the local version of DataInterface (not remote)
 
-testDir = os.path.dirname(__file__)
-tmpDir = os.path.join(testDir, 'tmp/')
-rootDir = os.path.dirname(testDir)
+sampleProjectDicomDir = os.path.join(rtCloudPath, 'projects', 'sample',
+    'dicomDir', '20190219.0219191_faceMatching.0219191_faceMatching')
 
-sampleProjectDicomDir = os.path.join(rootDir, 
-    "projects/sample/dicomDir/20190219.0219191_faceMatching.0219191_faceMatching/")
-
-allowedDirs = ['/tmp', testDir, sampleProjectDicomDir]
+allowedDirs = [tmpDir, testPath, sampleProjectDicomDir, '/tmp']
 allowedFileTypes = ['.bin', 'txt', '.dcm']
 
 @pytest.fixture(scope="module")
 def dicomTestFilename():  # type: ignore
-    return os.path.join(testDir, 'test_input/001_000013_000005.dcm')
+    return test_dicomPath
 
 @pytest.fixture(scope="module")
 def bigTestFile():  # type: ignore
-    filename = os.path.join(testDir, 'test_input/bigfile.bin')
+    filename = os.path.join(testPath, 'test_input', 'bigfile.bin')
     if not os.path.exists(filename):
         with open(filename, 'wb') as fout:
             for _ in range(101):
@@ -134,7 +131,7 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
 
     # Test watch file
     print('test watchFile')
-    watchDir = os.path.join(testDir, 'test_input')
+    watchDir = os.path.join(testPath, 'test_input')
     dataInterface.initWatch(watchDir, filePattern, 0)
     data4 = dataInterface.watchFile(dicomTestFilename, timeout=5)
     assert data1 == data4, 'watchFile data assertion'
@@ -190,7 +187,7 @@ def runRemoteFileValidationTests(dataInterface):
     # Try get of non-allowed file type
     print('test get from non-allowed file type')
     with pytest.raises((ValidationError, RequestError, Exception)) as err:
-        nodata = dataInterface.getFile(os.path.join(testDir, 'test_utils.py'))
+        nodata = dataInterface.getFile(os.path.join(testPath, 'test_utils.py'))
         # assert nodata == None, 'get non-allowed file'
     # import pdb; pdb.set_trace()
     # print(f'## ERROR {err}')
@@ -198,14 +195,14 @@ def runRemoteFileValidationTests(dataInterface):
     # Try get from non-allowed directory
     print('test get from non-allowed directory')
     with pytest.raises((ValidationError, RequestError, Exception)) as err:
-        nodata = dataInterface.getFile(os.path.join(rootDir, 'environment.yml'))
+        nodata = dataInterface.getFile(os.path.join(rtCloudPath, 'environment.yml'))
         assert nodata == None, 'get non-allowed dir'
     # print(f'## ERROR {err}')
 
     # Test watch non-allowed directory
     filePattern = '*.dcm'
     with pytest.raises((ValidationError, RequestError, Exception)) as err:
-        watchDir = os.path.join(rootDir, 'test_input')
+        watchDir = os.path.join(rtCloudPath, 'certs')
         dataInterface.initWatch(watchDir, filePattern, 0)
     # print(f'## ERROR {err}')
 
@@ -222,8 +219,8 @@ def runLocalFileValidationTests(dataInterface):
     print("Test files validations")
     assert dataInterface._checkAllowedDirs('/tmp') == True
     assert dataInterface._checkAllowedDirs('/tmp/t1') == True
-    assert dataInterface._checkAllowedDirs(testDir) == True
-    assert dataInterface._checkAllowedDirs(testDir + '//t2/') == True
+    assert dataInterface._checkAllowedDirs(testPath) == True
+    assert dataInterface._checkAllowedDirs(testPath + '//t2/') == True
     assert dataInterface._checkAllowedDirs(sampleProjectDicomDir) == True
     assert dataInterface._checkAllowedDirs(sampleProjectDicomDir + '//t2') == True
     with pytest.raises(ValidationError):

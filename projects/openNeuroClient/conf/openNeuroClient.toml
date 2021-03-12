@@ -1,5 +1,13 @@
 title = 'OpenNeuro Client'
-subjectName = "sub-01"
+dsAccessionNumber = 'ds002338'
+subjectName = "xp201"
 subjectDay = 1
 runNum = [1]
 scanNum = [1]
+
+plotTitle = 'Realtime Plot'
+plotXLabel = 'Volume #'
+plotYLabel = 'Value'
+plotAutoRangeX = true
+plotAutoRangeY = true
+
