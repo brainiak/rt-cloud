@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 class BidsIncremental:
     ENTITIES = loadBidsEntities()
     REQUIRED_IMAGE_METADATA = ['subject', 'task', 'suffix', 'datatype',
-                               'RepetitionTime', 'EchoTime']
+                               'RepetitionTime']
 
     """
     BIDS Incremental data format suitable for streaming BIDS Archives
@@ -69,7 +69,7 @@ class BidsIncremental:
             >>> import nibabel as nib
             >>> imageMetadata = {'subject': '01', 'task': 'test',
                                  'suffix': 'bold', 'datatype': 'func',
-                                 'RepetitionTime': 1.5, 'EchoTime': 1}
+                                 'RepetitionTime': 1.5}
             >>> image = nib.load('/tmp/testfile.nii')
             >>> datasetMetadata = {'Name': 'Example Dataset',
                                    'BIDSVersion': '1.5.1',
@@ -232,7 +232,7 @@ class BidsIncremental:
         """
         Pre-process metadata to extract any additonal metadata that might be
         embedded in the provided metadata, like ProtocolName, and ensure that
-        certain metadata values (e.g., RepetitionTime, EchoTime) are within
+        certain metadata values (e.g., RepetitionTime) are within
         BIDS-specified ranges.
 
         Args:
@@ -312,14 +312,15 @@ class BidsIncremental:
         # Some fields must be numbers in the BIDS standard
         numberFields = ["RepetitionTime", "EchoTime"]
         for field in numberFields:
-            imageMetadata[field] = float(imageMetadata[field])
+            value = imageMetadata.get(field)
+            if value: 
+                imageMetadata[field] = float(value)
 
         return imageMetadata
 
     @staticmethod
     def createImageMetadataDict(subject: str, task: str, suffix: str,
-                                datatype: str, repetitionTime: int,
-                                echoTime: int):
+                                datatype: str, repetitionTime: int):
         """
         Creates an image metadata dictionary for a BIDS-I with all of the
         basic required fields using the correct key names.
@@ -330,15 +331,13 @@ class BidsIncremental:
             suffix: Imaging method (e.g., 'bold')
             datatype: Data type (e.g., 'func' or 'anat')
             repetitionTime: TR time, in seconds, used for the imaging run
-            echoTime: Echo time, in seconds, used for the imaging run
 
         Returns:
             Dictionary with the provided information ready for use in a BIDS-I
 
         """
         return {"subject": subject, "task": task, "suffix": suffix,
-                'datatype': datatype, "RepetitionTime": repetitionTime,
-                "EchoTime": echoTime}
+                'datatype': datatype, "RepetitionTime": repetitionTime}
 
     @classmethod
     def findMissingImageMetadata(cls, imageMeta: dict) -> list:
@@ -356,7 +355,7 @@ class BidsIncremental:
             >>> meta = {'subject': '01', 'task': 'test', 'suffix': 'bold',
                         'datatype': 'func'}
             >>> BidsIncremental.findMissingImageMetadata(meta)
-            ['RepetitionTime', 'EchoTime']
+            ['RepetitionTime']
         """
         return [f for f in cls.REQUIRED_IMAGE_METADATA if f not in imageMeta]
 

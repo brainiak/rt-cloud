@@ -208,7 +208,6 @@ def testImageMetadataDictCreation(imageMetadata):
         task=imageMetadata["task"],
         suffix=imageMetadata["suffix"],
         repetitionTime=imageMetadata["RepetitionTime"],
-        echoTime=imageMetadata["EchoTime"],
         datatype='func')
 
     for key in createdDict.keys():
