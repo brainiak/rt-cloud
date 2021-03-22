@@ -145,16 +145,21 @@ def sample4DNifti1():
 def sampleNifti2():
     return readNifti(test_4DNifti2Path)
 
+# Set of BIDS entities needed for BIDS-I creation
+@pytest.fixture(scope='function')
+def sampleBidsEntities():
+    return {'subject': '01', 'task': 'faces', 'suffix': 'bold', 'datatype':
+            'func', 'session': '01', 'run': 1}
+
 
 @pytest.fixture(scope='function')
-def imageMetadata(dicomImageMetadata):
+def imageMetadata(dicomImageMetadata, sampleBidsEntities):
     """
     Dictionary with all required metadata to construct a BIDS-Incremental, as
     well as extra metadata extracted from the test DICOM image.
     """
-    meta = {'subject': '01', 'task': 'faces', 'suffix': 'bold', 'datatype':
-            'func', 'session': '01', 'run': 1}
-    meta.update(dicomImageMetadata)  # DICOM
+    meta = sampleBidsEntities.copy()
+    meta.update(dicomImageMetadata)
     return meta
 
 
@@ -166,6 +171,17 @@ def validBidsI(sample4DNifti1, imageMetadata):
     return BidsIncremental(image=sample4DNifti1,
                            imageMetadata=imageMetadata)
 
+@pytest.fixture(scope='function')
+def oneImageBidsI(sample4DNifti1, imageMetadata):
+    """
+    Constructs and returns a known-valid BIDS-Incremental using known metadata.
+    """
+    newData = getNiftiData(sample4DNifti1)[..., 0]
+    newImage = sample4DNifti1.__class__(newData, sample4DNifti1.affine,
+                                        sample4DNifti1.header)
+
+    return BidsIncremental(image=newImage,
+                           imageMetadata=imageMetadata)
 
 def archiveWithImage(image, metadata: dict, tmpdir):
     """
