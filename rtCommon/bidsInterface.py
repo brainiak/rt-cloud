@@ -1,11 +1,9 @@
 """
 BidsInterface is a client interface (i.e. for the experiment script running in the cloud) that
 provides data access to BIDS data.
-
 To support RPC calls from the client, there will be two instances of dataInterface, one
 at the cloud projectServer which is a stub to forward requests (started with dataRemote=True),
 and another at the control room computer, run as a service and with dataRemote=False.
-
 When not using RPC, i.e. when the projectServer is run without --dataRemote, there will be only
 one instance of dataInterface, as part of the projectServer with dataRemote=False.
 """
@@ -20,17 +18,16 @@ from rtCommon.bidsCommon import getDicomMetadata
 from rtCommon.imageHandling import convertDicomImgToNifti
 from rtCommon.dataInterface import DataInterface
 from rtCommon.errors import ValidationError, RequestError, MissingMetadataError
+from rtCommon.openNeuroService import OpenNeuroOverview
 
 
 class BidsInterface(RemoteableExtensible):
     """
     Provides functions for accessing remote or local BIDS data depending on if dataRemote flag
     is set true or false.
-
     If dataRemote=True, then the RemoteExtensible parent class takes over and forwards all
     requests to a remote server via a callback function registered with the RemoteExtensible
     object. In that case *none* of the methods below will be locally invoked.
-
     If dataRemote=False, then the methods below will be invoked locally and the RemoteExtensible
     parent class is inoperable (i.e. does nothing).
     """
@@ -285,12 +282,16 @@ class OpenNeuroStream(BidsStream):
         """
         subject = entities.get('subject')
         run = entities.get('run')
-        if subject is None or run is None:
-            raise RequestError("OpenNeuroStream: Must specify subject and run number")
+        if subject is None:
+            raise RequestError("OpenNeuroStream: Must specify subject number")
         # TODO - Use OpenNeuroService when it is available, to download
         #   and access the dataset and get dataset entities
+        overview = OpenNeuroOverview()
+        print(overview.display_description(dsAccessionNumber))
+        print(overview.display_readme(dsAccessionNumber))
+        datasetPath, conf, type = overview.get_dataset(dsAccessionNumber, False, subject)
         # OpenNeuroService to provide path to dataset
-        datasetPath = tmpDownloadOpenNeuro(dsAccessionNumber, subject, run)
+        #datasetPath = tmpDownloadOpenNeuro(dsAccessionNumber, subject, run)
         super().__init__(datasetPath, **entities)
 
 
@@ -305,7 +306,6 @@ def tmpDownloadOpenNeuro(dsAccessNumber, subject, run) -> str:
         run: the specific run within the subject's data to download.
     Returns:
         Absolute path to where the dataset has been downloaded.
-
     """
     tmpDir = tempfile.gettempdir()
     print(f'OpenNeuro Data cached to {tmpDir}')
@@ -320,3 +320,4 @@ def tmpDownloadOpenNeuro(dsAccessNumber, subject, run) -> str:
         print(f'run {awsCmd}')
         os.system(awsCmd)
     return datasetDir
+
