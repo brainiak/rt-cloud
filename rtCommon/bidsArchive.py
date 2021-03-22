@@ -34,6 +34,7 @@ from rtCommon.bidsCommon import (
     niftiImagesAppendCompatible,
 )
 from rtCommon.bidsIncremental import BidsIncremental
+from rtCommon.bidsRun import BidsRun
 from rtCommon.errors import (
     DimensionError,
     MetadataMismatchError,
@@ -57,6 +58,15 @@ def failIfEmpty(func):
             return func(*args, **kwargs)
 
     return emptyFailWrapFunction
+
+
+def flushBeforeRun(func):
+    @functools.wraps(func)
+    def flushBeforeRunWrapFunction(*args, **kwargs):
+        args[0].flushCache()
+        return func(*args, **kwargs)
+
+    return flushBeforeRunWrapFunction
 
 
 class BidsArchive:
@@ -91,6 +101,17 @@ class BidsArchive:
                          self.rootPath, str(e))
             self.data: BIDSLayout = None
 
+        self._getCache = BidsRun()
+        self._appendCache = BidsRun()
+
+        # flag for if the BIDSLayout needs to be updated given changes to the
+        # archive on disk
+        self._layoutDirty = False
+
+        # flag for if a flush is actively occurring to prevent recursive flush
+        # calls while trying to resolve a flush
+        self._isFlushing = False
+
     def __str__(self):
         out = str(self.data)
         if 'BIDS Layout' in out:
@@ -119,6 +140,7 @@ class BidsArchive:
 
         if not self.isEmpty():
             try:
+                self.flushCache()
                 return getattr(self.data, attr)
             except AttributeError:
                 raise AttributeError("{} object has no attribute {}".format(
@@ -153,6 +175,7 @@ class BidsArchive:
         """
         return os.path.join(self.rootPath, self._stripLeadingSlash(relPath))
 
+    @flushBeforeRun
     def tryGetFile(self, path: str) -> BIDSFile:
         """
         Tries to get a file from the archive using different interpretations of
@@ -194,10 +217,12 @@ class BidsArchive:
 
         return None
 
+    @flushBeforeRun
     @failIfEmpty
     def dirExistsInArchive(self, relPath: str) -> bool:
         return os.path.isdir(self.absPathFromRelPath(relPath))
 
+    @flushBeforeRun
     @failIfEmpty
     def getImages(self, matchExact: bool = False,
                   **entities) -> List[BIDSImageFile]:
@@ -322,9 +347,11 @@ class BidsArchive:
         if updateLayout:
             self._updateLayout()
 
+    @flushBeforeRun
     def isEmpty(self) -> bool:
         return (self.data is None)
 
+    @flushBeforeRun
     @failIfEmpty
     def getSidecarMetadata(self, image: Union[str, BIDSImageFile],
                            includeEntities: bool = True) -> dict:
@@ -372,6 +399,7 @@ class BidsArchive:
 
         return target.get_entities(metadata=metadataParameter)
 
+    @flushBeforeRun
     @failIfEmpty
     def getEvents(self, matchExact: bool = False,
                   **entities) -> List[BIDSDataFile]:
@@ -432,10 +460,30 @@ class BidsArchive:
         else:
             return results
 
+    def _appendToCache(self, incremental: BidsIncremental):
+        """
+        Appends an incremental to the cache. Handles making a new cache if the
+        incremental is part of a new sequence, as well as adding the incremental
+        to the getCache if they represent the same run.
+        """
+        if self._appendCache.getRunEntities() != incremental.entities:
+            self.flushCache()
+
+        # Cache ready
+        self._appendCache.appendIncremental(incremental)
+
+        # If the append and get caches are working on the same run, directly put
+        # the appended incremental into the get cache to maintain consistentcy
+        # without disk operations
+        if self._appendCache.getRunEntities() == \
+                self._getCache.getRunEntities():
+            self._getCache.appendIncremental(incremental)
+
     def appendIncremental(self,
                           incremental: BidsIncremental,
                           makePath: bool = True,
-                          validateAppend: bool = True) -> bool:
+                          validateAppend: bool = True,
+                          useCache: bool = True) -> bool:
         """
         Appends a BIDS Incremental's image data and metadata to the archive,
         creating new directories if necessary (this behavior can be overridden).
@@ -447,6 +495,9 @@ class BidsArchive:
             validateAppend: Compares image metadata and NIfTI headers to check
                 that the images being appended are part of the same sequence and
                 don't conflict with each other (default: True).
+            useCache: Put incrementals in a cache before writing to disk. This
+                substantially improves performance when writing a whole run in
+                sequence.
 
         Raises:
             RuntimeError: If the image to append to in the archive is not either
@@ -477,7 +528,6 @@ class BidsArchive:
         # 1) Create target paths for image in archive
         dataDirPath = incremental.dataDirPath
         imgPath = incremental.imageFilePath
-        metadataPath = incremental.metadataFilePath
 
         # 2) Verify we have a valid way to append the image to the archive.
         # 4 cases:
@@ -487,14 +537,23 @@ class BidsArchive:
         # the archive; create new Nifti file within the archive
         # 2.3) No image append possible and no creation possible; fail append
 
+        # Write the specified part of an incremental, taking appropriate actions
+        # for the cache and layout update
+        def writeIncremental(onlyData=False):
+            if useCache:
+                self._appendToCache(incremental)
+                self._layoutDirty = True
+            else:
+                incremental.writeToDisk(self.rootPath)
+                self._updateLayout()
+
         # 2.0) Archive is empty and must be created
         if self.isEmpty():
             if makePath:
-                incremental.writeToDisk(self.rootPath)
-                self._updateLayout()
+                writeIncremental()
                 return True
+            # If can't create new files in an empty archive, no valid append
             else:
-                # If can't create new files in an empty archive, no valid append
                 return False
 
         # 2.1) Image already exists within archive, append this NIfTI to it
@@ -527,6 +586,12 @@ class BidsArchive:
                 raise DimensionError("Expected image to have 3 or 4 dimensions "
                                      f"(got {nDimensions})")
 
+            # Append is known to be valid at this point -- if using cache, cache
+            # it and return before disk operations happen
+            if useCache:
+                self._appendToCache(incremental)
+                return True
+
             if nDimensions == 3:
                 archiveData = np.expand_dims(archiveData, 3)
                 correct3DHeaderTo4D(archiveImg, incremental.getMetadataField(
@@ -549,18 +614,16 @@ class BidsArchive:
         # the archive; create new Nifti file within the archive
         if self.dirExistsInArchive(dataDirPath) or makePath:
             logger.debug("Image doesn't exist in archive, creating")
-            self._addImage(incremental.image, imgPath, updateLayout=False)
-            self._addMetadata(incremental.imageMetadata, metadataPath,
-                              updateLayout=False)
-            self._updateLayout()
+            writeIncremental(onlyData=True)
             return True
 
         # 2.3) No image append possible and no creation possible; fail append
         return False
 
+    @flushBeforeRun
     @failIfEmpty
-    def getIncremental(self, imageIndex: int = 0, **entities) \
-            -> BidsIncremental:
+    def getIncremental(self, imageIndex: int = 0, useCache: bool = True,
+                       **entities) -> BidsIncremental:
         """
         Creates a BIDS Incremental from the specified part of the archive.
 
@@ -568,6 +631,8 @@ class BidsArchive:
             imageIndex: Index of 3-D image to select in a 4-D image volume.
             entities: Keyword arguments for entities to filter by. Provide in
                 the format entity='value'.
+            useCache: Use the cache to load incrementals (this may improve
+                performance when reading full runs at a time). Default True.
 
         Returns:
             BIDS-Incremental file with the specified image of the archive and
@@ -607,6 +672,9 @@ class BidsArchive:
         if imageIndex < 0:
             raise IndexError(f"Image index must be >= 0 (got {imageIndex})")
 
+        volumeIndexErrorMsg = (f"Image index {imageIndex} too large for NIfTI "
+                               "volume of length {numImages}")
+
         candidates = self.getImages(**entities)
 
         # Throw error if not exactly one match
@@ -617,6 +685,25 @@ class BidsArchive:
             raise QueryError("Provided entities matched more than one image "
                              "file; try specifying more to narrow to one match "
                              f"(expected 1, got {len(candidates)})")
+
+        # Confirmed that entities specify a unique run, so can use or fill cache
+        if useCache:
+            # Check if requested entities are subset of the ones in the cache
+            # If they aren't, then they identify a different run (cache miss)
+            #
+            # Subset check is imoprtant because incremental sometimes has extra
+            # entities (like datatype) that aren't necessarily needed to
+            # identify a single run, and thus a strict equality check fails.
+            if not (entities.items() <=
+                    self._getCache.getRunEntities().items()):
+                self._getCache = self.getBidsRun(**entities)
+
+            # Cache current now, try to get target from cache
+            if imageIndex < self._getCache.numIncrementals():
+                return self._getCache.getIncremental(imageIndex)
+            else:
+                raise IndexError(volumeIndexErrorMsg.format(
+                    numImages=self._getCache.numIncrementals()))
 
         # Create BIDS-I
         candidate = candidates[0]
@@ -632,8 +719,7 @@ class BidsArchive:
             numImages = image.dataobj.shape[3]
 
             if imageIndex < numImages:
-                # Directly slice Nibabel dataobj for increased memory efficiency
-                image = image.__class__(image.dataobj[..., imageIndex],
+                image = image.__class__(getNiftiData(image)[..., imageIndex],
                                         affine=image.affine,
                                         header=image.header)
                 image.update_header()
@@ -654,3 +740,107 @@ class BidsArchive:
         except MissingMetadataError as e:
             raise MissingMetadataError("Archive lacks required metadata for "
                                        "BIDS Incremental creation: " + str(e))
+
+    @flushBeforeRun
+    @failIfEmpty
+    def getBidsRun(self, **entities) -> BidsRun:
+        """
+        Get a BIDS Run from the archive.
+
+        Args:
+            entities: Entities defining a run in the archive.
+
+        Returns:
+            A BidsRun containing all the BidsIncrementals in the specified run.
+
+        Raises:
+            NoMatchError: If the entities don't match any runs in the archive.
+            QueryError: If the entities match more than one run in the archive.
+
+        Examples:
+            >>> archive = BidsArchive('/tmp/dataset')
+            >>> run = archive.getBidsRun(subject='01', session='02',
+                                         task='test-task', run=1)
+            >>> print(run.numIncrementals())
+            53
+        """
+        images = self.getImages(**entities)
+        if len(images) == 0:
+            raise NoMatchError(f"Found no runs matching entities {entities}")
+        if len(images) > 1:
+            entities = [img.get_entities() for img in images]
+            raise QueryError("Provided entities were not unique to one run; "
+                             "try specifying more entities "
+                             f" (got runs with these entities: {entities}")
+        else:
+            bidsImage = images[0]
+            niftiImage = bidsImage.get_image()
+            niftiData = getNiftiData(niftiImage)
+            metadata = self.getSidecarMetadata(bidsImage)
+            metadata.pop('extension')  # only used in PyBids
+
+            run = BidsRun(**bidsImage.get_entities())
+            for imageIdx in range(niftiImage.header.get_data_shape()[3]):
+                newData = niftiData[..., imageIdx]
+                newImage = nib.Nifti1Image(newData,
+                                           niftiImage.affine,
+                                           niftiImage.header)
+
+                newIncremental = BidsIncremental(newImage, metadata)
+                run.appendIncremental(newIncremental, validateAppend=False)
+
+            return run
+
+    def appendBidsRun(self, run: BidsRun) -> None:
+        """
+        Append a BIDS Run to this archive.
+
+        Args:
+            run: Run to append to the archvie.
+
+        Examples:
+            >>> archive1 = BidsArchive('/tmp/dataset1')
+            >>> archive2 = BidsArchive('/tmp/dataset2')
+            >>> archive1.getRuns()
+            [1, 2]
+            >>> archive2.getRuns()
+            [1]
+            >>> run2 = archive1.getBidsRun(subject='01', task='test', run=2)
+            >>> archive2.appendBidsRun(run2)
+            >>> archive2.getRuns()
+            [1, 2]
+        """
+        numIncrementals = run.numIncrementals()
+        if numIncrementals == 0:
+            return
+
+        self.appendIncremental(run.asSingleIncremental(), useCache=False)
+
+    def flushCache(self) -> None:
+        """
+        Flush the cache by writing back to disk, if necessary, and updating the
+        BIDSLayout view of disk, if necessary.
+        """
+        # Skip all later logic if the cache is empty
+        if self._appendCache.numIncrementals() == 0:
+            return
+
+        # The functions called to flush to disk can themselves be functions that
+        # would require a flush before normal execution to return correct
+        # results. This can lead to infinite recursion. Thus, skipping the flush
+        # logic if a flush is already occurring enables those functions to just
+        # return what's currently on disk, which is the data needed to finish a
+        # flush (e.g., the image currently on disk that must be appended to).
+        if self._isFlushing:
+            return
+        else:
+            self._isFlushing = True
+
+        self.appendBidsRun(self._appendCache)
+        self._appendCache = BidsRun()
+
+        if self._layoutDirty:
+            self._updateLayout()
+            self._layoutDirty = False
+
+        self._isFlushing = False

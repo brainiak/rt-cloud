@@ -13,7 +13,6 @@ import numpy as np
 import pytest
 
 from rtCommon.bidsArchive import BidsArchive
-from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsCommon import (
     BIDS_FILE_PATH_PATTERN,
     BidsFileExtension,
@@ -25,6 +24,8 @@ from rtCommon.bidsCommon import (
     niftiImagesAppendCompatible,
     symmetricDictDifference,
 )
+from rtCommon.bidsIncremental import BidsIncremental
+from rtCommon.bidsRun import BidsRun
 from tests.common import isValidBidsArchive
 
 from rtCommon.errors import (
@@ -137,7 +138,10 @@ def testStringOutput(bidsArchive4D):
 # Test creating bidsArchive object in an empty directory
 def testEmptyArchiveCreation(tmpdir):
     datasetRoot = Path(tmpdir, "bids-archive")
-    assert BidsArchive(datasetRoot) is not None
+    archive = BidsArchive(datasetRoot)
+    assert archive is not None
+    assert archive._getCache is not None
+    assert archive._appendCache is not None
 
 
 # Test empty check
@@ -249,6 +253,7 @@ def testGetSidecarMetadata(bidsArchive4D, imageMetadata):
 def testGetEvents(validBidsI, imageMetadata, tmpdir):
     archive = BidsArchive(tmpdir)
     archive.appendIncremental(validBidsI)
+    archive.flushCache()
 
     # Get the events from the archive as a pandas data frame
     events = archive.getEvents()[0].get_df()
@@ -311,7 +316,9 @@ def testNiftiHeaderValidation(sample4DNifti1, sample3DNifti1, sample2DNifti1,
     # Dimension 4 of the 3D image should not matter
     for i in range(0, 100):
         sample3DNifti1.header["dim"][4] = i
-        assert niftiImagesAppendCompatible(sample3DNifti1, sample4DNifti1)
+        compatible, errorMsg = niftiImagesAppendCompatible(sample3DNifti1,
+                                                           sample4DNifti1)
+        assert compatible
 
     sample3DNifti1.header["dim"] = np.copy(original3DHeader["dim"])
     assert sample3DNifti1.header == original3DHeader
@@ -404,6 +411,7 @@ def testEmptyArchiveAppend(validBidsI, imageMetadata, tmpdir):
     datasetRoot = Path(tmpdir, testEmptyArchiveAppend.__name__)
     archive = BidsArchive(datasetRoot)
     archive.appendIncremental(validBidsI)
+    archive.flushCache()
 
     assert not archive.isEmpty()
     assert archiveHasMetadata(archive, imageMetadata)
@@ -488,6 +496,7 @@ def testConflictingMetadataAppend(bidsArchive4D, sample4DNifti1, imageMetadata):
 def test4DAppend(bidsArchive4D, validBidsI, imageMetadata):
     incrementAcquisitionValues(validBidsI)
     bidsArchive4D.appendIncremental(validBidsI)
+    bidsArchive4D.flushCache()
 
     assert archiveHasMetadata(bidsArchive4D, imageMetadata)
     assert appendDataMatches(bidsArchive4D, validBidsI, startIndex=2)
@@ -502,6 +511,7 @@ def testSequenceAppend(bidsArchive4D, validBidsI, imageMetadata):
     for i in range(NUM_APPENDS):
         incrementAcquisitionValues(validBidsI)
         bidsArchive4D.appendIncremental(validBidsI)
+    bidsArchive4D.flushCache()
 
     image = bidsArchive4D.getImages(
         matchExact=False, **filterEntities(imageMetadata))[0].get_image()
@@ -522,6 +532,7 @@ def testAppendNewSubject(bidsArchive4D, validBidsI):
 
     validBidsI.setMetadataField("subject", "02")
     bidsArchive4D.appendIncremental(validBidsI)
+    bidsArchive4D.flushCache()
 
     assert len(bidsArchive4D.getSubjects()) == len(preSubjects) + 1
 
@@ -529,12 +540,12 @@ def testAppendNewSubject(bidsArchive4D, validBidsI):
     assert isValidBidsArchive(bidsArchive4D.rootPath)
 
 
-""" ----- BEGIN TEST IMAGE STRIPPING ----- """
+""" ----- BEGIN TEST IMAGE GETTING ----- """
 
 
 # Test stripping an image off a BIDS archive works as expected
 def testGetIncremental(bidsArchive4D, sample3DNifti1, sample4DNifti1,
-                       imageMetadata):
+                       imageMetadata, validBidsI):
     """
     TODO(spolcyn): Support anatomical archives
     # 3D Case
@@ -564,6 +575,9 @@ def testGetIncremental(bidsArchive4D, sample3DNifti1, sample4DNifti1,
             datatype="func",
             imageIndex=index,
             session=imageMetadata["session"])
+
+        assert bidsArchive4D._getCache.numIncrementals() == \
+            validBidsI.imageDimensions[3]
 
         assert len(incremental.imageDimensions) == 4
         assert incremental.imageDimensions[3] == 1
@@ -623,7 +637,8 @@ def testGetIncrementalNoMatchingMetadata(bidsArchive4D, imageMetadata, caplog,
             task=imageMetadata["task"],
             suffix=imageMetadata["suffix"],
             datatype="func",
-            session=imageMetadata["session"])
+            session=imageMetadata["session"],
+            useCache=False)
 
 
 # Test get incremental with an out-of-bounds image index for the matching image
@@ -692,7 +707,8 @@ def testGetIncrementalNoParameterMatch(bidsArchive4D, imageMetadata, caplog):
             suffix=imageMetadata["suffix"],
             datatype="func",
             session=imageMetadata['session'],
-            run=2)
+            run=2,
+            useCache=False)
 
         assert incremental is None
 
@@ -712,8 +728,57 @@ def testGetIncrementalNoParameterMatch(bidsArchive4D, imageMetadata, caplog):
                 task=imageMetadata["task"],
                 suffix=imageMetadata["suffix"],
                 datatype="func",
-                session=imageMetadata['session'])
+                session=imageMetadata['session'],
+                useCache=False)
 
             assert incremental is None
 
         imageMetadata[argName] = oldValue
+
+
+# Test getBidsRun returns all images in a given run
+def testGetBidsRun(bidsArchiveMultipleRuns, sampleBidsEntities, sample4DNifti1,
+                   bidsArchive4D, validBidsI):
+    # Just one entity is not specific enough
+    with pytest.raises(QueryError) as err:
+        bidsArchiveMultipleRuns.getBidsRun(
+            subject=sampleBidsEntities['subject'])
+        assert "Provided entities were not unique to one run" in str(err.value)
+
+    run = bidsArchive4D.getBidsRun(**sampleBidsEntities)
+    runData = getNiftiData(run.getIncremental(0).image).flatten()
+    incrementalData = getNiftiData(validBidsI.image)[..., 0].flatten()
+    assert runData.shape == incrementalData.shape
+    assert np.array_equal(runData, incrementalData)
+
+    # With multiple runs, not specifying run isn't good enough
+    entities = sampleBidsEntities.copy()
+    del entities['run']
+    with pytest.raises(QueryError) as err:
+        bidsArchiveMultipleRuns.getBidsRun(**entities)
+        assert "Found no runs matching entities" in str(err.value)
+
+    run = bidsArchiveMultipleRuns.getBidsRun(**sampleBidsEntities)
+    assert run is not None
+    assert run.numIncrementals() == sample4DNifti1.header.get_data_shape()[3]
+
+
+# Test appendBidsRun works with compatible images
+def testAppendBidsRun(tmpdir, bidsArchive4D, bidsArchiveMultipleRuns,
+                      sampleBidsEntities):
+    archivePath = Path(tmpdir, "appendBidsRunArchive")
+    archive = BidsArchive(archivePath)
+    emptyRun = BidsRun()
+    archive.appendBidsRun(emptyRun)
+
+    run = bidsArchive4D.getBidsRun(**sampleBidsEntities)
+    archive.appendBidsRun(run)
+
+    assert archive.getBidsRun(**sampleBidsEntities) == run
+
+
+# Test that auto-flushing before methods that query the archive work correctly
+def testFlushBeforeRun(bidsArchive4D, validBidsI):
+    validBidsI.setMetadataField('subject', '02')
+    bidsArchive4D.appendIncremental(validBidsI, useCache=True)
+    assert '02' in bidsArchive4D.getSubjects()

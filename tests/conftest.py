@@ -265,7 +265,7 @@ def bidsArchiveMultipleRuns(tmpdir, sample4DNifti1, imageMetadata):
     metadata['run'] = int(metadata['run']) + 1
 
     incremental = BidsIncremental(sample4DNifti1, metadata)
-    archive.appendIncremental(incremental)
+    archive.appendIncremental(incremental, useCache=False)
 
     return archive
 
