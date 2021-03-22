@@ -574,7 +574,7 @@ class BidsIncremental:
         """
         return bids_build_path(self._imgMetadata, BIDS_DIR_PATH_PATTERN)
 
-    def writeToDisk(self, datasetRoot: str) -> None:
+    def writeToDisk(self, datasetRoot: str, onlyData=False) -> None:
         """
         Writes the incremental's data to a directory on disk. NOTE: The
         directory is assumed to be empty, and no checks are made for data that
@@ -582,6 +582,10 @@ class BidsIncremental:
 
         Args:
             datasetRoot: Path to the root of the BIDS archive to be written to.
+            onlyData: Only write out the NIfTI image and sidecar metadata
+                (Default False). Useful if writing an incremental out to an
+                existing archive and you don't want to overwrite existing README
+                or dataset_description.json files.
 
         Examples:
             >>> from bidsArchive import BidsArchive
@@ -615,12 +619,13 @@ class BidsIncremental:
         with open(eventsPath, mode='w') as eventsFile:
             self.events.to_csv(eventsFile, sep='\t')
 
-        # Write out dataset description
-        with open(descriptionPath, mode='w') as description:
-            json.dump(self.datasetMetadata, description, indent=4)
+        if not onlyData:
+            # Write out dataset description
+            with open(descriptionPath, mode='w') as description:
+                json.dump(self.datasetMetadata, description, indent=4)
 
-        # Write out readme
-        with open(readmePath, mode='w') as readme:
-            readme.write(self.readme)
+            # Write out readme
+            with open(readmePath, mode='w') as readme:
+                readme.write(self.readme)
 
     """ END BIDS-I ARCHIVE EMULTATION API """
