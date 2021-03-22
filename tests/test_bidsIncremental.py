@@ -393,6 +393,13 @@ def testDiskOutput(validBidsI, tmpdir):
 
     assert isValidBidsArchive(archive.rootPath)
 
+    # Try only writing data
+    datasetRoot = os.path.join(tmpdir, "bids-pytest-dataset-2")
+    validBidsI.writeToDisk(datasetRoot, onlyData=True)
+    assert not os.path.exists(os.path.join(datasetRoot, "README"))
+    assert not os.path.exists(os.path.join(datasetRoot,
+                                           "dataset_description.json"))
+
 
 # Test serialization results in equivalent BIDS-I object
 def testSerialization(validBidsI, sample4DNifti1, imageMetadata, tmpdir):
