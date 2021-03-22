@@ -6,7 +6,8 @@ Shared constants and functions used by modules working with BIDS data.
 
 -----------------------------------------------------------------------------"""
 from enum import Enum
-from typing import Any, Callable
+from operator import eq as opeq
+from typing import Any, Callable, Tuple
 import functools
 import logging
 import re
@@ -263,7 +264,26 @@ def getDicomMetadata(dicomImg: pydicom.dataset.Dataset, kind='all') -> dict:
 
 
 def symmetricDictDifference(d1: dict, d2: dict,
-                            equal: Callable[[Any, Any], bool]) -> dict:
+                            equal: Callable[[Any, Any], bool] = opeq) -> dict:
+    """
+    Returns the symmetric difference of the provided dictionaries. This
+    consists of 3 parts:
+    1) Key-value pairs for which both dictionaries have the key, but have
+    different values for that key.
+    2) All key-value pairs that only the first dictionary has.
+    3) All key-value pairs that only the second dictionary has.
+
+    Arguments:
+        d1: First dictionary
+        d2: Second dictionary
+        equal: Function that returns True if two keys are equal, False otherwise
+
+    Returns:
+        A dictionary with all key-value pair differences between the two
+        dictionaries. 'None' is used as the value for a key-value pair if that
+        dictionary lacks a key that the other one has.
+    """
+
     sharedKeys = d1.keys() & d2.keys()
     difference = {key: [d1[key], d2[key]]
                   for key in sharedKeys
@@ -276,3 +296,201 @@ def symmetricDictDifference(d1: dict, d2: dict,
     difference.update({key: [None, d2[key]] for key in d2OnlyKeys})
 
     return difference
+
+
+def niftiImagesAppendCompatible(img1: nib.Nifti1Image,
+                                img2: nib.Nifti1Image) -> Tuple[bool, str]:
+    """
+    Verifies that two Nifti image headers match in along a defined set of
+    NIfTI header fields which should not change during a continuous fMRI
+    scanning session.
+
+    This is primarily intended as a safety check, and does not conclusively
+    determine that two images are valid to append to together or are part of
+    the same scanning session.
+
+    Args:
+        header1: First Nifti header to compare (dict of numpy arrays)
+        header2: Second Nifti header to compare (dict of numpy arrays)
+
+    Returns:
+        True if the headers match along the required dimensions, False
+        otherwise.
+
+    """
+    fieldsToMatch = ["intent_p1", "intent_p2", "intent_p3", "intent_code",
+                     "dim_info", "datatype", "bitpix",
+                     "slice_duration", "toffset", "scl_slope", "scl_inter",
+                     "qform_code", "quatern_b", "quatern_c", "quatern_d",
+                     "qoffset_x", "qoffset_y", "qoffset_z",
+                     "sform_code", "srow_x", "srow_y", "srow_z"]
+
+    header1 = img1.header
+    header2 = img2.header
+
+    for field in fieldsToMatch:
+        v1 = header1.get(field)
+        v2 = header2.get(field)
+
+        # Use slightly more complicated check to properly match nan values
+        if not (np.allclose(v1, v2, atol=0.0, equal_nan=True)):
+            errorMsg = (f"NIfTI headers don't match on field: {field} "
+                        f"(v1: {v1}, v2: {v2})")
+            return (False, errorMsg)
+
+    # Two NIfTI headers are append-compatible in 2 cases:
+    # 1) Pixel dimensions are exactly equal, and dimensions are equal except
+    # for in the final dimension
+    # 2) One image has one fewer dimension than the other, and all shared
+    # dimensions and pixel dimensions are exactly equal
+    dimensionMatch = True
+
+    # 'dim' corresponds to the dimensions of the image
+    dimensions1 = header1.get("dim")
+    dimensions2 = header2.get("dim")
+
+    # In NIfTI, the 0th index of the 'dim' field is the # of dimensions
+    nDimensions1 = dimensions1[0]
+    nDimensions2 = dimensions2[0]
+
+    # 'pixdim' corresponds to the size of each pixel in real-world units
+    # (e.g., mm, um, etc.)
+    pixdim1 = header1.get("pixdim")
+    pixdim2 = header2.get("pixdim")
+
+    # Case 1
+    if nDimensions1 == nDimensions2:
+        pixdimEqual = np.array_equal(pixdim1, pixdim2)
+        allButFinalEqual = np.array_equal(dimensions1[:nDimensions1],
+                                          dimensions2[:nDimensions2])
+
+        if not (pixdimEqual and allButFinalEqual):
+            dimensionMatch = False
+    # Case 2
+    else:
+        dimensionMatch = False
+
+        dimensionsDifferBy1 = abs(nDimensions1 - nDimensions2) == 1
+        if dimensionsDifferBy1:
+
+            nSharedDimensions = min(nDimensions1, nDimensions2)
+            # Arrays are 1-indexed as # dimensions is stored in first slot
+            sharedDimensionsMatch = \
+                np.array_equal(dimensions1[1:nSharedDimensions + 1],
+                               dimensions2[1:nSharedDimensions + 1])
+            if sharedDimensionsMatch:
+
+                # Arrays are 1-indexed as value used in one method of
+                # voxel-to-world coordination translation is stored in the
+                # first slot (value should be equal across images)
+                sharedPixdimMatch = \
+                    np.array_equal(pixdim1[:nSharedDimensions + 1],
+                                   pixdim2[:nSharedDimensions + 1])
+                if sharedPixdimMatch:
+                    dimensionMatch = True
+
+    if not dimensionMatch:
+        errorMsg = ("NIfTI headers not append compatible due to mismatch "
+                    "in dimensions and pixdim fields.\n"
+                    f"Dim 1: {dimensions1} | Dim 2: {dimensions2}\n"
+                    f"Pixdim 1: {pixdim1} | Pixdim 2: {pixdim2}\n")
+        return (False, errorMsg)
+
+    # Compare xyzt_units (spatial and temporal dimension units)
+    field = 'xyzt_units'
+    xyztUnits1 = header1[field]
+    xyztUnits2 = header2[field]
+
+    # NOTE: If units are 'unknown' (represented by value 0, in NIfTi
+    # header), then we assume the header is incomplete and don't thrown an
+    # error. Errors are only thrown when explicit conflicts are found
+    # between defined and non-matching units.
+
+    # If all units are unknown, don't bother checking sub-units as they'll
+    # also be 0
+    if xyztUnits1 == 0 or xyztUnits2 == 0:
+        unitsMatch = True
+    else:
+        # Bottom 3 bits of xyzt units is dedicated to the spatial units.
+        # Thus, modding by 2^3 = 8 leaves just those bits.
+        spatialUnits1 = xyztUnits1 % 8
+        spatialUnits2 = xyztUnits2 % 8
+        spatialUnknown = spatialUnits1 == 0 or spatialUnits2 == 0
+        if spatialUnknown:
+            spatialMatch = True
+        else:
+            spatialMatch = np.array_equal(spatialUnits1, spatialUnits2)
+
+        # Next 3 bits of xyzt units dedicated to temopral units. Thus,
+        # subtracting out the spatial units' contribution leaves just the
+        # temporal units.
+        temporalUnits1 = xyztUnits1 - spatialUnits1
+        temporalUnits2 = xyztUnits2 - spatialUnits2
+        temporalUnknown = temporalUnits1 == 0 or temporalUnits2 == 0
+        if temporalUnknown:
+            temporalMatch = True
+        else:
+            temporalMatch = np.array_equal(temporalUnits1, temporalUnits2)
+
+        unitsMatch = (spatialMatch and temporalMatch)
+
+    if not unitsMatch:
+        errorMsg = (
+            f"NIfTI headers not append compatible due to mismatch in "
+            f"xyzt_units field (spatial match: {spatialMatch}, "
+            f"temporal match: {temporalMatch}. "
+            f"xyzt_units 1: {xyztUnits1} | xyzt_units 2: {xyztUnits2}")
+        return (False, errorMsg)
+
+    return (True, "")
+
+
+def metadataAppendCompatible(meta1: dict, meta2: dict) -> Tuple[bool, str]:
+    """
+    Verifies two metadata dictionaries match in a set of required fields. If a
+    field is present in only one or neither of the two dictionaries, this is
+    considered a match.
+
+    This is primarily intended as a safety check, and does not conclusively
+    determine that two images are valid to append to together or are part of the
+    same series.
+
+    Args:
+        meta1: First metadata dictionary
+        meta2: Second metadata dictionary
+
+    Returns:
+        True if all keys that are present in both dictionaries have equivalent
+            values, false otherwise.
+
+    """
+    matchFields = ["Modality", "MagneticFieldStrength", "ImagingFrequency",
+                   "Manufacturer", "ManufacturersModelName", "InstitutionName",
+                   "InstitutionAddress", "DeviceSerialNumber", "StationName",
+                   "BodyPartExamined", "PatientPosition", "EchoTime",
+                   "ProcedureStepDescription", "SoftwareVersions",
+                   "MRAcquisitionType", "SeriesDescription", "ProtocolName",
+                   "ScanningSequence", "SequenceVariant", "ScanOptions",
+                   "SequenceName", "SpacingBetweenSlices", "SliceThickness",
+                   "ImageType", "RepetitionTime", "PhaseEncodingDirection",
+                   "FlipAngle", "InPlanePhaseEncodingDirectionDICOM",
+                   "ImageOrientationPatientDICOM", "PartialFourier"]
+
+    # If a particular metadata field is not defined (i.e., 'None'), then
+    # there can't be a conflict in value; thus, short-circuit and skip the
+    # rest of the check if a None value is found for a field.
+    for field in matchFields:
+        value1 = meta1.get(field, None)
+        if value1 is None:
+            continue
+
+        value2 = meta2.get(field, None)
+        if value2 is None:
+            continue
+
+        if value1 != value2:
+            errorMsg = (f"Metadata doesn't match on field: {field} "
+                        f"(value 1: {value1}, value 2: {value2}")
+            return (False, errorMsg)
+
+    return (True, "")

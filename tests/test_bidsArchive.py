@@ -21,6 +21,8 @@ from rtCommon.bidsCommon import (
     filterEntities,
     getNiftiData,
     loadBidsEntities,
+    metadataAppendCompatible,
+    niftiImagesAppendCompatible,
     symmetricDictDifference,
 )
 from tests.common import isValidBidsArchive
@@ -279,7 +281,7 @@ def testNiftiHeaderValidation(sample4DNifti1, sample3DNifti1, sample2DNifti1,
 
     """ Test field values """
     # Test equal headers
-    assert BidsArchive._imagesAppendCompatible(sample4DNifti1, other4D)
+    assert niftiImagesAppendCompatible(sample4DNifti1, other4D)
 
     # Test unequal headers on variety of fields that must match
     fieldsToModify = ["intent_code", "dim_info", "scl_slope", "sform_code"]
@@ -295,7 +297,7 @@ def testNiftiHeaderValidation(sample4DNifti1, sample3DNifti1, sample2DNifti1,
         other4D.header[field] = fieldArray
 
         compatible, error = \
-            BidsArchive._imagesAppendCompatible(sample4DNifti1, other4D)
+            niftiImagesAppendCompatible(sample4DNifti1, other4D)
         assert not compatible
         assert "NIfTI headers don't match on field: " + field in error
 
@@ -304,13 +306,12 @@ def testNiftiHeaderValidation(sample4DNifti1, sample3DNifti1, sample2DNifti1,
     """ Test special cases for dimensions and pixel dimensions being non-equal
     but still append compatible """
     # First three dimensions and pixel dimensions equal
-    assert BidsArchive._imagesAppendCompatible(sample3DNifti1, sample4DNifti1)
+    assert niftiImagesAppendCompatible(sample3DNifti1, sample4DNifti1)
 
     # Dimension 4 of the 3D image should not matter
     for i in range(0, 100):
         sample3DNifti1.header["dim"][4] = i
-        assert BidsArchive._imagesAppendCompatible(sample3DNifti1,
-                                                   sample4DNifti1)
+        assert niftiImagesAppendCompatible(sample3DNifti1, sample4DNifti1)
 
     sample3DNifti1.header["dim"] = np.copy(original3DHeader["dim"])
     assert sample3DNifti1.header == original3DHeader
@@ -325,8 +326,7 @@ def testNiftiHeaderValidation(sample4DNifti1, sample3DNifti1, sample2DNifti1,
 
     # 4D with non-matching first 3 dimensions should fail
     other4D.header["dim"][1:4] = other4D.header["dim"][1:4] * 2
-    compatible, errorMsg = BidsArchive._imagesAppendCompatible(sample4DNifti1,
-                                                               other4D)
+    compatible, errorMsg = niftiImagesAppendCompatible(sample4DNifti1, other4D)
     assert not compatible
     assert "NIfTI headers not append compatible due to mismatch in dimensions "\
         "and pixdim fields." in errorMsg
@@ -336,8 +336,7 @@ def testNiftiHeaderValidation(sample4DNifti1, sample3DNifti1, sample2DNifti1,
 
     # 3D and 4D in which first 3 dimensions don't match
     other3D.header["dim"][1:3] = other3D.header["dim"][1:3] * 2
-    compatible, errorMsg = BidsArchive._imagesAppendCompatible(sample4DNifti1,
-                                                               other3D)
+    compatible, errorMsg = niftiImagesAppendCompatible(sample4DNifti1, other3D)
     assert not compatible
 
     # Reset
@@ -346,8 +345,7 @@ def testNiftiHeaderValidation(sample4DNifti1, sample3DNifti1, sample2DNifti1,
 
     # 2D and 4D are one too many dimensions apart
     other4D.header['dim'][0] = 2
-    compatible, errorMsg = BidsArchive._imagesAppendCompatible(other4D,
-                                                               sample4DNifti1)
+    compatible, errorMsg = niftiImagesAppendCompatible(other4D, sample4DNifti1)
     assert not compatible
 
 
@@ -373,16 +371,14 @@ def testMetadataValidation(imageMetadata, caplog):
 
         # If field not present, append should work
         if oldValue is None:
-            assert BidsArchive._metadataAppendCompatible(imageMetadata,
-                                                         metadataCopy)
+            assert metadataAppendCompatible(imageMetadata, metadataCopy)
         # If field is present, modify and ensure failure
         else:
             metadataCopy[field] = "not a valid value by any stretch of the word"
             assert metadataCopy[field] != oldValue
 
-            compatible, errorMsg = BidsArchive._metadataAppendCompatible(
-                imageMetadata,
-                metadataCopy)
+            compatible, errorMsg = metadataAppendCompatible(imageMetadata,
+                                                            metadataCopy)
             assert not compatible
             assert f"Metadata doesn't match on field: {field}" in errorMsg
 
@@ -395,9 +391,8 @@ def testMetadataValidation(imageMetadata, caplog):
             if oldValue is None:
                 continue
 
-            compatible, errorMsg = BidsArchive._metadataAppendCompatible(
-                imageMetadata,
-                metadataCopy)
+            compatible, errorMsg = metadataAppendCompatible(imageMetadata,
+                                                            metadataCopy)
             assert compatible
 
             metadataDict[field] = oldValue
