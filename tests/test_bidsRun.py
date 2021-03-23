@@ -66,11 +66,8 @@ def testGetAppendIncremental(oneImageBidsI):
 
     NUM_APPENDS = 20
     for i in range(1, NUM_APPENDS):
-        oneImageBidsI.setMetadataField('append_num', i)
         run.appendIncremental(oneImageBidsI)
-        assert run.getIncremental(i).getMetadataField('append_num') == i
-        assert run.getIncremental(-1).getMetadataField('append_num') == i
-        assert run.numIncrementals() == i + 1
+        assert run.getIncremental(i) == oneImageBidsI
 
 
 # Test construction
@@ -150,6 +147,8 @@ def testAppendConflictingMetadata(oneImageBidsI):
 # Test consolidation into single incremental works as expected
 def testAsSingleIncremental(oneImageBidsI):
     run = BidsRun()
+    assert run.asSingleIncremental() is None
+
     NUM_APPENDS = 5
     for i in range(NUM_APPENDS):
         run.appendIncremental(oneImageBidsI)
