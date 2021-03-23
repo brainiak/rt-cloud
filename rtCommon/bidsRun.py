@@ -13,7 +13,7 @@ import numpy as np
 from rtCommon.bidsCommon import (
     getNiftiData,
     metadataAppendCompatible,
-    niftiImagesAppendCompatible,
+    niftiHeadersAppendCompatible,
     symmetricDictDifference,
 )
 from rtCommon.bidsIncremental import BidsIncremental
@@ -24,15 +24,31 @@ logger = logging.getLogger(__name__)
 
 class BidsRun:
     def __init__(self, **entities):
-        self.incrementals = []
+        self._dataArrays = []
         self._entities = entities
+        self._imageMetadata = None
+        self._imageHeader = None
+        self._imageAffine = None
+        self._imageKlass = None
 
     def __eq__(self, other):
-        if self.numIncrementals() == other.numIncrementals():
-            if self.getRunEntities() == other.getRunEntities():
-                if self.incrementals == other.incrementals:
-                    return True
-        return False
+        if self.numIncrementals() != other.numIncrementals():
+            return False
+        if self.getRunEntities() != other.getRunEntities():
+            return False
+        if self._imageMetadata != other._imageMetadata:
+            return False
+        if not np.array_equal(self._imageHeader, other._imageHeader):
+            return False
+        if not np.array_equal(self._imageAffine, other._imageAffine):
+            return False
+        if self._imageKlass != other._imageKlass:
+            return False
+        for (arr1, arr2) in zip(self._dataArrays, other._dataArrays):
+            if not np.array_equal(arr1, arr2):
+                return False
+
+        return True
 
     def getIncremental(self, index: int) -> BidsIncremental:
         """
@@ -55,7 +71,10 @@ class BidsRun:
             IndexError
         """
         try:
-            return self.incrementals[index]
+            dataArray = self._dataArrays[index]
+            image = self._imageKlass(dataArray, self._imageAffine,
+                                     self._imageHeader)
+            return BidsIncremental(image, self._imageMetadata)
         except IndexError:
             raise IndexError(f"Index {index} out of bounds for run with "
                              f"{self.numIncrementals()} incrementals")
@@ -94,6 +113,18 @@ class BidsRun:
         if len(self._entities) == 0:
             self._entities = incremental.entities
 
+        if self._imageMetadata is None:
+            self._imageMetadata = incremental.imageMetadata
+
+        if self._imageHeader is None:
+            self._imageHeader = incremental.image.header.copy()
+
+        if self._imageAffine is None:
+            self._imageAffine = incremental.image.affine.copy()
+
+        if self._imageKlass is None:
+            self._imageKlass = incremental.image.__class__
+
         if validateAppend:
             if not incremental.entities == self._entities:
                 entityDifference = symmetricDictDifference(self._entities,
@@ -104,8 +135,8 @@ class BidsRun:
 
             if self.numIncrementals() > 0:
                 canAppend, niftiErrorMsg = \
-                    niftiImagesAppendCompatible(incremental.image,
-                                                self.incrementals[-1].image)
+                    niftiHeadersAppendCompatible(incremental.image.header,
+                                                 self._imageHeader)
 
                 if not canAppend:
                     errorMsg = ("Incremental's NIfTI header not compatible "
@@ -114,31 +145,20 @@ class BidsRun:
 
                 canAppend, metadataErrorMsg = metadataAppendCompatible(
                     incremental.imageMetadata,
-                    self.incrementals[-1].imageMetadata)
+                    self._imageMetadata)
 
                 if not canAppend:
                     errorMsg = ("Incremental's metadata not compatible "
                                 f" with this run's images ({metadataErrorMsg})")
                     raise MetadataMismatchError(errorMsg)
 
-        # Slice up the incremental into smaller incrementals if it has multiple
-        # images in its image volume
+        # Slice up the incremental into smaller component images if it has
+        # multiple images in its image volume
         imagesInVolume = incremental.imageDimensions[3]
-        if imagesInVolume == 1:
-            self.incrementals.append(incremental)
-        else:
-            # Split up the incremental into single-image volumes
-            image = incremental.image
-            imageData = getNiftiData(image)
-            affine = image.affine
-            header = image.header
-            metadata = incremental.imageMetadata
-
-            for imageIdx in range(imagesInVolume):
-                newData = imageData[..., imageIdx]
-                newImage = incremental.image.__class__(newData, affine, header)
-                newIncremental = BidsIncremental(newImage, metadata)
-                self.incrementals.append(newIncremental)
+        imageData = getNiftiData(incremental.image)
+        for imageIdx in range(imagesInVolume):
+            newData = imageData[..., imageIdx]
+            self._dataArrays.append(newData)
 
     def asSingleIncremental(self) -> BidsIncremental:
         """
@@ -147,16 +167,18 @@ class BidsRun:
 
         Returns:
             BidsIncremental with all image data and metadata represented by the
-                incrementals composing the run.
+                incrementals composing the run, or None if the run is empty.
 
         Examples:
             >>> incremental = run.asSingleIncremental()
             >>> incremental.writeToDisk('/tmp/new_dataset')
         """
+        if self.numIncrementals() == 0:
+            return None
+
         numIncrementals = self.numIncrementals()
-        refIncremental = self.getIncremental(0)
-        newImageShape = refIncremental.imageDimensions[:3] + (numIncrementals,)
-        metadata = refIncremental.imageMetadata
+        newImageShape = self._imageHeader.get_data_shape()[:3] + \
+            (numIncrementals,)
 
         # It is critical to set the dtype of the array according to the source
         # image's dtype. Without doing so, int data may be cast to float (the
@@ -167,23 +189,21 @@ class BidsRun:
         # (read image data/put image data in numpy array/save image data/read
         # image from disk) will have arrays with slightly different values.
         newDataArray = np.zeros(newImageShape, order='F',
-                                dtype=refIncremental.image.dataobj.dtype)
+                                dtype=self._dataArrays[0].dtype)
 
         for incIdx in range(numIncrementals):
-            incremental = self.getIncremental(incIdx)
-            newDataArray[..., incIdx] = getNiftiData(incremental.image)[..., 0]
+            newDataArray[..., incIdx] = self._dataArrays[incIdx]
 
-        newImage = refIncremental.image.__class__(newDataArray,
-                                                  refIncremental.image.affine,
-                                                  refIncremental.image.header)
+        newImage = self._imageKlass(newDataArray, self._imageAffine,
+                                    self._imageHeader)
 
-        return BidsIncremental(newImage, metadata)
+        return BidsIncremental(newImage, self._imageMetadata)
 
     def numIncrementals(self) -> int:
         """
         Returns number of incrementals in this run.
         """
-        return len(self.incrementals)
+        return len(self._dataArrays)
 
     def getRunEntities(self) -> dict:
         """

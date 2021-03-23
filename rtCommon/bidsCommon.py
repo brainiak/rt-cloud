@@ -298,8 +298,7 @@ def symmetricDictDifference(d1: dict, d2: dict,
     return difference
 
 
-def niftiImagesAppendCompatible(img1: nib.Nifti1Image,
-                                img2: nib.Nifti1Image) -> Tuple[bool, str]:
+def niftiHeadersAppendCompatible(header1: dict, header2: dict):
     """
     Verifies that two Nifti image headers match in along a defined set of
     NIfTI header fields which should not change during a continuous fMRI
@@ -324,9 +323,6 @@ def niftiImagesAppendCompatible(img1: nib.Nifti1Image,
                      "qform_code", "quatern_b", "quatern_c", "quatern_d",
                      "qoffset_x", "qoffset_y", "qoffset_z",
                      "sform_code", "srow_x", "srow_y", "srow_z"]
-
-    header1 = img1.header
-    header2 = img2.header
 
     for field in fieldsToMatch:
         v1 = header1.get(field)
@@ -443,6 +439,29 @@ def niftiImagesAppendCompatible(img1: nib.Nifti1Image,
         return (False, errorMsg)
 
     return (True, "")
+
+
+def niftiImagesAppendCompatible(img1: nib.Nifti1Image,
+                                img2: nib.Nifti1Image) -> Tuple[bool, str]:
+    """
+    Verifies that two Nifti images have headers matching along a defined set of
+    NIfTI header fields which should not change during a continuous fMRI
+    scanning session.
+
+    This is primarily intended as a safety check, and does not conclusively
+    determine that two images are valid to append to together or are part of the
+    same scanning session.
+
+    Args:
+        img1: First Nifti image to compare
+        img2: Second Nifti image to compare
+
+    Returns:
+        True if the image headers match along the required dimensions, False
+            otherwise.
+
+    """
+    return niftiHeadersAppendCompatible(img1.header, img2.header)
 
 
 def metadataAppendCompatible(meta1: dict, meta2: dict) -> Tuple[bool, str]:
