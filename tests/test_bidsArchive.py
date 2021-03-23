@@ -13,7 +13,6 @@ import numpy as np
 import pytest
 
 from rtCommon.bidsArchive import BidsArchive
-from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsCommon import (
     BIDS_FILE_PATH_PATTERN,
     BidsFileExtension,
@@ -25,6 +24,8 @@ from rtCommon.bidsCommon import (
     niftiImagesAppendCompatible,
     symmetricDictDifference,
 )
+from rtCommon.bidsIncremental import BidsIncremental
+from rtCommon.bidsRun import BidsRun
 from tests.common import isValidBidsArchive
 
 from rtCommon.errors import (
@@ -311,7 +312,9 @@ def testNiftiHeaderValidation(sample4DNifti1, sample3DNifti1, sample2DNifti1,
     # Dimension 4 of the 3D image should not matter
     for i in range(0, 100):
         sample3DNifti1.header["dim"][4] = i
-        assert niftiImagesAppendCompatible(sample3DNifti1, sample4DNifti1)
+        compatible, errorMsg = niftiImagesAppendCompatible(sample3DNifti1,
+                                                           sample4DNifti1)
+        assert compatible
 
     sample3DNifti1.header["dim"] = np.copy(original3DHeader["dim"])
     assert sample3DNifti1.header == original3DHeader
@@ -528,8 +531,27 @@ def testAppendNewSubject(bidsArchive4D, validBidsI):
     assert appendDataMatches(bidsArchive4D, validBidsI)
     assert isValidBidsArchive(bidsArchive4D.rootPath)
 
+# Test appending to an archive does not overwrite existing dataset metadata
+def testAppendNoOverwriteDatasetMetadata(tmpdir, validBidsI):
+    rootPath = Path(tmpdir, "new-dataset")
+    archive = BidsArchive(rootPath)
 
-""" ----- BEGIN TEST IMAGE STRIPPING ----- """
+    EXPECTED_README = "The readme we expect"
+    validBidsI.readme = EXPECTED_README
+    archive.appendIncremental(validBidsI)
+
+    NEW_README = "The readme we don't expect"
+    validBidsI.readme = NEW_README
+    validBidsI.setMetadataField('subject', 'newSubject')
+    archive.appendIncremental(validBidsI)
+
+    with open(os.path.join(rootPath, 'README')) as readme:
+        readmeText = readme.readlines()
+        assert len(readmeText) == 1
+        assert readmeText[0] == EXPECTED_README
+
+
+""" ----- BEGIN TEST IMAGE GETTING ----- """
 
 
 # Test stripping an image off a BIDS archive works as expected
@@ -717,3 +739,49 @@ def testGetIncrementalNoParameterMatch(bidsArchive4D, imageMetadata, caplog):
             assert incremental is None
 
         imageMetadata[argName] = oldValue
+
+
+# Test getBidsRun returns all images in a given run
+def testGetBidsRun(bidsArchiveMultipleRuns, sampleBidsEntities, sample4DNifti1,
+                   bidsArchive4D, validBidsI):
+    # Entities that aren't present in the archive won't match
+    with pytest.raises(NoMatchError) as err:
+        bidsArchive4D.getBidsRun(subject='notARealSubject')
+    assert "Found no runs matching entities" in str(err.value)
+
+    # Just one entity is not specific enough
+    with pytest.raises(QueryError) as err:
+        bidsArchiveMultipleRuns.getBidsRun(
+            subject=sampleBidsEntities['subject'])
+    assert "Provided entities were not unique to one run" in str(err.value)
+
+    run = bidsArchive4D.getBidsRun(**sampleBidsEntities)
+    runData = getNiftiData(run.getIncremental(0).image).flatten()
+    incrementalData = getNiftiData(validBidsI.image)[..., 0].flatten()
+    assert runData.shape == incrementalData.shape
+    assert np.array_equal(runData, incrementalData)
+
+    # With multiple runs, not specifying run isn't good enough
+    entities = sampleBidsEntities.copy()
+    del entities['run']
+    with pytest.raises(QueryError) as err:
+        bidsArchiveMultipleRuns.getBidsRun(**entities)
+    assert "Provided entities were not unique to one run" in str(err.value)
+
+    run = bidsArchiveMultipleRuns.getBidsRun(**sampleBidsEntities)
+    assert run is not None
+    assert run.numIncrementals() == sample4DNifti1.header.get_data_shape()[3]
+
+
+# Test appendBidsRun works with compatible images
+def testAppendBidsRun(tmpdir, bidsArchive4D, bidsArchiveMultipleRuns,
+                      sampleBidsEntities):
+    archivePath = Path(tmpdir, "appendBidsRunArchive")
+    archive = BidsArchive(archivePath)
+    emptyRun = BidsRun()
+    archive.appendBidsRun(emptyRun)
+
+    run = bidsArchive4D.getBidsRun(**sampleBidsEntities)
+    archive.appendBidsRun(run)
+
+    assert archive.getBidsRun(**sampleBidsEntities) == run
