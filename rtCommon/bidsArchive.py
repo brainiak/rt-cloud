@@ -34,6 +34,7 @@ from rtCommon.bidsCommon import (
     niftiImagesAppendCompatible,
 )
 from rtCommon.bidsIncremental import BidsIncremental
+from rtCommon.bidsRun import BidsRun
 from rtCommon.errors import (
     DimensionError,
     MetadataMismatchError,
@@ -477,7 +478,6 @@ class BidsArchive:
         # 1) Create target paths for image in archive
         dataDirPath = incremental.dataDirPath
         imgPath = incremental.imageFilePath
-        metadataPath = incremental.metadataFilePath
 
         # 2) Verify we have a valid way to append the image to the archive.
         # 4 cases:
@@ -487,14 +487,19 @@ class BidsArchive:
         # the archive; create new Nifti file within the archive
         # 2.3) No image append possible and no creation possible; fail append
 
+        # Write the specified part of an incremental, taking appropriate actions
+        # for the layout update
+        def writeIncremental(onlyData=False):
+            incremental.writeToDisk(self.rootPath, onlyData=onlyData)
+            self._updateLayout()
+
         # 2.0) Archive is empty and must be created
         if self.isEmpty():
             if makePath:
-                incremental.writeToDisk(self.rootPath)
-                self._updateLayout()
+                writeIncremental()
                 return True
+            # If can't create new files in an empty archive, no valid append
             else:
-                # If can't create new files in an empty archive, no valid append
                 return False
 
         # 2.1) Image already exists within archive, append this NIfTI to it
@@ -549,10 +554,7 @@ class BidsArchive:
         # the archive; create new Nifti file within the archive
         if self.dirExistsInArchive(dataDirPath) or makePath:
             logger.debug("Image doesn't exist in archive, creating")
-            self._addImage(incremental.image, imgPath, updateLayout=False)
-            self._addMetadata(incremental.imageMetadata, metadataPath,
-                              updateLayout=False)
-            self._updateLayout()
+            writeIncremental(onlyData=True)
             return True
 
         # 2.3) No image append possible and no creation possible; fail append
@@ -632,8 +634,7 @@ class BidsArchive:
             numImages = image.dataobj.shape[3]
 
             if imageIndex < numImages:
-                # Directly slice Nibabel dataobj for increased memory efficiency
-                image = image.__class__(image.dataobj[..., imageIndex],
+                image = image.__class__(getNiftiData(image)[..., imageIndex],
                                         affine=image.affine,
                                         header=image.header)
                 image.update_header()
@@ -654,3 +655,69 @@ class BidsArchive:
         except MissingMetadataError as e:
             raise MissingMetadataError("Archive lacks required metadata for "
                                        "BIDS Incremental creation: " + str(e))
+
+    @failIfEmpty
+    def getBidsRun(self, **entities) -> BidsRun:
+        """
+        Get a BIDS Run from the archive.
+
+        Args:
+            entities: Entities defining a run in the archive.
+
+        Returns:
+            A BidsRun containing all the BidsIncrementals in the specified run.
+
+        Raises:
+            NoMatchError: If the entities don't match any runs in the archive.
+            QueryError: If the entities match more than one run in the archive.
+
+        Examples:
+            >>> archive = BidsArchive('/tmp/dataset')
+            >>> run = archive.getBidsRun(subject='01', session='02',
+                                         task='testTask', run=1)
+            >>> print(run.numIncrementals())
+            53
+        """
+        images = self.getImages(**entities)
+        if len(images) == 0:
+            raise NoMatchError(f"Found no runs matching entities {entities}")
+        if len(images) > 1:
+            entities = [img.get_entities() for img in images]
+            raise QueryError("Provided entities were not unique to one run; "
+                             "try specifying more entities "
+                             f" (got runs with these entities: {entities}")
+        else:
+            bidsImage = images[0]
+            niftiImage = bidsImage.get_image()
+            metadata = self.getSidecarMetadata(bidsImage)
+            metadata.pop('extension')  # only used in PyBids
+
+            incremental = BidsIncremental(niftiImage, metadata)
+
+            run = BidsRun()
+            run.appendIncremental(incremental)
+            return run
+
+    def appendBidsRun(self, run: BidsRun) -> None:
+        """
+        Append a BIDS Run to this archive.
+
+        Args:
+            run: Run to append to the archvie.
+
+        Examples:
+            >>> archive1 = BidsArchive('/tmp/dataset1')
+            >>> archive2 = BidsArchive('/tmp/dataset2')
+            >>> archive1.getRuns()
+            [1, 2]
+            >>> archive2.getRuns()
+            [1]
+            >>> run2 = archive1.getBidsRun(subject='01', task='test', run=2)
+            >>> archive2.appendBidsRun(run2)
+            >>> archive2.getRuns()
+            [1, 2]
+        """
+        if run.numIncrementals() == 0:
+            return
+
+        self.appendIncremental(run.asSingleIncremental())
