@@ -335,11 +335,16 @@ def niftiHeadersAppendCompatible(header1: dict, header2: dict):
             return (False, errorMsg)
 
     # Two NIfTI headers are append-compatible in 2 cases:
-    # 1) Pixel dimensions are exactly equal, and dimensions are equal except
-    # for in the final dimension
+    #
+    # 1) Pixel dimensions are equal for all defined dimensions, and dimensions
+    # are equal across the xyz dimensions (last dimension, time, can be equal or
+    # not). Note that the number of dimensions is defined in the 'dim' field,
+    # and that sometimes the pixel dimensions or dimensions field will have 0's
+    # or 1's beyond the defined number of dimensions; these should be ignored
+    # for determining append compatibility, as they are irrelevant.
+    #
     # 2) One image has one fewer dimension than the other, and all shared
     # dimensions and pixel dimensions are exactly equal
-    dimensionMatch = True
 
     # 'dim' corresponds to the dimensions of the image
     dimensions1 = header1.get("dim")
@@ -354,18 +359,18 @@ def niftiHeadersAppendCompatible(header1: dict, header2: dict):
     pixdim1 = header1.get("pixdim")
     pixdim2 = header2.get("pixdim")
 
+    dimensionMatch = False
     # Case 1
     if nDimensions1 == nDimensions2:
-        pixdimEqual = np.array_equal(pixdim1, pixdim2)
-        allButFinalEqual = np.array_equal(dimensions1[:nDimensions1],
-                                          dimensions2[:nDimensions2])
+        pixdimEqual = np.array_equal(pixdim1[:nDimensions1 + 1],
+                                     pixdim2[:nDimensions2 + 1])
+        xyzEqual = np.array_equal(dimensions1[:nDimensions1],
+                                  dimensions2[:nDimensions2])
 
-        if not (pixdimEqual and allButFinalEqual):
-            dimensionMatch = False
+        if pixdimEqual and xyzEqual:
+            dimensionMatch = True
     # Case 2
     else:
-        dimensionMatch = False
-
         dimensionsDifferBy1 = abs(nDimensions1 - nDimensions2) == 1
         if dimensionsDifferBy1:
 
@@ -375,10 +380,11 @@ def niftiHeadersAppendCompatible(header1: dict, header2: dict):
                 np.array_equal(dimensions1[1:nSharedDimensions + 1],
                                dimensions2[1:nSharedDimensions + 1])
             if sharedDimensionsMatch:
-
-                # Arrays are 1-indexed as value used in one method of
-                # voxel-to-world coordination translation is stored in the
-                # first slot (value should be equal across images)
+                # Arrays are 1-indexed, which matches how the "dim" array
+                # lists the number of dimensions first (index 0), and then
+                # the dimension in its corresponpding slot (i.e., 1st
+                # dimension in index 1). The pixel dimensions should be
+                # equal across images.
                 sharedPixdimMatch = \
                     np.array_equal(pixdim1[:nSharedDimensions + 1],
                                    pixdim2[:nSharedDimensions + 1])
