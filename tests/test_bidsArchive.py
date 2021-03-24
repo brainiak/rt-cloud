@@ -211,7 +211,7 @@ def testFailEmpty(tmpdir):
         emptyArchive.addImage(None, "will fall anyway")
         emptyArchive.getSidecarMetadata("will fall anyway")
         emptyArchive.addMetadata({"will": "fail"}, "will fall anyway")
-        emptyArchive.getIncremental(subject="will fall anyway",
+        emptyArchive._getIncremental(subject="will fall anyway",
                                     session="will fall anyway",
                                     task="will fall anyway",
                                     suffix="will fall anyway",
@@ -249,7 +249,7 @@ def testGetSidecarMetadata(bidsArchive4D, imageMetadata):
 # Test getting an event file from the archive
 def testGetEvents(validBidsI, imageMetadata, tmpdir):
     archive = BidsArchive(tmpdir)
-    archive.appendIncremental(validBidsI)
+    archive._appendIncremental(validBidsI)
 
     # Get the events from the archive as a pandas data frame
     events = archive.getEvents()[0].get_df()
@@ -406,7 +406,7 @@ def testEmptyArchiveAppend(validBidsI, imageMetadata, tmpdir):
     # Create in root with no BIDS-I, then append to make non-empty archive
     datasetRoot = Path(tmpdir, testEmptyArchiveAppend.__name__)
     archive = BidsArchive(datasetRoot)
-    archive.appendIncremental(validBidsI)
+    archive._appendIncremental(validBidsI)
 
     assert not archive.isEmpty()
     assert archiveHasMetadata(archive, imageMetadata)
@@ -424,7 +424,7 @@ TODO(spolcyn): Support 3-D anatomical case
 # Test images are correctly appended to an archive with just a 3-D image in it
 def test3DAppend(bidsArchive3D, validBidsI, imageMetadata):
     incrementAcquisitionValues(validBidsI)
-    bidsArchive3D.appendIncremental(validBidsI)
+    bidsArchive3D._appendIncremental(validBidsI)
     assert archiveHasMetadata(bidsArchive3D, imageMetadata)
     assert appendDataMatches(bidsArchive3D, validBidsI, startIndex=1)
 
@@ -457,7 +457,7 @@ def test3DAppend(bidsArchive3D, validBidsI, imageMetadata):
 def testAppendNoMakePath(bidsArchive4D, validBidsI, tmpdir):
     # Append to empty archive specifying not to make any files or directories
     datasetRoot = Path(tmpdir, testEmptyArchiveAppend.__name__)
-    assert not BidsArchive(datasetRoot).appendIncremental(validBidsI,
+    assert not BidsArchive(datasetRoot)._appendIncremental(validBidsI,
                                                           makePath=False)
 
     # Append to populated archive in a way that would require new directories
@@ -465,7 +465,7 @@ def testAppendNoMakePath(bidsArchive4D, validBidsI, tmpdir):
     validBidsI.setMetadataField('subject', 'invalidSubject')
     validBidsI.setMetadataField('run', 42)
 
-    assert not bidsArchive4D.appendIncremental(validBidsI, makePath=False)
+    assert not bidsArchive4D._appendIncremental(validBidsI, makePath=False)
 
 
 # Test appending raises error when NIfTI headers incompatible with existing
@@ -474,7 +474,7 @@ def testConflictingNiftiHeaderAppend(bidsArchive4D, sample4DNifti1,
     # Modify NIfTI header in critical way (change the datatype)
     sample4DNifti1.header['datatype'] = 32  # 32=complex, should be uint16=512
     with pytest.raises(MetadataMismatchError):
-        bidsArchive4D.appendIncremental(BidsIncremental(sample4DNifti1,
+        bidsArchive4D._appendIncremental(BidsIncremental(sample4DNifti1,
                                                         imageMetadata))
 
 
@@ -483,14 +483,14 @@ def testConflictingMetadataAppend(bidsArchive4D, sample4DNifti1, imageMetadata):
     # Modify metadata in critical way (change the subject)
     imageMetadata['ProtocolName'] = 'not the same'
     with pytest.raises(MetadataMismatchError):
-        bidsArchive4D.appendIncremental(BidsIncremental(sample4DNifti1,
+        bidsArchive4D._appendIncremental(BidsIncremental(sample4DNifti1,
                                                         imageMetadata))
 
 
 # Test images are correctly appended to an archive with a single 4-D image in it
 def test4DAppend(bidsArchive4D, validBidsI, imageMetadata):
     incrementAcquisitionValues(validBidsI)
-    bidsArchive4D.appendIncremental(validBidsI)
+    bidsArchive4D._appendIncremental(validBidsI)
 
     assert archiveHasMetadata(bidsArchive4D, imageMetadata)
     assert appendDataMatches(bidsArchive4D, validBidsI, startIndex=2)
@@ -504,7 +504,7 @@ def testSequenceAppend(bidsArchive4D, validBidsI, imageMetadata):
 
     for i in range(NUM_APPENDS):
         incrementAcquisitionValues(validBidsI)
-        bidsArchive4D.appendIncremental(validBidsI)
+        bidsArchive4D._appendIncremental(validBidsI)
 
     image = bidsArchive4D.getImages(
         matchExact=False, **filterEntities(imageMetadata))[0].get_image()
@@ -524,7 +524,7 @@ def testAppendNewSubject(bidsArchive4D, validBidsI):
     preSubjects = bidsArchive4D.getSubjects()
 
     validBidsI.setMetadataField("subject", "02")
-    bidsArchive4D.appendIncremental(validBidsI)
+    bidsArchive4D._appendIncremental(validBidsI)
 
     assert len(bidsArchive4D.getSubjects()) == len(preSubjects) + 1
 
@@ -538,12 +538,12 @@ def testAppendNoOverwriteDatasetMetadata(tmpdir, validBidsI):
 
     EXPECTED_README = "The readme we expect"
     validBidsI.readme = EXPECTED_README
-    archive.appendIncremental(validBidsI)
+    archive._appendIncremental(validBidsI)
 
     NEW_README = "The readme we don't expect"
     validBidsI.readme = NEW_README
     validBidsI.setMetadataField('subject', 'newSubject')
-    archive.appendIncremental(validBidsI)
+    archive._appendIncremental(validBidsI)
 
     with open(os.path.join(rootPath, 'README')) as readme:
         readmeText = readme.readlines()
@@ -561,7 +561,7 @@ def testGetIncremental(bidsArchive4D, sample3DNifti1, sample4DNifti1,
     TODO(spolcyn): Support anatomical archives
     # 3D Case
     reference = BidsIncremental(sample3DNifti1, imageMetadata)
-    incremental = bidsArchive3D.getIncremental(
+    incremental = bidsArchive3D._getIncremental(
         subject=imageMetadata["subject"],
         task=imageMetadata["task"],
         suffix=imageMetadata["suffix"],
@@ -579,7 +579,7 @@ def testGetIncremental(bidsArchive4D, sample3DNifti1, sample4DNifti1,
     # Both the first and second image in the 4D archive should be identical
     reference = BidsIncremental(sample3DNifti1, imageMetadata)
     for index in range(0, 2):
-        incremental = bidsArchive4D.getIncremental(
+        incremental = bidsArchive4D._getIncremental(
             subject=imageMetadata["subject"],
             task=imageMetadata["task"],
             suffix=imageMetadata["suffix"],
@@ -598,7 +598,7 @@ def testGetIncremental(bidsArchive4D, sample3DNifti1, sample4DNifti1,
 def testGetIncrementalNoMatchingImage(bidsArchive4D, bidsArchiveMultipleRuns,
                                       imageMetadata):
     with pytest.raises(NoMatchError):
-        incremental = bidsArchive4D.getIncremental(
+        incremental = bidsArchive4D._getIncremental(
             subject='notPresent',
             task=imageMetadata["task"],
             suffix=imageMetadata["suffix"],
@@ -608,7 +608,7 @@ def testGetIncrementalNoMatchingImage(bidsArchive4D, bidsArchiveMultipleRuns,
         assert incremental is None
 
     with pytest.raises(QueryError):
-        incremental = bidsArchiveMultipleRuns.getIncremental(
+        incremental = bidsArchiveMultipleRuns._getIncremental(
             subject=imageMetadata["subject"],
             task=imageMetadata["task"],
             suffix=imageMetadata["suffix"],
@@ -640,7 +640,7 @@ def testGetIncrementalNoMatchingMetadata(bidsArchive4D, imageMetadata, caplog,
     errorText = r"Archive lacks required metadata for BIDS Incremental " \
                 r"creation: .*"
     with pytest.raises(MissingMetadataError, match=errorText):
-        bidsArchive4D.getIncremental(
+        bidsArchive4D._getIncremental(
             subject=imageMetadata["subject"],
             task=imageMetadata["task"],
             suffix=imageMetadata["suffix"],
@@ -656,7 +656,7 @@ def testGetIncrementalImageIndexOutOfBounds(bidsArchive4D, imageMetadata,
     outOfBoundsIndex = -1
     errorMsg = fr"Image index must be >= 0 \(got {outOfBoundsIndex}\)"
     with pytest.raises(IndexError, match=errorMsg):
-        incremental = bidsArchive4D.getIncremental(
+        incremental = bidsArchive4D._getIncremental(
             subject=imageMetadata["subject"],
             task=imageMetadata["task"],
             suffix=imageMetadata["suffix"],
@@ -673,7 +673,7 @@ def testGetIncrementalImageIndexOutOfBounds(bidsArchive4D, imageMetadata,
     errorMsg = (f"Matching image was a 3-D NIfTI; {outOfBoundsIndex} too high "
                 r"for a 3-D NIfTI \(must be 0\)") # noqa
     with pytest.raises(IndexError, match=errorMsg):
-        incremental = bidsArchive3D.getIncremental(
+        incremental = bidsArchive3D._getIncremental(
             subject=imageMetadata["subject"],
             task=imageMetadata["task"],
             suffix=imageMetadata["suffix"],
@@ -690,7 +690,7 @@ def testGetIncrementalImageIndexOutOfBounds(bidsArchive4D, imageMetadata,
     errorMsg = (f"Image index {outOfBoundsIndex} too large for NIfTI volume of "
                 f"length {archiveLength}")
     with pytest.raises(IndexError, match=errorMsg):
-        incremental = bidsArchive4D.getIncremental(
+        incremental = bidsArchive4D._getIncremental(
             subject=imageMetadata["subject"],
             task=imageMetadata["task"],
             suffix=imageMetadata["suffix"],
@@ -708,7 +708,7 @@ def testGetIncrementalNoParameterMatch(bidsArchive4D, imageMetadata, caplog):
     errorText = r"Unable to find any data in archive that matches" \
                 r" all provided entities: \{.*?\}"
     with pytest.raises(NoMatchError, match=errorText):
-        incremental = bidsArchive4D.getIncremental(
+        incremental = bidsArchive4D._getIncremental(
             subject=imageMetadata["subject"],
             task=imageMetadata["task"],
             suffix=imageMetadata["suffix"],
@@ -729,7 +729,7 @@ def testGetIncrementalNoParameterMatch(bidsArchive4D, imageMetadata, caplog):
         imageMetadata[argName] = argValue
 
         with pytest.raises(NoMatchError, match=errorText):
-            incremental = bidsArchive4D.getIncremental(
+            incremental = bidsArchive4D._getIncremental(
                 subject=imageMetadata["subject"],
                 task=imageMetadata["task"],
                 suffix=imageMetadata["suffix"],

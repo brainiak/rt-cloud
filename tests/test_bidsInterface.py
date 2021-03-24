@@ -102,20 +102,20 @@ def openNeuroStreamTest(bidsInterface):
     streamId = bidsInterface.initOpenNeuroStream(dsAccessionNumber, **remoteEntities)
     for idx in range(3):
         streamIncremental = bidsInterface.getIncremental(streamId)
-        localIncremental = localBidsArchive.getIncremental(idx, **localEntities)
+        localIncremental = localBidsArchive._getIncremental(idx, **localEntities)
         print(f"OpenNeuro stream check: image {idx}")
         assert streamIncremental == localIncremental
 
     for idx in [5, 2, 7]:
         streamIncremental = bidsInterface.getIncremental(streamId, volIdx=idx)
-        localIncremental = localBidsArchive.getIncremental(idx, **localEntities)
+        localIncremental = localBidsArchive._getIncremental(idx, **localEntities)
         print(f"OpenNeuro stream check: image {idx}")
         assert streamIncremental == localIncremental
 
     # Resume without specifying volumes
     for idx in [*range(8, 10)]:
         streamIncremental = bidsInterface.getIncremental(streamId)
-        localIncremental = localBidsArchive.getIncremental(idx, **localEntities)
+        localIncremental = localBidsArchive._getIncremental(idx, **localEntities)
         print(f"OpenNeuro stream check: image {idx}")
         assert streamIncremental == localIncremental
 
