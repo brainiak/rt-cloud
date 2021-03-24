@@ -433,13 +433,14 @@ class BidsArchive:
         else:
             return results
 
-    def appendIncremental(self,
+    def _appendIncremental(self,
                           incremental: BidsIncremental,
                           makePath: bool = True,
                           validateAppend: bool = True) -> bool:
         """
         Appends a BIDS Incremental's image data and metadata to the archive,
         creating new directories if necessary (this behavior can be overridden).
+        For internal use only.
 
         Args:
             incremental: BIDS Incremental to append
@@ -466,13 +467,13 @@ class BidsArchive:
 
             >>> archive = BidsArchive('.')
             >>> incremental = BidsIncremental(image, metadata)
-            >>> archive.appendIncremental(incremental)
+            >>> archive._appendIncremental(incremental)
 
             If we don't want to create any new files/directories in the archive,
             makePath can be set to false.
 
             >>> archive = BidsArchive('/tmp/emptyDirectory')
-            >>> archive.appendIncremental(incremental, makePath=False)
+            >>> archive._appendIncremental(incremental, makePath=False)
             False
         """
         # 1) Create target paths for image in archive
@@ -561,10 +562,11 @@ class BidsArchive:
         return False
 
     @failIfEmpty
-    def getIncremental(self, imageIndex: int = 0, **entities) \
+    def _getIncremental(self, imageIndex: int = 0, **entities) \
             -> BidsIncremental:
         """
-        Creates a BIDS Incremental from the specified part of the archive.
+        Creates a BIDS Incremental from the specified part of the archive. For
+        internal use only.
 
         Args:
             imageIndex: Index of 3-D image to select in a 4-D image volume.
@@ -590,19 +592,19 @@ class BidsArchive:
 
         Examples:
             >>> archive = BidsArchive('.')
-            >>> inc = archive.getIncremental(subject='01', task='test')
+            >>> inc = archive._getIncremental(subject='01', task='test')
             >>> entityFilterDict = {'subject': '01', 'task': 'test'}
-            >>> inc2 = archive.getIncremental(**entityFilterDict)
+            >>> inc2 = archive._getIncremental(**entityFilterDict)
             >>> inc == inc2
             True
 
-            By default, getIncremental has an imageIndex of 0. Changing that
+            By default, _getIncremental has an imageIndex of 0. Changing that
             parameter will return a different 3-D image from the volume, using
             the same search metadata.
 
             >>> inc.imageDimensions
             (64, 64, 27, 1)
-            >>> inc3 = archive.getIncremental(imageIndex=1, **entityFilterDict)
+            >>> inc3 = archive._getIncremental(imageIndex=1, **entityFilterDict)
             >>> inc2 != inc3
             True
         """
@@ -720,4 +722,4 @@ class BidsArchive:
         if run.numIncrementals() == 0:
             return
 
-        self.appendIncremental(run.asSingleIncremental())
+        self._appendIncremental(run.asSingleIncremental())
