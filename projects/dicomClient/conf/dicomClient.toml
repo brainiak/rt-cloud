@@ -1,0 +1,9 @@
+# Config file for sample.py project
+title = 'dicom Client'
+subject = '01'
+task = 'dicom_test'
+suffix = 'bold'
+run = 1
+datatype = 'func'
+
+
