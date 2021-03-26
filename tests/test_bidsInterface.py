@@ -121,5 +121,13 @@ def openNeuroStreamTest(bidsInterface):
 
     numVols = bidsInterface.getNumVolumes(streamId)
     assert numVols > 0 and numVols < 1000
-    # TODO - how to get num volumes of a run from the localBidsArchive?
-    # assert numVols == localArchiveNumVols
+
+    # Check with local bidsRun
+    localBidsRun = localBidsArchive.getBidsRun(**localEntities)
+    assert numVols == localBidsRun.numIncrementals()
+    assert numVols > 10
+    for idx in [*range(6, 10)]:
+        streamIncremental = bidsInterface.getIncremental(streamId, volIdx=idx)
+        localIncremental = localBidsRun.getIncremental(idx)
+        print(f"OpenNeuro bidsRun check: image {idx}")
+        assert streamIncremental == localIncremental

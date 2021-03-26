@@ -1,5 +1,6 @@
 # import important modules
 import os
+from rtCommon.bidsRun import BidsRun
 import sys
 import numpy
 import uuid
@@ -39,17 +40,20 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
         bidsArchivePath = os.path.join(tmpDir, 'bids_archive_' + uuid.uuid4().hex)
         print(f'BIDS Archive will be written to {bidsArchivePath}')
         newArchive = BidsArchive(bidsArchivePath)
+        newRun = BidsRun(**entities)
     # Initialize the bids stream
     streamId = bidsInterface.initOpenNeuroStream(cfg.dsAccessionNumber, **entities)
     numVols = bidsInterface.getNumVolumes(streamId)
     for idx in range(numVols):
         bidsIncremental = bidsInterface.getIncremental(streamId, idx)
         if cfg.writeBidsArchive is True:
-            newArchive.appendIncremental(bidsIncremental)
+            newRun.appendIncremental(bidsIncremental)
         imageData = bidsIncremental.imageData
         avg_niftiData = numpy.mean(imageData)
         print("| average activation value for TR %d is %f" %(idx, avg_niftiData))
         webInterface.plotDataPoint(run, idx, float(avg_niftiData))
+    if cfg.writeBidsArchive is True:
+        newArchive.appendBidsRun(newRun)
 
 
 def main(argv=None):
