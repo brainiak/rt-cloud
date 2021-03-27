@@ -164,3 +164,26 @@ def testAsSingleIncremental(oneImageBidsI):
     consolidatedBidsI = BidsIncremental(newImage, oneImageBidsI.imageMetadata)
 
     assert run.asSingleIncremental() == consolidatedBidsI
+
+# Test that updating entities works as expected
+def testUpdateEntities(validBidsI):
+    # Ensure an append updates the run's entities to the full set
+    entities = {key: validBidsI.entities[key] for key in ['subject', 'task']}
+    run = BidsRun(**entities)
+
+    assert run._entities != validBidsI.entities
+    run.appendIncremental(validBidsI)
+    assert run._entities == validBidsI.entities
+
+    # Ensure minimally supplied entities are still sufficient to block a
+    # non-matching run and doesn't update the run's entities
+    entities = {key: validBidsI.entities[key] for key in ['subject', 'task']}
+    run = BidsRun(**entities)
+
+    preAppendEntities = run._entities
+    assert preAppendEntities != validBidsI.entities
+    validBidsI.setMetadataField('subject', 'nonValidSubject')
+    with pytest.raises(MetadataMismatchError):
+        run.appendIncremental(validBidsI)
+    assert run._entities == preAppendEntities
+
