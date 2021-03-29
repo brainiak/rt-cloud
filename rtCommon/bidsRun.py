@@ -126,12 +126,23 @@ class BidsRun:
             self._imageKlass = incremental.image.__class__
 
         if validateAppend:
-            if not incremental.entities == self._entities:
-                entityDifference = symmetricDictDifference(self._entities,
-                                                           incremental.entities)
-                errorMsg = ("Incremental's BIDS entities do not match this "
-                            f"run's entities (difference: {entityDifference})")
-                raise MetadataMismatchError(errorMsg)
+            entityDifference = symmetricDictDifference(self._entities,
+                                                       incremental.entities)
+            if len(entityDifference) != 0:
+                # Two cases:
+                # 1) New incremental matches all existing entities, and just
+                # adds new, more specific ones (update run)
+                # 2) New incremental doesn't match some existing entities (fail)
+                mismatchKeys = [key for key in entityDifference.keys() if key
+                                in self._entities]
+                if len(mismatchKeys) == 0:
+                    # Add new, more specific entities
+                    self._entities.update(incremental.entities)
+                else:
+                    errorMsg = ("Incremental's BIDS entities do not match this "
+                                "run's entities (difference: "
+                                f"{entityDifference})")
+                    raise MetadataMismatchError(errorMsg)
 
             if self.numIncrementals() > 0:
                 canAppend, niftiErrorMsg = \

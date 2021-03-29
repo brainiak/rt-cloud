@@ -636,7 +636,10 @@ class BidsArchive:
             numImages = image.dataobj.shape[3]
 
             if imageIndex < numImages:
-                image = image.__class__(getNiftiData(image)[..., imageIndex],
+                # Because only a single image is read, it's faster to slice the
+                # Nibabel ArrayProxy (the image's dataobj) so just the relevant
+                # part of disk is accessed
+                image = image.__class__(image.dataobj[..., imageIndex],
                                         affine=image.affine,
                                         header=image.header)
                 image.update_header()

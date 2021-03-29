@@ -282,6 +282,15 @@ def symmetricDictDifference(d1: dict, d2: dict,
         A dictionary with all key-value pair differences between the two
         dictionaries. 'None' is used as the value for a key-value pair if that
         dictionary lacks a key that the other one has.
+
+    Examples:
+        >>> d1 = {'a': 1, 'b': 2, 'c': 3}
+        >>> d2 = {'c': 4, 'd': 5}
+        >>> print(symmetricDictDifference(d1, d2))
+        {'a': [1, None], 'b': [2, None], 'c': [3, 4], 'd': [None, 5]}
+        >>> d2 = {'a': 1, 'b': 2, 'c': 4}
+        >>> print(symmetricDictDifference(d1, d2))
+        {'c': [3, 4]}
     """
 
     sharedKeys = d1.keys() & d2.keys()
