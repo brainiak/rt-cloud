@@ -15,6 +15,7 @@ import tempfile
 import nibabel as nib
 from rtCommon.remoteable import RemoteableExtensible
 from rtCommon.bidsArchive import BidsArchive
+from rtCommon.bidsRun import BidsRun
 from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsCommon import getDicomMetadata
 from rtCommon.imageHandling import convertDicomImgToNifti
@@ -84,7 +85,7 @@ class BidsInterface(RemoteableExtensible):
         """
         # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
-        bidsStream = BidsStream(datasetPath, **entities)
+        bidsStream = BidsStream(archivePath, **entities)
         self.streamMap[streamId] = bidsStream
         return streamId
 
@@ -219,26 +220,12 @@ class BidsStream:
                 define the particular subject/run of the data to stream
         """
         self.bidsArchive = BidsArchive(archivePath)
-        # TODO - when we have BidsRun
-        # self.bidsRun = self.bidsArchive.getBidsRun(**entities)
-        images = self.bidsArchive.getImages(**entities)
-        if len(images) == 0:
-            raise ValidationError('No matching images found')
-        if len(images) > 1:
-            raise ValidationError('More than one match, please give more specific subject/session/task/run')
-        self.bidsImage = images[0]
-        self.niftiImage = self.bidsImage.get_image()
-        self.filename = self.niftiImage.get_filename()
-        self.imgVolumes = nib.four_to_three(self.niftiImage)
-        self.metadata = self.bidsArchive.getSidecarMetadata(self.filename, includeEntities=True)
-        self.metadata.pop('extension')
-        self.numVolumes = len(self.imgVolumes)
+        self.bidsRun = self.bidsArchive.getBidsRun(**entities)
+        self.numVolumes = self.bidsRun.numIncrementals()
         self.nextVol = 0
 
     def getNumVolumes(self) -> int:
         """Return the number of brain volumes in the run"""
-        # TODO - when we have BidsRun
-        # return self.bidsRun.getNumVolumes()
         return self.numVolumes
 
     def getIncremental(self, volIdx=-1) -> BidsIncremental:
@@ -253,8 +240,6 @@ class BidsStream:
         Returns:
             BidsIncremental of that volume index within this subject/run
         """
-        # TODO - when we have BidsRun
-        # return self.bidsRun.getIncremental(volIdx)
         if volIdx >= 0:
             # reset the next volume to the user specified volume
             self.nextVol = volIdx
@@ -263,7 +248,7 @@ class BidsStream:
             pass
 
         if self.nextVol < self.numVolumes:
-            incremental = BidsIncremental(self.imgVolumes[self.nextVol], self.metadata)
+            incremental = self.bidsRun.getIncremental(self.nextVol)
             self.nextVol += 1
             return incremental
         else:

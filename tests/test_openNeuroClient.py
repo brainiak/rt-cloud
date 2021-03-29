@@ -45,7 +45,7 @@ class TestOpenNeuroClient:
                                                          projectArgs=openNeuroArgs)
         client = ClientInterface()
         assert client.isDataRemote() == False
-        argv = []
+        argv = ['--archive']
         ret = openNeuroClient.main(argv)
         assert ret == 0
 
@@ -58,13 +58,13 @@ class TestOpenNeuroClient:
                                                          projectArgs=openNeuroArgs)
         client = ClientInterface()
         assert client.isDataRemote() == True
-        argv = []
+        argv = ['--archive']
         ret = openNeuroClient.main(argv)
         assert ret == 0
 
     def test_runWithoutProjectInterface(self):
         print("\nOpenNeuroClient::test_runWithoutProjectInterface:")
         TestOpenNeuroClient.serversForTests.stopServers()
-        argv = ['-y']
+        argv = ['-y', '--archive']
         ret = openNeuroClient.main(argv)
         assert ret == 0
