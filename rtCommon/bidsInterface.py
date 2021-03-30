@@ -35,11 +35,13 @@ class BidsInterface(RemoteableExtensible):
     If dataRemote=False, then the methods below will be invoked locally and the RemoteExtensible
     parent class is inoperable (i.e. does nothing).
     """
-    def __init__(self, dataRemote=False):
+    def __init__(self, dataRemote=False, allowedDirs=[]):
         """
         Args:
             dataRemote (bool): Set to true for a passthrough instance that will forward requests.
                                Set to false for the actual instance running remotely
+            allowedDirs (list): Only applicable for DicomToBidsStreams. Indicates the
+                                directories that Dicom files are allowed to be read from.
         """
         super().__init__(isRemote=dataRemote)
         if dataRemote is True:
@@ -50,6 +52,8 @@ class BidsInterface(RemoteableExtensible):
         #      - cleanup stale streams
         nextStreamId = 1
         self.streamMap = {}
+        # Set the allowed directories for the DicomToBidsStream class
+        DicomToBidsStream.allowedDirs = allowedDirs
 
     def initDicomBidsStream(self, dicomDir, dicomFilePattern, dicomMinSize, **entities) -> int:
         """
@@ -139,6 +143,8 @@ class DicomToBidsStream():
     incrementals and returns the BIDS incremental. This lets a real-time classification
     script process data directly as BIDS as it arrives from the scanner.
     """
+    allowedDirs = []
+
     def __init__(self, dicomDir, dicomFilePattern, dicomMinSize, **entities):
         """
         Intialize a new DicomToBids stream, watches for Dicoms and streams as BIDS
@@ -167,8 +173,12 @@ class DicomToBidsStream():
         self.dicomDir = dicomDir
         self.dicomFilePattern = dicomFilePattern
         # TODO - restrict allowed directories, check that dicomDir is in allowed dir
-        self.dataInterface = DataInterface(dataRemote=False, allowedDirs=['*'], allowedFileTypes=['.dcm'])
-        self.dicomStreamId = self.dataInterface.initScannerStream(dicomDir, dicomFilePattern, dicomMinSize)
+        self.dataInterface = DataInterface(dataRemote=False,
+                                           allowedDirs=DicomToBidsStream.allowedDirs,
+                                           allowedFileTypes=['.dcm'])
+        self.dicomStreamId = self.dataInterface.initScannerStream(dicomDir,
+                                                                  dicomFilePattern,
+                                                                  dicomMinSize)
         self.nextVol = 0
 
     def getNumVolumes(self) -> int:

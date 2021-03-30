@@ -30,6 +30,8 @@ class OpenNeuroService:
             webSocketChannelName: The websocket url extension used to connecy and communicate
                 to the remote projectServer, e.g. 'wsData' would connect to 'ws://server:port/wsData'
         """
+        # Not necessary to set the allowedDirs for BidsInterface here becasue we won't be
+        #  using the DicomToBidsStream interface, leave it as none allowed (default)
         self.bidsInterface = BidsInterface(dataRemote=False)
         self.wsRemoteService = WsRemoteService(args, webSocketChannelName)
         self.wsRemoteService.addHandlerClass(BidsInterface, self.bidsInterface)

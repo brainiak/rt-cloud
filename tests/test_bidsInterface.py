@@ -6,11 +6,14 @@ from rtCommon.imageHandling import convertDicomImgToNifti, readDicomFromFile
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.bidsInterface import BidsInterface, tmpDownloadOpenNeuro
 from rtCommon.bidsCommon import getDicomMetadata
+from rtCommon.errors import ValidationError
 from tests.backgroundTestServers import BackgroundTestServers
-from tests.common import rtCloudPath
+from tests.common import rtCloudPath, tmpDir
 
 test_sampleProjectDicomPath = os.path.join(rtCloudPath, 'projects', 'sample',
     'dicomDir', '20190219.0219191_faceMatching.0219191_faceMatching')
+
+allowedDirs = [test_sampleProjectDicomPath, tmpDir]
 
 class TestBidsInterface:
     serversForTests = None
@@ -25,7 +28,7 @@ class TestBidsInterface:
     def test_localBidsInterface(self):
         """Test BidsInterface when instantiated in local mode"""
         TestBidsInterface.serversForTests.stopServers()
-        TestBidsInterface.serversForTests.startServers(dataRemote=False)
+        TestBidsInterface.serversForTests.startServers(dataRemote=False, allowedDirs=allowedDirs)
         clientInterface = ClientInterface()
         bidsInterface = clientInterface.bidsInterface
         dicomStreamTest(bidsInterface)
@@ -36,7 +39,7 @@ class TestBidsInterface:
         """Test BidsInterface when instantiated in local mode"""
         # Use a remote (RPC) client to the bidsInterface
         TestBidsInterface.serversForTests.stopServers()
-        TestBidsInterface.serversForTests.startServers(dataRemote=True)
+        TestBidsInterface.serversForTests.startServers(dataRemote=True, allowedDirs=allowedDirs)
         clientInterface = ClientInterface()
         bidsInterface = clientInterface.bidsInterface
         dicomStreamTest(bidsInterface)
@@ -45,7 +48,8 @@ class TestBidsInterface:
     # bidsInterface created locally by the client (no projectServer)
     def test_clientLocalBidsInterface(self):
         TestBidsInterface.serversForTests.stopServers()
-        bidsInterface = BidsInterface(dataRemote=False)
+        # Allowed dirs for local case set to the same as in the backgroundTestServers
+        bidsInterface = BidsInterface(dataRemote=False, allowedDirs=allowedDirs)
         dicomStreamTest(bidsInterface)
         openNeuroStreamTest(bidsInterface)
 
@@ -64,9 +68,20 @@ def readLocalDicomIncremental(volIdx, entities):
 def dicomStreamTest(bidsInterface):
     # initialize the stream
     entities = {'subject': '01', 'task': 'test', 'run': 1, 'suffix': 'bold', 'datatype': 'func'}
+
+    # Try to init a stream to a non-allowed path
+    if bidsInterface.isRunningRemote():
+        with pytest.raises(Exception) as err:
+            streamId = bidsInterface.initDicomBidsStream('/path/not/allowed',
+                                                        "001_000013_{TR:06d}.dcm",
+                                                        300*1024, **entities)
+        assert "not within list of allowed directories" in str(err.value)
+
+    # Now init the real stream to an allowed path
     print(f'### {test_sampleProjectDicomPath}')
     streamId = bidsInterface.initDicomBidsStream(test_sampleProjectDicomPath,
-                                                 "001_000013_{TR:06d}.dcm", 300*1024, **entities)
+                                                 "001_000013_{TR:06d}.dcm",
+                                                 300*1024, **entities)
 
     # Test that not specifying volIdx to getIncremental starts from the beginning in order
     for idx in [*range(3)]:

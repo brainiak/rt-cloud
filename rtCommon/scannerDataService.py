@@ -33,10 +33,10 @@ class ScannerDataService:
             webSocketChannelName: The websocket url extension used to connecy and communicate
                 to the remote projectServer, e.g. 'wsData' would connect to 'ws://server:port/wsData'
         """
-        self.dataInterface = DataInterface(dataRemote=False, 
+        self.dataInterface = DataInterface(dataRemote=False,
                                            allowedDirs=args.allowedDirs,
                                            allowedFileTypes=args.allowedFileTypes)
-        self.bidsInterface = BidsInterface(dataRemote=False)
+        self.bidsInterface = BidsInterface(dataRemote=False, allowedDirs=args.allowedDirs)
 
         self.wsRemoteService = WsRemoteService(args, webSocketChannelName)
         self.wsRemoteService.addHandlerClass(DataInterface, self.dataInterface)

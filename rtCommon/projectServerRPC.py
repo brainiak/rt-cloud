@@ -52,7 +52,8 @@ class ProjectRPCService(rpyc.Service):
         ProjectRPCService.exposed_DataInterface = DataInterface(dataRemote=dataRemote,
                                                                 allowedDirs=allowedDirs,
                                                                 allowedFileTypes=allowedFileTypes)
-        ProjectRPCService.exposed_BidsInterface = BidsInterface(dataRemote=dataRemote)
+        ProjectRPCService.exposed_BidsInterface = BidsInterface(dataRemote=dataRemote,
+                                                                allowedDirs=allowedDirs)
         ProjectRPCService.exposed_SubjectInterface = SubjectInterface(subjectRemote=subjectRemote)
         ProjectRPCService.exposed_WebDisplayInterface = webUI
         ProjectRPCService.exposed_ExampleInterface = ExampleInterface(dataRemote=dataRemote)
