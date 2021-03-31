@@ -20,7 +20,7 @@ from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsCommon import getDicomMetadata
 from rtCommon.imageHandling import convertDicomImgToNifti
 from rtCommon.dataInterface import DataInterface
-from rtCommon.errors import ValidationError, RequestError, MissingMetadataError
+from rtCommon.errors import RequestError, MissingMetadataError
 
 
 class BidsInterface(RemoteableExtensible):
@@ -52,8 +52,9 @@ class BidsInterface(RemoteableExtensible):
         #      - cleanup stale streams
         nextStreamId = 1
         self.streamMap = {}
-        # Set the allowed directories for the DicomToBidsStream class
-        DicomToBidsStream.allowedDirs = allowedDirs
+        # Store the allowed directories to be used by the DicomToBidsStream class
+        self.allowedDirs = allowedDirs
+
 
     def initDicomBidsStream(self, dicomDir, dicomFilePattern, dicomMinSize, **entities) -> int:
         """
@@ -73,7 +74,8 @@ class BidsInterface(RemoteableExtensible):
         """
         # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
-        dicomBidsStream = DicomToBidsStream(dicomDir, dicomFilePattern, dicomMinSize, **entities)
+        dicomBidsStream = DicomToBidsStream(self.allowedDirs)
+        dicomBidsStream.initStream(dicomDir, dicomFilePattern, dicomMinSize, **entities)
         self.streamMap[streamId] = dicomBidsStream
         return streamId
 
@@ -143,9 +145,11 @@ class DicomToBidsStream():
     incrementals and returns the BIDS incremental. This lets a real-time classification
     script process data directly as BIDS as it arrives from the scanner.
     """
-    allowedDirs = []
 
-    def __init__(self, dicomDir, dicomFilePattern, dicomMinSize, **entities):
+    def __init__(self, allowedDirs=[]):
+        self.allowedDirs = allowedDirs
+
+    def initStream(self, dicomDir, dicomFilePattern, dicomMinSize, **entities):
         """
         Intialize a new DicomToBids stream, watches for Dicoms and streams as BIDS
         Args:
@@ -174,7 +178,7 @@ class DicomToBidsStream():
         self.dicomFilePattern = dicomFilePattern
         # TODO - restrict allowed directories, check that dicomDir is in allowed dir
         self.dataInterface = DataInterface(dataRemote=False,
-                                           allowedDirs=DicomToBidsStream.allowedDirs,
+                                           allowedDirs=self.allowedDirs,
                                            allowedFileTypes=['.dcm'])
         self.dicomStreamId = self.dataInterface.initScannerStream(dicomDir,
                                                                   dicomFilePattern,

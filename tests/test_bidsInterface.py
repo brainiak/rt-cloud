@@ -6,7 +6,6 @@ from rtCommon.imageHandling import convertDicomImgToNifti, readDicomFromFile
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.bidsInterface import BidsInterface, tmpDownloadOpenNeuro
 from rtCommon.bidsCommon import getDicomMetadata
-from rtCommon.errors import ValidationError
 from tests.backgroundTestServers import BackgroundTestServers
 from tests.common import rtCloudPath, tmpDir
 
