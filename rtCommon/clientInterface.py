@@ -69,7 +69,7 @@ class ClientInterface:
                 # These will be run in the same process as the experiment script
                 self.dataInterface = DataInterface(dataRemote=False, allowedDirs=['*'], allowedFileTypes=['*'])
                 self.subjInterface = SubjectInterface(subjectRemote=False)
-                self.bidsInterface = BidsInterface(dataRemote=False)
+                self.bidsInterface = BidsInterface(dataRemote=False, allowedDirs = ['*'])
                 self.exampleInterface = ExampleInterface(dataRemote=False)
                 # Without a webServer (projectServer) the webInterface won't be able to do
                 #   anything. Create a stub instance here with ioLoopInst=None so that calls
