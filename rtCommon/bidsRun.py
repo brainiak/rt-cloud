@@ -167,9 +167,13 @@ class BidsRun:
         # multiple images in its image volume
         imagesInVolume = incremental.imageDimensions[3]
         imageData = getNiftiData(incremental.image)
-        for imageIdx in range(imagesInVolume):
-            newData = imageData[..., imageIdx]
-            self._dataArrays.append(newData)
+
+        newArrays = [imageData[..., imageIdx] for imageIdx in
+                     range(imagesInVolume)]
+        if len(self._dataArrays) == 0:
+            self._dataArrays = newArrays
+        else:
+            self._dataArrays.extend(newArrays)
 
     def asSingleIncremental(self) -> BidsIncremental:
         """
@@ -199,11 +203,13 @@ class BidsRun:
         # the original ints, which means images at either end of a round-trip
         # (read image data/put image data in numpy array/save image data/read
         # image from disk) will have arrays with slightly different values.
-        newDataArray = np.zeros(newImageShape, order='F',
+        #
+        # Also, note that pre-declaring the array and then using it as the out
+        # array is substantially faster than just letting np.stack create and
+        # return a new array, as of this writing (~60% faster on one test)
+        newDataArray = np.empty(newImageShape, order='F',
                                 dtype=self._dataArrays[0].dtype)
-
-        for incIdx in range(numIncrementals):
-            newDataArray[..., incIdx] = self._dataArrays[incIdx]
+        np.stack(self._dataArrays, axis=3, out=newDataArray)
 
         newImage = self._imageKlass(newDataArray, self._imageAffine,
                                     self._imageHeader)

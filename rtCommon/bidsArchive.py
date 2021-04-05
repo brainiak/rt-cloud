@@ -434,9 +434,9 @@ class BidsArchive:
             return results
 
     def _appendIncremental(self,
-                          incremental: BidsIncremental,
-                          makePath: bool = True,
-                          validateAppend: bool = True) -> bool:
+                           incremental: BidsIncremental,
+                           makePath: bool = True,
+                           validateAppend: bool = True) -> bool:
         """
         Appends a BIDS Incremental's image data and metadata to the archive,
         creating new directories if necessary (this behavior can be overridden).
@@ -548,7 +548,10 @@ class BidsArchive:
                                      affine=archiveImg.affine,
                                      header=archiveImg.header)
             newImg.update_header()
-            self._addImage(newImg, imgPath)
+            # Since the NIfTI image is only being appended to, no additional
+            # files are being added, so the BIDSLayout's file index remains
+            # accurate. Thus, avoid the expensive layout update.
+            self._addImage(newImg, imgPath, updateLayout=False)
             return True
 
         # 2.2) Image doesn't exist in archive, but rest of the path is valid for
@@ -639,7 +642,9 @@ class BidsArchive:
                 # Because only a single image is read, it's faster to slice the
                 # Nibabel ArrayProxy (the image's dataobj) so just the relevant
                 # part of disk is accessed
-                image = image.__class__(image.dataobj[..., imageIndex],
+                newData = np.asanyarray(image.dataobj[..., imageIndex],
+                                        dtype=image.dataobj.dtype)
+                image = image.__class__(newData,
                                         affine=image.affine,
                                         header=image.header)
                 image.update_header()
@@ -700,7 +705,7 @@ class BidsArchive:
             incremental = BidsIncremental(niftiImage, metadata)
 
             run = BidsRun()
-            run.appendIncremental(incremental)
+            run.appendIncremental(incremental, validateAppend=False)
             return run
 
     def appendBidsRun(self, run: BidsRun) -> None:
