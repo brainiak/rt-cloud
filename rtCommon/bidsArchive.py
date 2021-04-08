@@ -702,9 +702,12 @@ class BidsArchive:
             metadata = self.getSidecarMetadata(bidsImage)
             metadata.pop('extension')  # only used in PyBids
 
+            # This incremental will typically have a 4th (time) dimension > 1
             incremental = BidsIncremental(niftiImage, metadata)
 
             run = BidsRun()
+            # appendIncremental will take care of splitting the BidsIncremental
+            # into its component 3-D images
             run.appendIncremental(incremental, validateAppend=False)
             return run
 
