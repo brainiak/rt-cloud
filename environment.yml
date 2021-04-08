@@ -9,6 +9,7 @@ dependencies:
   - brainiak
   - dcm2niix
   - flake8
+  - indexed_gzip  # for efficient random access of gzipped files with Nibabel
   - inflect
   - ipython
   - jupyter

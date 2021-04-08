@@ -11,7 +11,6 @@ import logging
 import numpy as np
 
 from rtCommon.bidsCommon import (
-    getNiftiData,
     metadataAppendCompatible,
     niftiHeadersAppendCompatible,
     symmetricDictDifference,
@@ -166,9 +165,9 @@ class BidsRun:
         # Slice up the incremental into smaller component images if it has
         # multiple images in its image volume
         imagesInVolume = incremental.imageDimensions[3]
-        imageData = getNiftiData(incremental.image)
 
-        newArrays = [imageData[..., imageIdx] for imageIdx in
+        # Slice the dataobj so we ensure that data is read into memory
+        newArrays = [incremental.image.dataobj[..., imageIdx] for imageIdx in
                      range(imagesInVolume)]
         if len(self._dataArrays) == 0:
             self._dataArrays = newArrays
