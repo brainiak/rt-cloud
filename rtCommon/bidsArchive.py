@@ -477,8 +477,8 @@ class BidsArchive:
             False
         """
         # 1) Create target paths for image in archive
-        dataDirPath = incremental.dataDirPath
-        imgPath = incremental.imageFilePath
+        dataDirPath = incremental.getDataDirPath()
+        imgPath = incremental.getImageFilePath()
 
         # 2) Verify we have a valid way to append the image to the archive.
         # 4 cases:
@@ -518,7 +518,7 @@ class BidsArchive:
                         "NIfTI headers not append compatible: " + errorMsg)
 
                 compatible, errorMsg = metadataAppendCompatible(
-                    incremental.imageMetadata,
+                    incremental.getImageMetadata(),
                     self.getSidecarMetadata(imageFile))
                 if not compatible:
                     raise MetadataMismatchError(
@@ -605,7 +605,7 @@ class BidsArchive:
             parameter will return a different 3-D image from the volume, using
             the same search metadata.
 
-            >>> inc.imageDimensions
+            >>> inc.getImageDimensions()
             (64, 64, 27, 1)
             >>> inc3 = archive._getIncremental(imageIndex=1, **entityFilterDict)
             >>> inc2 != inc3

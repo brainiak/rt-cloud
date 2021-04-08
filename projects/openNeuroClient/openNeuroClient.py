@@ -48,7 +48,7 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
         bidsIncremental = bidsInterface.getIncremental(streamId, idx)
         if cfg.writeBidsArchive is True:
             newRun.appendIncremental(bidsIncremental)
-        imageData = bidsIncremental.imageData
+        imageData = bidsIncremental.getImageData()
         avg_niftiData = numpy.mean(imageData)
         print("| average activation value for TR %d is %f" %(idx, avg_niftiData))
         webInterface.plotDataPoint(run, idx, float(avg_niftiData))

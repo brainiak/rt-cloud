@@ -152,7 +152,7 @@ class BidsIncremental:
 
     def __str__(self):
         return ("Image shape: {}; Metadata Key Count: {}; BIDS-I Version: {}"
-                .format(self.imageDimensions,
+                .format(self.getImageDimensions(),
                         len(self._imgMetadata.keys()),
                         self.version))
 
@@ -180,8 +180,8 @@ class BidsIncremental:
             return False
 
         # Compare full image data
-        if not np.array_equal(self.imageData, other.imageData):
-            differences = self.imageData != other.imageData
+        if not np.array_equal(self.getImageData(), other.getImageData()):
+            differences = self.getImageData() != other.getImageData()
             logger.debug("Image data didn't match")
             logger.debug("Difference count: %d (%f%%)",
                          np.sum(differences),
@@ -463,34 +463,27 @@ class BidsIncremental:
             self._exceptIfNotBids(field)
         self._imgMetadata.pop(field, None)
 
-    @property
-    def imageMetadata(self):
+    def getImageMetadata(self):
         return self._imgMetadata.copy()
 
-    @property
-    def suffix(self) -> str:
+    def getSuffix(self) -> str:
         return self._imgMetadata.get("suffix")
 
-    @property
-    def datatype(self) -> str:
+    def getDatatype(self) -> str:
         """ func or anat """
         return self._imgMetadata.get("datatype")
 
-    @property
-    def entities(self) -> dict:
+    def getEntities(self) -> dict:
         # Metadata dictionary filtered down to just BIDS entities
         return filterEntities(self._imgMetadata)
 
-    @property
-    def imageDimensions(self) -> tuple:
-        return self.imageHeader.get_data_shape()
+    def getImageDimensions(self) -> tuple:
+        return self.getImageHeader().get_data_shape()
 
-    @property
-    def imageHeader(self):
+    def getImageHeader(self):
         return self.image.header
 
-    @property
-    def imageData(self) -> np.ndarray:
+    def getImageData(self) -> np.ndarray:
         return getNiftiData(self.image)
 
     """
@@ -529,37 +522,29 @@ class BidsIncremental:
 
         return bids_build_path(entities, BIDS_FILE_PATTERN)
 
-    @property
-    def datasetName(self) -> str:
+    def getDatasetName(self) -> str:
         return self.datasetMetadata["Name"]
 
-    @property
-    def imageFileName(self) -> str:
+    def getImageFileName(self) -> str:
         # TODO(spolcyn): Support writing to a compressed NIfTI file
         return self.makeBidsFileName(BidsFileExtension.IMAGE)
 
-    @property
-    def metadataFileName(self) -> str:
+    def getMetadataFileName(self) -> str:
         return self.makeBidsFileName(BidsFileExtension.METADATA)
 
-    @property
-    def eventsFileName(self) -> str:
+    def getEventsFileName(self) -> str:
         return self.makeBidsFileName(BidsFileExtension.EVENTS)
 
-    @property
-    def imageFilePath(self) -> str:
-        return os.path.join(self.dataDirPath, self.imageFileName)
+    def getImageFilePath(self) -> str:
+        return os.path.join(self.getDataDirPath(), self.getImageFileName())
 
-    @property
-    def metadataFilePath(self) -> str:
-        return os.path.join(self.dataDirPath, self.metadataFileName)
+    def getMetadataFilePath(self) -> str:
+        return os.path.join(self.getDataDirPath(), self.getMetadataFileName())
 
-    @property
-    def eventsFilePath(self) -> str:
-        return os.path.join(self.dataDirPath, self.eventsFileName)
+    def getEventsFilePath(self) -> str:
+        return os.path.join(self.getDataDirPath(), self.getEventsFileName())
 
-    @property
-    def dataDirPath(self) -> str:
+    def getDataDirPath(self) -> str:
         """
         Path to where this incremental's data would be in a BIDS archive,
         relative to the archive root.
@@ -568,7 +553,7 @@ class BidsIncremental:
             Path string relative to root of the imaginary dataset.
 
         Examples:
-            >>> print(bidsi.dataDirPath)
+            >>> print(bidsi.getDataDirPath())
             sub-01/ses-2011/anat
         """
         return bids_build_path(self._imgMetadata, BIDS_DIR_PATH_PATTERN)
@@ -597,13 +582,13 @@ class BidsIncremental:
         """
         # TODO(spolcyn): Support writing to a compressed NIfTI file
 
-        dataDirPath = os.path.join(datasetRoot, self.dataDirPath)
+        dataDirPath = os.path.join(datasetRoot, self.getDataDirPath())
         descriptionPath = os.path.join(datasetRoot, "dataset_description.json")
         readmePath = os.path.join(datasetRoot, "README")
 
-        imagePath = os.path.join(dataDirPath, self.imageFileName)
-        metadataPath = os.path.join(dataDirPath, self.metadataFileName)
-        eventsPath = os.path.join(dataDirPath, self.eventsFileName)
+        imagePath = os.path.join(dataDirPath, self.getImageFileName())
+        metadataPath = os.path.join(dataDirPath, self.getMetadataFileName())
+        eventsPath = os.path.join(dataDirPath, self.getEventsFileName())
 
         os.makedirs(dataDirPath, exist_ok=True)
         nib.save(self.image, imagePath)

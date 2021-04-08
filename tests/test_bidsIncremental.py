@@ -145,7 +145,7 @@ def testConstructionMetadataPrecedence(sample4DNifti1, imageMetadata):
 
 # Test that the string output of the BIDS-I is as expected
 def testStringOutput(validBidsI):
-    imageShape = str(validBidsI.imageDimensions)
+    imageShape = str(validBidsI.getImageDimensions())
     keyCount = len(validBidsI._imgMetadata.keys())
     version = validBidsI.version
     assert str(validBidsI) == f"Image shape: {imageShape}; " \
@@ -252,7 +252,7 @@ def testDatasetMetadata(sample4DNifti1, imageMetadata):
                               imageMetadata=imageMetadata,
                               datasetMetadata={"Name": dataset_name,
                                                "BIDSVersion": "1.0"})
-    assert bidsInc.datasetName == dataset_name
+    assert bidsInc.getDatasetName() == dataset_name
 
 
 # Test that extracting metadata from the BIDS-I using its provided API returns
@@ -264,12 +264,12 @@ def testMetadataOutput(validBidsI, imageMetadata):
         validBidsI.getMetadataField("InvalidEntityName")
 
     # Data type - always 'func' currently
-    assert validBidsI.datatype == "func"
+    assert validBidsI.getDatatype() == "func"
     # Entities
     for entity in ['subject', 'task']:
         assert validBidsI.getMetadataField(entity) == imageMetadata[entity]
     # Suffix
-    assert validBidsI.suffix == imageMetadata["suffix"]
+    assert validBidsI.getSuffix() == imageMetadata["suffix"]
 
 
 # Test setting BIDS-I metadata API works as expected
@@ -323,13 +323,13 @@ def testRemoveMetadata(validBidsI):
 # return the correct values
 def testQueryNifti(validBidsI):
     # Image data
-    queriedData = validBidsI.imageData
+    queriedData = validBidsI.getImageData()
     exactData = getNiftiData(validBidsI.image)
     assert np.array_equal(queriedData, exactData), "{} elements not equal" \
         .format(np.sum(np.where(queriedData != exactData)))
 
     # Header Data
-    queriedHeader = validBidsI.imageHeader
+    queriedHeader = validBidsI.getImageHeader()
     exactHeader = validBidsI.image.header
 
     # Compare full image header
@@ -366,7 +366,7 @@ def testFilenameConstruction(validBidsI, imageMetadata):
 # Test that the hypothetical path for the BIDS-I if it were in an archive is
 # correct based on the metadata within it
 def testArchivePathConstruction(validBidsI, imageMetadata):
-    assert validBidsI.dataDirPath == \
+    assert validBidsI.getDataDirPath() == \
         bids_build_path(imageMetadata, BIDS_DIR_PATH_PATTERN)
 
 

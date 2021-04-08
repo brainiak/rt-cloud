@@ -110,10 +110,10 @@ class BidsRun:
         """
         # Set this run's entities if not already present
         if len(self._entities) == 0:
-            self._entities = incremental.entities
+            self._entities = incremental.getEntities()
 
         if self._imageMetadata is None:
-            self._imageMetadata = incremental.imageMetadata
+            self._imageMetadata = incremental.getImageMetadata()
 
         if self._imageHeader is None:
             self._imageHeader = incremental.image.header.copy()
@@ -126,7 +126,7 @@ class BidsRun:
 
         if validateAppend:
             entityDifference = symmetricDictDifference(self._entities,
-                                                       incremental.entities)
+                                                       incremental.getEntities())
             if len(entityDifference) != 0:
                 # Two cases:
                 # 1) New incremental matches all existing entities, and just
@@ -136,7 +136,7 @@ class BidsRun:
                                 in self._entities]
                 if len(mismatchKeys) == 0:
                     # Add new, more specific entities
-                    self._entities.update(incremental.entities)
+                    self._entities.update(incremental.getEntities())
                 else:
                     errorMsg = ("Incremental's BIDS entities do not match this "
                                 "run's entities (difference: "
@@ -154,7 +154,7 @@ class BidsRun:
                     raise MetadataMismatchError(errorMsg)
 
                 canAppend, metadataErrorMsg = metadataAppendCompatible(
-                    incremental.imageMetadata,
+                    incremental.getImageMetadata(),
                     self._imageMetadata)
 
                 if not canAppend:
@@ -164,7 +164,7 @@ class BidsRun:
 
         # Slice up the incremental into smaller component images if it has
         # multiple images in its image volume
-        imagesInVolume = incremental.imageDimensions[3]
+        imagesInVolume = incremental.getImageDimensions()[3]
 
         # Slice the dataobj so we ensure that data is read into memory
         newArrays = [incremental.image.dataobj[..., imageIdx] for imageIdx in
