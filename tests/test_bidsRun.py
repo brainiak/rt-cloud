@@ -98,7 +98,7 @@ def testAppendEmptyIncrementals(oneImageBidsI, sampleBidsEntities):
 # Test append doesn't work with mismatched entities
 def testAppendConflictingEntities(oneImageBidsI):
     differentBidsInc = BidsIncremental(oneImageBidsI.image,
-                                       oneImageBidsI.imageMetadata)
+                                       oneImageBidsI.getImageMetadata())
     differentBidsInc.setMetadataField("subject", "new-subject")
 
     run = BidsRun()
@@ -130,7 +130,8 @@ def testAppendConflictingNiftiHeaders(oneImageBidsI, imageMetadata):
 
 # Test append doesn't work if metadata doesn't match
 def testAppendConflictingMetadata(oneImageBidsI):
-    bidsInc2 = BidsIncremental(oneImageBidsI.image, oneImageBidsI.imageMetadata)
+    bidsInc2 = BidsIncremental(oneImageBidsI.image,
+                               oneImageBidsI.getImageMetadata())
     bidsInc2.setMetadataField('subject', 'definitely_invalid_name')
 
     run = BidsRun()
@@ -161,29 +162,32 @@ def testAsSingleIncremental(oneImageBidsI):
         newData[..., i] = imageData[..., 0]
 
     newImage = oldImage.__class__(newData, oldImage.affine, oldImage.header)
-    consolidatedBidsI = BidsIncremental(newImage, oneImageBidsI.imageMetadata)
+    consolidatedBidsI = BidsIncremental(newImage,
+                                        oneImageBidsI.getImageMetadata())
 
     assert run.asSingleIncremental() == consolidatedBidsI
+
 
 # Test that updating entities works as expected
 def testUpdateEntities(validBidsI):
     # Ensure an append updates the run's entities to the full set
-    entities = {key: validBidsI.entities[key] for key in ['subject', 'task']}
+    entities = {key: validBidsI.getEntities()[key] for key in ['subject',
+                                                               'task']}
     run = BidsRun(**entities)
 
-    assert run._entities != validBidsI.entities
+    assert run._entities != validBidsI.getEntities()
     run.appendIncremental(validBidsI)
-    assert run._entities == validBidsI.entities
+    assert run._entities == validBidsI.getEntities()
 
     # Ensure minimally supplied entities are still sufficient to block a
     # non-matching run and doesn't update the run's entities
-    entities = {key: validBidsI.entities[key] for key in ['subject', 'task']}
+    entities = {key: validBidsI.getEntities()[key] for key in ['subject',
+                                                               'task']}
     run = BidsRun(**entities)
 
     preAppendEntities = run._entities
-    assert preAppendEntities != validBidsI.entities
+    assert preAppendEntities != validBidsI.getEntities()
     validBidsI.setMetadataField('subject', 'nonValidSubject')
     with pytest.raises(MetadataMismatchError):
         run.appendIncremental(validBidsI)
     assert run._entities == preAppendEntities
-
