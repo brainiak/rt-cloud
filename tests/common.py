@@ -69,7 +69,9 @@ def isValidBidsArchive(archivePath: str, logFullOutput: bool = False) -> bool:
         for issue in issueDict:
             issueFiles = issue['files']
             offendingFileNames = [f['file']['name'] for f in issueFiles]
-            issueKeysToFiles[issue['key']] = offendingFileNames
+            issueKey = '{key} (Reason: {reason})'.format(key=issue['key'],
+                                                         reason=issue['reason'])
+            issueKeysToFiles[issueKey] = offendingFileNames
 
         return issueKeysToFiles
 

@@ -1,0 +1,62 @@
+name: Run Test Suite
+
+on: [pull_request]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 5
+
+    steps:
+    - uses: actions/checkout@v2
+
+    # Necessary to prevent permission issues with tar when unpacking the cache
+    # into the /usr/share/miniconda/ directory
+    - name: Set cached directory permissions
+      run: |
+        sudo chown -R $(whoami):$(id -ng) /usr/share/miniconda/
+
+    # Modified from:
+    # https://github.com/marketplace/actions/setup-miniconda#caching
+    - name: Set or unpack cached conda packages
+      uses: actions/cache@v2
+      env:
+        # Increase this value to reset cache if environment.yml has not changed
+        CACHE_NUMBER: 0
+      with:
+        path: /usr/share/miniconda
+        key:
+          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
+            hashFiles('environment.yml') }}
+
+    - name: Add conda to system path
+      run: |
+        # $CONDA is an environment variable pointing to the root of the
+        # miniconda directory
+        echo $CONDA/bin >> $GITHUB_PATH
+
+    - name: Install bids-validator for test suite
+      run: |
+        sudo npm install -g bids-validator
+
+    - name: Install conda environment
+      run: |
+        conda list
+        conda env update --file environment.yml --name base
+
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings.
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
+
+    - name: Setup certificates directory for running tests
+      run: |
+        mkdir certs
+        openssl genrsa -out certs/rtcloud_private.key 2048
+        bash scripts/make-sslcert.sh -ip `hostname -i`
+
+    - name: Test with pytest
+      run: |
+        python -m pytest tests/

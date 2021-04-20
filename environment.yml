@@ -21,6 +21,7 @@ dependencies:
   - pip
   - pydicom
   - pytest
+  - python=3.7
   - requests
   - rpyc
   - scikit-learn
