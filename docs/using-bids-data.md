@@ -6,22 +6,18 @@ Cloud Platform" [Unpublished senior thesis].*
 
 ## **BIDS Introduction**
 
-BIDS is the leading data standard for neuroscience data. It is supported by a
-wide variety of data formatting and analysis tools, is used by a large and
-growing repository of neuroscience datasets called
-[OpenNeuro](https://openneuro.org/), has an automated and comprehensive
-validation tool that analyzes datasets for compliance and identifies issues, the
-[BIDS Validator](https://github.com/bids-standard/bids-validator), and also is
-the data format used by a large set of [BIDS
-Apps](https://bids-apps.neuroimaging.io/), which are container-based
-applications with a standardized interface that work on BIDS-formatted datasets.
-The BIDS standard defines the BIDS archive format, which is the format that BIDS
-datasets on disk must conform to.
+BIDS is the leading data standard for neuroscience data and is supported by a
+wide variety of data formatting and analysis tools. It is the standard used by [OpenNeuro](https://openneuro.org/) which is a large and
+growing repository of neuroscience datasets. In addition there are a large set of [BIDS
+Apps](https://bids-apps.neuroimaging.io/), which are container-based applications with a standardized interface that work on BIDS-formatted data. The
+[BIDS Validator](https://github.com/bids-standard/bids-validator) is an automated and comprehensive
+validation tool that analyzes datasets and identifies BIDS compliance issues.
+
 
 ### **The BIDS Archive**
 
-A BIDS archive is a collection of brain activity image and metadata files,
-organized in accordance with the BIDS standard. While an in-depth understanding
+The BIDS standard defines the on-disk layout and format of datasets to form a BIDS archive.
+A BIDS archive is a collection of brain activity image and metadata files for one study, which may comprise multiple subjects across multiple days. While an in-depth understanding
 of the BIDS standard can be obtained from the full standard, viewable online at
 https://bids-specification.readthedocs.io/en/stable/, a few key details are as
 follows:
@@ -103,6 +99,9 @@ Finally, if you are required to publish your datasets as a condition of
 manuscript publication, having data in a standardized format from the beginning
 enables a seamless upload and review process.
 
+## **Adapting BIDS for use in Real-Time fMRI Experiments**
+Real-time fMRI experiments involve processing image data as it arrives from the scanner and providing immediate subject feedback. In essence rt-fMRI is a streaming model, whereas BIDS is a data-at-rest standard. To adpot BIDS for rt-fMRI we introduce a conceptual artifact, the BIDS-incremental. A BIDS-incremental packages one brain volume into its own BIDS archive and sends it for processing. Thus we send a stream of  very small BIDS archives (i.e. BIDS-incrementals) for processing. This allows the processing to be done by any applicaiton that can ingest BIDS data, such as BIDS-Apps.
+
 ## **How to Incorporate BIDS into your RT-Cloud project**
 
 There are three primary classes to use to leverage BIDS in your RT-Cloud
@@ -132,7 +131,7 @@ meanActivationValues = []
 for i in range(run.numIncrementals()):
     incremental = run.getIncremental(i)
     meanActivationValues.append(np.mean(incremental.imageData))
-    emptyRun.appendIncremental(incremental)
+    newRun.appendIncremental(incremental)
 
 newArchive = BidsArchive('/tmp/newBidsDataset')
 newArchive.appendBidsRun(newRun)
@@ -143,4 +142,20 @@ check out the [bids_tutorial Jupyter
 notebook](tutorials/bids_tutorial.ipynb).
 
 ## **Replaying Data from OpenNeuro**
-Details and example
+One goal of this project is to facilitate collaboration and sharing of code and data. To this end we introduce an OpenNeuro module which can access and stream data from the [OpenNeuro.org](https://openneuro.org/) data repository. In essence this is a 'NetFlix' type service for fMRI datasets. Researchers can replay datasets through their processing pipelines to try new models, reproduce results or test and debug experiments.
+
+An example of streaming OpenNeuro data can be seen in the projects/openNeuroClient sample project. The key snippets of code are shown below.
+
+```
+# OpenNeuro accession number for a dataset
+dsAccession = 'ds002338'
+# The subject and run number to replay
+entities = {'subject': 'xp201', 'run': 1}
+# Initialize the data stream
+streamId = bidsInterface.initOpenNeuroStream(dsAccession, **entities)
+numVols = bidsInterface.getNumVolumes(streamId)
+# Retrieve and process each volume as a BIDS-Incremental
+for idx in range(numVols):
+    bidsIncremental = bidsInterface.getIncremental(streamId, idx)
+    imageData = bidsIncremental.imageData
+```
