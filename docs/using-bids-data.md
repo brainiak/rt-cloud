@@ -146,7 +146,7 @@ One goal of this project is to facilitate collaboration and sharing of code and 
 
 An example of streaming OpenNeuro data can be seen in the projects/openNeuroClient sample project. The key snippets of code are shown below.
 
-```
+```python
 # OpenNeuro accession number for a dataset
 dsAccession = 'ds002338'
 # The subject and run number to replay
