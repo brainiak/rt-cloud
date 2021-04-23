@@ -104,9 +104,43 @@ manuscript publication, having data in a standardized format from the beginning
 enables a seamless upload and review process.
 
 ## **How to Incorporate BIDS into your RT-Cloud project**
-Details of using in a project
 
-Instructions and link to tutorial
+There are three primary classes to use to leverage BIDS in your RT-Cloud
+project: BIDS Incremental, BIDS Run, and BIDS Archive.
+1) BIDS Incremental is a single-image data structure, encapsulating a
+   single-volume BIDS Archive.
+2) BIDS Run is a data structure that efficiently stores a full run's worth of BIDS
+   Incrementals in-memory and in a deduplicated fashion. It supports appending BIDS
+   Incrementals to a scanning run and retrieving BIDS Incrementals that have
+   already been added.
+3) BIDS Archive is a data structure that provides an API for interacting with
+   on-disk BIDS archives and enables efficient movement between the BIDS Run
+   streaming data structure and the on-disk BIDS archive.
+
+Below is a simple example that shows the interactions between the various
+classes.
+
+```python
+archive = BidsArchive('/tmp/bidsDataset')
+print('Subjects:', archive.getSubjects(), 'Runs:', archive.getRuns())
+
+# Query the run using BIDS Entities (see the tutorial for a deeper introduction)
+run = archive.getBidsRun(subject='01', run=1, datatype='func')
+newRun = BidsRun()
+meanActivationValues = []
+
+for i in range(run.numIncrementals()):
+    incremental = run.getIncremental(i)
+    meanActivationValues.append(np.mean(incremental.imageData))
+    emptyRun.appendIncremental(incremental)
+
+newArchive = BidsArchive('/tmp/newBidsDataset')
+newArchive.appendBidsRun(newRun)
+```
+
+For a more in-depth introduction to the various classes and how to use them,
+check out the [bids_tutorial Jupyter
+notebook](tutorials/bids_tutorial.ipynb).
 
 ## **Replaying Data from OpenNeuro**
 Details and example
