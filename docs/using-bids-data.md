@@ -7,18 +7,23 @@ Cloud Platform" [Unpublished senior thesis].*
 ## **BIDS Introduction**
 
 BIDS is the leading data standard for neuroscience data and is supported by a
-wide variety of data formatting and analysis tools. It is the standard used by [OpenNeuro](https://openneuro.org/) which is a large and
-growing repository of neuroscience datasets. In addition there are a large set of [BIDS
-Apps](https://bids-apps.neuroimaging.io/), which are container-based applications with a standardized interface that work on BIDS-formatted data. The
-[BIDS Validator](https://github.com/bids-standard/bids-validator) is an automated and comprehensive
-validation tool that analyzes datasets and identifies BIDS compliance issues.
+wide variety of data formatting and analysis tools. It is the standard used by
+[OpenNeuro](https://openneuro.org/) which is a large and growing repository of
+neuroscience datasets. In addition there are a large set of [BIDS
+Apps](https://bids-apps.neuroimaging.io/), which are container-based
+applications with a standardized interface that work on BIDS-formatted data. The
+[BIDS Validator](https://github.com/bids-standard/bids-validator) is an
+automated and comprehensive validation tool that analyzes datasets and
+identifies BIDS compliance issues.
 
 
 ### **The BIDS Archive**
 
-The BIDS standard defines the on-disk layout and format of datasets to form a BIDS archive.
-A BIDS archive is a collection of brain activity image and metadata files for one study, which may comprise multiple subjects across multiple days. While an in-depth understanding
-of the BIDS standard can be obtained from the full standard, viewable online at
+The BIDS standard defines the on-disk layout and format of datasets to form a
+BIDS archive. A BIDS archive is a collection of brain activity image and
+metadata files for one study, which may comprise multiple subjects across
+multiple days. While an in-depth understanding of the BIDS standard can be
+obtained from the full standard, viewable online at
 https://bids-specification.readthedocs.io/en/stable/, a few key details are as
 follows:
 
@@ -100,7 +105,16 @@ manuscript publication, having data in a standardized format from the beginning
 enables a seamless upload and review process.
 
 ## **Adapting BIDS for use in Real-Time fMRI Experiments**
-Real-time fMRI experiments involve processing image data as it arrives from the scanner and providing immediate subject feedback. In essence rt-fMRI is a streaming model, whereas BIDS is a data-at-rest standard. To adpot BIDS for rt-fMRI we introduce a conceptual artifact, the BIDS-incremental. A BIDS-incremental packages one brain volume into its own BIDS archive and sends it for processing. Thus we send a stream of  very small BIDS archives (i.e. BIDS-incrementals) for processing. This allows the processing to be done by any applicaiton that can ingest BIDS data, such as BIDS-Apps.
+
+Real-time fMRI experiments involve processing image data as it arrives from the
+scanner and providing immediate subject feedback. In essence, rt-fMRI is a
+streaming model, whereas BIDS is a data-at-rest standard. To adopt BIDS for
+rt-fMRI we introduce a new idea, the BIDS Incremental.
+
+A BIDS Incremental packages one brain volume into its own BIDS archive. Thus, we
+can use this to send a stream of very small BIDS archives (i.e., BIDS
+Incrementals) for processing. This allows the processing to be done by any
+application that can ingest BIDS data, such as BIDS-Apps.
 
 ## **How to Incorporate BIDS into your RT-Cloud project**
 
@@ -136,6 +150,11 @@ for i in range(run.numIncrementals()):
 newArchive = BidsArchive('/tmp/newBidsDataset')
 newArchive.appendBidsRun(newRun)
 ```
+
+An overview of how these classes all fit together for sending data from the MRI
+scanner to a BIDS Archive is shown in [Overview of Streaming From MRI to BIDS
+Archive](append-overview.png), and retrieving BIDS data from an archive is
+simply the reverse of that diagram.
 
 For a more in-depth introduction to the various classes and how to use them,
 check out the [bids_tutorial Jupyter
