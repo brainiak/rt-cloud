@@ -19,20 +19,6 @@ sampleProjectDicomDir = os.path.join(rtCloudPath, 'projects', 'sample',
 allowedDirs = [tmpDir, testPath, sampleProjectDicomDir, '/tmp']
 allowedFileTypes = ['.bin', 'txt', '.dcm']
 
-@pytest.fixture(scope="module")
-def dicomTestFilename():  # type: ignore
-    return test_dicomPath
-
-@pytest.fixture(scope="module")
-def bigTestFile():  # type: ignore
-    filename = os.path.join(testPath, 'test_input', 'bigfile.bin')
-    if not os.path.exists(filename):
-        with open(filename, 'wb') as fout:
-            for _ in range(101):
-                fout.write(os.urandom(1024*1024))
-    return filename
-
-
 class TestDataInterface:
     serversForTests = None
 

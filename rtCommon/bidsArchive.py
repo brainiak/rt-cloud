@@ -30,6 +30,7 @@ from rtCommon.bidsCommon import (
     PYBIDS_PSEUDO_ENTITIES,
     correct3DHeaderTo4D,
     getNiftiData,
+    gunzipFile,
     metadataAppendCompatible,
     niftiImagesAppendCompatible,
 )
@@ -200,7 +201,7 @@ class BidsArchive:
         return os.path.isdir(self.absPathFromRelPath(relPath))
 
     @failIfEmpty
-    def getImages(self, matchExact: bool = False,
+    def getImages(self, matchExact: bool = False, decompressImages: bool = False,
                   **entities) -> List[BIDSImageFile]:
         """
         Return all images that have the provided entities. If no entities are
@@ -209,6 +210,8 @@ class BidsArchive:
         Args:
             matchExact: Only return images that have exactly the provided
                 entities, no more and no less.
+            decompressImages: Whether to decompress matching images, if they are
+                compressed on disk. Default True.
             **entities: Entities that returned images must have.
 
         Returns:
@@ -258,9 +261,10 @@ class BidsArchive:
         results = self.data.get(**entities)
         results = [r for r in results if type(r) is BIDSImageFile]
 
+        returnList = []
+
         if len(results) == 0:
             logger.debug(f"Found no images with all entities: {entities}")
-            return []
         elif matchExact:
             for result in results:
                 # Only BIDSImageFiles are checked, so extension is irrelevant
@@ -268,12 +272,27 @@ class BidsArchive:
                 result_entities.pop('extension', None)
 
                 if result_entities == entities:
-                    return [result]
+                    returnList = [result]
+                    break
 
-            logger.debug(f"Found no images exactly matching: {entities}")
-            return []
+            if returnList == []:
+                logger.debug(f"Found no images exactly matching: {entities}")
         else:
-            return results
+            returnList = results
+
+        if decompressImages:
+            modifiedImages = False
+            for idx, result in enumerate(returnList):
+                uncompressedPath, extension = os.path.splitext(result.path)
+                if extension == '.gz':
+                    gunzipFile(source=result.path, destination=uncompressedPath)
+                    returnList[idx] = BIDSImageFile(uncompressedPath)
+                    modifiedImages = True
+
+            if modifiedImages:
+                self._updateLayout()
+
+        return returnList
 
     def _updateLayout(self):
         """

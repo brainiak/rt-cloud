@@ -9,8 +9,11 @@ from enum import Enum
 from operator import eq as opeq
 from typing import Any, Callable, Tuple
 import functools
+import gzip
 import logging
+import os
 import re
+import shutil
 
 from bids.layout.models import Config as BidsConfig
 import nibabel as nib
@@ -528,3 +531,21 @@ def metadataAppendCompatible(meta1: dict, meta2: dict) -> Tuple[bool, str]:
             return (False, errorMsg)
 
     return (True, "")
+
+
+def gunzipFile(source: str, destination: str, deleteOriginal: bool = False):
+    """
+    Decompress a gzipped file on disk, optionally deleting the original.
+
+    Args:
+        source: Path to the gzipped file
+        destination: Path to gunzipped output location
+        deleteOriginal: Whether to delete the original, gzipped file after
+            decompressing or not. Default False.
+    """
+    with open(destination, 'wb') as f_out:
+        with gzip.open(source, 'rb') as f_in:
+            shutil.copyfileobj(f_in, f_out)
+
+    if deleteOriginal:
+        os.remove(source)

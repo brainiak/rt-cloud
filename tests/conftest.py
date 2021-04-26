@@ -2,9 +2,12 @@
 # See: https://gist.github.com/peterhurford/09f7dcda0ab04b95c026c60fa49c2a68
 from pathlib import Path
 from random import randint
+import gzip
 import json
 import logging
 import os
+import shutil
+import subprocess
 
 from bids.layout.writing import build_path as bids_build_path
 import nibabel as nib
@@ -12,13 +15,6 @@ import pandas as pd
 import pydicom
 import pytest
 
-from tests.common import (
-    test_3DNifti1Path,
-    test_3DNifti2Path,
-    test_4DNifti1Path,
-    test_4DNifti2Path,
-    test_dicomPath,
-)
 from rtCommon.bidsArchive import BidsArchive
 from rtCommon.bidsCommon import (
     BIDS_DIR_PATH_PATTERN,
@@ -29,14 +25,22 @@ from rtCommon.bidsCommon import (
     getNiftiData,
 )
 from rtCommon.bidsIncremental import BidsIncremental
+from rtCommon.imageHandling import (
+    readDicomFromFile,
+    readNifti
+)
 from tests.createTestNiftis import (
     createNiftiTestFiles,
     deleteNiftiTestFiles,
     haveAllNiftiTestFiles,
 )
-from rtCommon.imageHandling import (
-    readDicomFromFile,
-    readNifti
+from tests.common import (
+    test_3DNifti1Path,
+    test_3DNifti2Path,
+    test_4DNifti1Path,
+    test_4DNifti2Path,
+    test_dicomPath,
+    testPath,
 )
 
 logger = logging.getLogger(__name__)
@@ -145,6 +149,7 @@ def sample4DNifti1():
 def sampleNifti2():
     return readNifti(test_4DNifti2Path)
 
+
 # Set of BIDS entities needed for BIDS-I creation
 @pytest.fixture(scope='function')
 def sampleBidsEntities():
@@ -171,6 +176,7 @@ def validBidsI(sample4DNifti1, imageMetadata):
     return BidsIncremental(image=sample4DNifti1,
                            imageMetadata=imageMetadata)
 
+
 @pytest.fixture(scope='function')
 def oneImageBidsI(sample4DNifti1, imageMetadata):
     """
@@ -182,6 +188,7 @@ def oneImageBidsI(sample4DNifti1, imageMetadata):
 
     return BidsIncremental(image=newImage,
                            imageMetadata=imageMetadata)
+
 
 def archiveWithImage(image, metadata: dict, tmpdir):
     """
@@ -270,4 +277,70 @@ def bidsArchiveMultipleRuns(tmpdir, sample4DNifti1, imageMetadata):
     return archive
 
 
+# A small BIDS dataset downloaded from OpenNeuro
+# All image data will be gzipped compressed -- the BIDS standard only recommends
+# that the image data be compressed, but OpenNeuro datasets typically are, and
+# this fixture explicitly ensures that is true.
+@pytest.fixture()
+def smallBidsDatasetFactory(tmpdir):
+    class SmallBidsDatasetFactory():
+        def get(self, suffix: str = None):
+            accessionNumber = "ds002014"
+            # Create save path: accessionNumber+suffix or some random number
+            if suffix is None:
+                suffix = randint(0, 1e6)
+            path = os.path.join(tmpdir, "{}-{}".format(accessionNumber,
+                                                       str(suffix)))
+
+            # Delete a matching directory if it exists, as that dataset download
+            # may have already been modified by another test
+            if os.path.exists(path):
+                shutil.rmtree(path)
+
+            # Download the dataset
+            command = ('aws s3 sync --no-sign-request ' +
+                       's3://openneuro.org/{acc} {path}'
+                       .format(acc=accessionNumber, path=path))
+            command = command.split(' ')
+            if subprocess.call(command, stdout=subprocess.DEVNULL) != 0:
+                pytest.fail("Error in downloading small BIDS dataset")
+
+            # Ensure downloaded dataset's image data is all gzipped
+            archive = BidsArchive(path)
+            for image in archive.getImages():
+                _, ext = os.path.splitext(image.path)
+                assert ext == '.gz'
+
+            return path
+
+    return SmallBidsDatasetFactory()
+
+
 """ END BIDS RELATED FIXTURES """
+
+
+@pytest.fixture(scope="module")
+def dicomTestFilename():  # type: ignore
+    return test_dicomPath
+
+
+@pytest.fixture(scope="module")
+def bigTestFile():  # type: ignore
+    filename = os.path.join(testPath, 'test_input', 'bigfile.bin')
+    if not os.path.exists(filename):
+        with open(filename, 'wb') as fout:
+            for _ in range(101):
+                fout.write(os.urandom(1024*1024))
+    return filename
+
+
+# A path to a generic generic gzipped file
+@pytest.fixture
+def gzippedFile(tmpdir, bigTestFile):
+    # Output the gzipped big test file to tmpdir
+    with open(bigTestFile, 'rb') as f_in:
+        newPath = bigTestFile + '.gz'
+        with gzip.open(newPath, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+    return newPath

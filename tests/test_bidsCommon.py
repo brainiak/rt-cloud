@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numpy as np
 import pytest
@@ -7,6 +8,7 @@ from rtCommon.bidsCommon import (
     adjustTimeUnits,
     getDicomMetadata,
     getNiftiData,
+    gunzipFile,
     loadBidsEntities,
     metadataFromProtocolName,
 )
@@ -126,3 +128,28 @@ def testGetNiftiData(sample4DNifti1):
                                    dtype=sample4DNifti1.dataobj.dtype)
 
     assert np.array_equal(extracted, fromRawDataobj)
+
+
+# Test correct unzipping of a file
+def testGunzipFile(gzippedFile):
+    # Test bad source path
+    with pytest.raises(FileNotFoundError):
+        gunzipFile(source='/we/really/hope/this/file/doesnt/exist',
+                   destination='/tmp/file.out')
+
+    # Test bad destination path
+    with pytest.raises(FileNotFoundError):
+        gunzipFile(source='/tmp/file.out',
+                   destination='/we/really/hope/this/file/doesnt/exist')
+
+    destination, _ = os.path.splitext(gzippedFile)
+
+    # Test don't delete original
+    gunzipFile(gzippedFile, destination, deleteOriginal=False)
+    assert os.path.exists(gzippedFile)
+    assert os.path.exists(destination)
+
+    # Test delete original
+    gunzipFile(gzippedFile, destination, deleteOriginal=True)
+    assert not os.path.exists(gzippedFile)
+    assert os.path.exists(destination)

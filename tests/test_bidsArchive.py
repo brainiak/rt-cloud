@@ -153,7 +153,7 @@ def testIsEmpty(tmpdir, bidsArchive4D):
 
 # Test finding an image in an archive
 def testGetImages(bidsArchive4D, sample4DNifti1, bidsArchiveMultipleRuns,
-                  imageMetadata):
+                  imageMetadata, smallBidsDatasetFactory):
     entities = ['subject', 'task', 'session']
     dataDict = {key: imageMetadata[key] for key in entities}
 
@@ -185,6 +185,28 @@ def testGetImages(bidsArchive4D, sample4DNifti1, bidsArchiveMultipleRuns,
     assert archiveImages != []
     assert len(archiveImages) == 2
 
+    # Test getImages' results are the same with or without using decompression
+    dataset1 = BidsArchive(smallBidsDatasetFactory.get(suffix='1'))
+    dataset2 = BidsArchive(smallBidsDatasetFactory.get(suffix='2'))
+
+    imagesCompressed = dataset1.getImages(decompressImages=False)
+    imagesDecompressed = dataset2.getImages(decompressImages=True)
+
+    assert dataset1.getSubjects() == dataset2.getSubjects()
+    logger.info("DS1 Files: %s", dataset1.get_files())
+    logger.info("DS2 Files: %s", dataset2.get_files())
+    logger.info("DS2 subjects: %s", dataset2.get_subjects())
+
+    for compressed, decompressed in zip(imagesCompressed, imagesDecompressed):
+        _, ext = os.path.splitext(compressed.path)
+        assert ext == '.gz'
+
+        _, ext = os.path.splitext(decompressed.path)
+        assert ext != '.gz'
+
+        assert np.array_equal(compressed.get_image().get_fdata(),
+                              decompressed.get_image().get_fdata())
+
 
 # Test failing to find an image in an archive
 def testFailFindImage(bidsArchive4D, sample4DNifti1, imageMetadata, caplog):
@@ -212,10 +234,10 @@ def testFailEmpty(tmpdir):
         emptyArchive.getSidecarMetadata("will fall anyway")
         emptyArchive.addMetadata({"will": "fail"}, "will fall anyway")
         emptyArchive._getIncremental(subject="will fall anyway",
-                                    session="will fall anyway",
-                                    task="will fall anyway",
-                                    suffix="will fall anyway",
-                                    datatype="will fall anyway")
+                                     session="will fall anyway",
+                                     task="will fall anyway",
+                                     suffix="will fall anyway",
+                                     datatype="will fall anyway")
 
 
 # Test getting metadata from the archive
@@ -530,6 +552,7 @@ def testAppendNewSubject(bidsArchive4D, validBidsI):
 
     assert appendDataMatches(bidsArchive4D, validBidsI)
     assert isValidBidsArchive(bidsArchive4D.rootPath)
+
 
 # Test appending to an archive does not overwrite existing dataset metadata
 def testAppendNoOverwriteDatasetMetadata(tmpdir, validBidsI):
