@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 # Helper for checking data after append
 def appendDataMatches(archive: BidsArchive, reference: BidsIncremental,
                       startIndex: int = 0, endIndex: int = -1):
-    entities = filterEntities(reference.imageMetadata)
+    entities = filterEntities(reference.getImageMetadata())
     images = archive.getImages(**entities)
     assert len(images) == 1
     imageFromArchive = images[0].get_image()
@@ -57,7 +57,9 @@ def appendDataMatches(archive: BidsArchive, reference: BidsIncremental,
                                     imageFromArchive.affine,
                                     imageFromArchive.header)
 
-    return BidsIncremental(appendedImage, reference.imageMetadata) == reference
+    newIncremental = BidsIncremental(appendedImage,
+                                     reference.getImageMetadata())
+    return newIncremental == reference
 
 
 def archiveHasMetadata(archive: BidsArchive, metadata: dict) -> bool:
@@ -212,10 +214,10 @@ def testFailEmpty(tmpdir):
         emptyArchive.getSidecarMetadata("will fall anyway")
         emptyArchive.addMetadata({"will": "fail"}, "will fall anyway")
         emptyArchive._getIncremental(subject="will fall anyway",
-                                    session="will fall anyway",
-                                    task="will fall anyway",
-                                    suffix="will fall anyway",
-                                    datatype="will fall anyway")
+                                     session="will fall anyway",
+                                     task="will fall anyway",
+                                     suffix="will fall anyway",
+                                     datatype="will fall anyway")
 
 
 # Test getting metadata from the archive
@@ -441,7 +443,7 @@ def test3DAppend(bidsArchive3D, validBidsI, imageMetadata):
     assert np.array_equal(dimensions[1:3], validBidsI.imageHeader['dim'][1:3])
     # Number of time dimensions should now be 1 (from previous image) + however
     # many images the BIDS-I volume has
-    assert dimensions[4] == 1 + validBidsI.imageDimensions[3]
+    assert dimensions[4] == 1 + validBidsI.getImageDimensions()[3]
 
     # Time dimension (4th) should now contain the TR length
     assert image.header['pixdim'][4] == imageMetadata['RepetitionTime']
@@ -458,7 +460,7 @@ def testAppendNoMakePath(bidsArchive4D, validBidsI, tmpdir):
     # Append to empty archive specifying not to make any files or directories
     datasetRoot = Path(tmpdir, testEmptyArchiveAppend.__name__)
     assert not BidsArchive(datasetRoot)._appendIncremental(validBidsI,
-                                                          makePath=False)
+                                                           makePath=False)
 
     # Append to populated archive in a way that would require new directories
     # and files without allowing it
@@ -475,7 +477,7 @@ def testConflictingNiftiHeaderAppend(bidsArchive4D, sample4DNifti1,
     sample4DNifti1.header['datatype'] = 32  # 32=complex, should be uint16=512
     with pytest.raises(MetadataMismatchError):
         bidsArchive4D._appendIncremental(BidsIncremental(sample4DNifti1,
-                                                        imageMetadata))
+                                                         imageMetadata))
 
 
 # Test appending raises error when image metadata incompatible with existing
@@ -484,7 +486,7 @@ def testConflictingMetadataAppend(bidsArchive4D, sample4DNifti1, imageMetadata):
     imageMetadata['ProtocolName'] = 'not the same'
     with pytest.raises(MetadataMismatchError):
         bidsArchive4D._appendIncremental(BidsIncremental(sample4DNifti1,
-                                                        imageMetadata))
+                                                         imageMetadata))
 
 
 # Test images are correctly appended to an archive with a single 4-D image in it
@@ -531,6 +533,7 @@ def testAppendNewSubject(bidsArchive4D, validBidsI):
     assert appendDataMatches(bidsArchive4D, validBidsI)
     assert isValidBidsArchive(bidsArchive4D.rootPath)
 
+
 # Test appending to an archive does not overwrite existing dataset metadata
 def testAppendNoOverwriteDatasetMetadata(tmpdir, validBidsI):
     rootPath = Path(tmpdir, "new-dataset")
@@ -569,8 +572,8 @@ def testGetIncremental(bidsArchive4D, sample3DNifti1, sample4DNifti1,
         session=imageMetadata["session"])
 
     # 3D image still results in 4D incremental
-    assert len(incremental.imageDimensions) == 4
-    assert incremental.imageDimensions[3] == 1
+    assert len(incremental.getImageDimensions()) == 4
+    assert incremental.getImageDimensions()[3] == 1
 
     assert incremental == reference
     """
@@ -587,8 +590,8 @@ def testGetIncremental(bidsArchive4D, sample3DNifti1, sample4DNifti1,
             imageIndex=index,
             session=imageMetadata["session"])
 
-        assert len(incremental.imageDimensions) == 4
-        assert incremental.imageDimensions[3] == 1
+        assert len(incremental.getImageDimensions()) == 4
+        assert incremental.getImageDimensions()[3] == 1
 
         assert incremental == reference
 
