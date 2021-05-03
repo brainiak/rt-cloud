@@ -36,6 +36,7 @@ A subjectService is started on the presentation computer. The subjecService list
 - [Wrapping Your Experiment Script with the RealTime Framework](docs/how-to-wrap-your-project.md)
 - [Running a Realtime Experiment](docs/how-to-run.md)
 - [Run Project in a Docker Container](docs/run-in-docker.md)
+- [Using BIDS Data Format in RT-Cloud](docs/using-bids-data.md)
 
 
 ## Installation
