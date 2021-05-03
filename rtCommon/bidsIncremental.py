@@ -313,7 +313,7 @@ class BidsIncremental:
         numberFields = ["RepetitionTime", "EchoTime"]
         for field in numberFields:
             value = imageMetadata.get(field)
-            if value: 
+            if value:
                 imageMetadata[field] = float(value)
 
         return imageMetadata
@@ -616,7 +616,7 @@ class BidsIncremental:
             json.dump(metadataToWrite, metadataFile, sort_keys=True, indent=4)
 
         with open(eventsPath, mode='w') as eventsFile:
-            self.events.to_csv(eventsFile, sep='\t')
+            self.events.to_csv(eventsFile, index=False, sep='\t')
 
         if not onlyData:
             # Write out dataset description

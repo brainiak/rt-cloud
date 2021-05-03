@@ -223,7 +223,8 @@ def archiveWithImage(image, metadata: dict, tmpdir):
     eventsPath = Path(dataPath, bids_build_path(metadata, BIDS_FILE_PATTERN))
     with open(eventsPath, mode='w') as eventsFile:
         eventDefaultHeaders = ['onset', 'duration', 'response_time']
-        pd.DataFrame(columns=eventDefaultHeaders).to_csv(eventsFile, sep='\t')
+        pd.DataFrame(columns=eventDefaultHeaders).to_csv(eventsFile,
+                                                         index=False, sep='\t')
 
     # Create an archive from the directory and return it
     return BidsArchive(rootPath)
