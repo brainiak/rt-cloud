@@ -4,7 +4,7 @@ import nibabel as nib
 import numpy as np
 import pytest
 
-from rtCommon.bidsCommon import getNiftiData
+from rtCommon.bidsCommon import getNiftiData, DEFAULT_EVENTS_HEADERS
 from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsRun import BidsRun
 from rtCommon.errors import MetadataMismatchError
@@ -143,6 +143,60 @@ def testAppendConflictingMetadata(oneImageBidsI):
     numIncrementalsBefore = run.numIncrementals()
     run.appendIncremental(bidsInc2, validateAppend=False)
     assert run.numIncrementals() == (numIncrementalsBefore + 1)
+
+
+# Test append conflicting readme
+def testAppendConflictingReadme(oneImageBidsI, sampleBidsEntities):
+    run = BidsRun()
+    run.appendIncremental(oneImageBidsI)
+
+    oneImageBidsI.readme += "totally new data"
+    with pytest.raises(MetadataMismatchError):
+        run.appendIncremental(oneImageBidsI)
+
+    assert oneImageBidsI != run.getIncremental(0)
+
+
+# Test append conflicting dataset description
+def testAppendConflictingDatasetDescription(oneImageBidsI, sampleBidsEntities):
+    run = BidsRun()
+    run.appendIncremental(oneImageBidsI)
+
+    oneImageBidsI.datasetDescription["newKey"] = "totally new data"
+    with pytest.raises(MetadataMismatchError):
+        run.appendIncremental(oneImageBidsI)
+
+    assert oneImageBidsI != run.getIncremental(0)
+
+
+# Test append conflicting event files
+def testAppendConflictingEvents(oneImageBidsI, sampleBidsEntities):
+    run = BidsRun()
+    run.appendIncremental(oneImageBidsI)
+
+    # This should work, as the previous events file is empty so any new data
+    # shouldn't have a conflict
+    newEventsData = [{key: data for key in DEFAULT_EVENTS_HEADERS} for data in
+                     range(1)]
+    oneImageBidsI.events = oneImageBidsI.events.append(newEventsData,
+                                                       ignore_index=True)
+    run.appendIncremental(oneImageBidsI)
+
+    # This should also work, as they share the same starting row, and the new
+    # DataFrame just has 5 additional rows
+    newRowCount = 5
+    newEventsData = [{key: data for key in DEFAULT_EVENTS_HEADERS} for data in
+                     range(1, newRowCount + 1)]
+    oneImageBidsI.events = oneImageBidsI.events.append(newEventsData,
+                                                       ignore_index=True)
+    run.appendIncremental(oneImageBidsI)
+
+    # This should fail, as rows for same onset times have different values now
+    with pytest.raises(MetadataMismatchError):
+        oneImageBidsI.events.iloc[int(newRowCount / 2):] += 1
+        run.appendIncremental(oneImageBidsI)
+
+    assert oneImageBidsI != run.getIncremental(0)
 
 
 # Test consolidation into single incremental works as expected
