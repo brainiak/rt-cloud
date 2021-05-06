@@ -1,7 +1,8 @@
-import logging
 from operator import eq as opeq
-import os
 from pathlib import Path
+import json
+import logging
+import os
 import re
 
 from bids.exceptions import (
@@ -10,19 +11,26 @@ from bids.exceptions import (
 from bids.layout.writing import build_path as bids_build_path
 import nibabel as nib
 import numpy as np
+import pandas as pd
 import pytest
 
 from rtCommon.bidsArchive import BidsArchive
 from rtCommon.bidsCommon import (
     BIDS_FILE_PATH_PATTERN,
+    BIDS_EVENT_COL_TO_DTYPE,
     BidsFileExtension,
+    DEFAULT_DATASET_DESC,
+    DEFAULT_EVENTS_HEADERS,
+    DEFAULT_README,
     adjustTimeUnits,
+    correctEventsFileDatatypes,
     filterEntities,
     getNiftiData,
     loadBidsEntities,
     metadataAppendCompatible,
     niftiImagesAppendCompatible,
     symmetricDictDifference,
+    writeDataFrameToEvents,
 )
 from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsRun import BidsRun
@@ -127,11 +135,12 @@ def testAttributeForward(bidsArchive4D):
     assert bidsArchive4D.getSession() == bidsArchive4D.getSessions() == ['01']
     assert bidsArchive4D.getCeagent() == bidsArchive4D.getCeagents() == []
     assert bidsArchive4D.getDirection() == bidsArchive4D.getDirections() == []
+    assert bidsArchive4D.getDatasetDescription() == \
+        bidsArchive4D.data.get_dataset_description()
 
 
 # Test archive's string output is correct
 def testStringOutput(bidsArchive4D):
-    logger.debug(str(bidsArchive4D))
     outPattern = r"^Root: \S+ \| Subjects: \d+ \| Sessions: \d+ " \
                  r"\| Runs: \d+$"
     assert re.fullmatch(outPattern, str(bidsArchive4D)) is not None
@@ -209,10 +218,13 @@ def testFailEmpty(tmpdir):
 
     with pytest.raises(StateError):
         emptyArchive.dirExistsInArchive("will fail anyway")
+    with pytest.raises(StateError):
+        emptyArchive.getReadme()
+    with pytest.raises(StateError):
         emptyArchive.getImages("will fail anyway")
-        emptyArchive.addImage(None, "will fall anyway")
+    with pytest.raises(StateError):
         emptyArchive.getSidecarMetadata("will fall anyway")
-        emptyArchive.addMetadata({"will": "fail"}, "will fall anyway")
+    with pytest.raises(StateError):
         emptyArchive._getIncremental(subject="will fall anyway",
                                      session="will fall anyway",
                                      task="will fall anyway",
@@ -255,11 +267,17 @@ def testGetEvents(validBidsI, imageMetadata, tmpdir):
 
     # Get the events from the archive as a pandas data frame
     events = archive.getEvents()[0].get_df()
+    events = correctEventsFileDatatypes(events)
     assert events is not None
 
     # Check the required columns are present in the events file data frame
-    for column in ['onset', 'duration', 'response_time']:
+    for column in DEFAULT_EVENTS_HEADERS:
         assert column in events.columns
+
+    # Check the columns are of the proper types
+    for column, dtype in BIDS_EVENT_COL_TO_DTYPE.items():
+        if column in events.columns:
+            assert events[column].dtype == dtype
 
 
 """ ----- BEGIN TEST APPENDING ----- """
@@ -764,6 +782,40 @@ def testGetBidsRun(bidsArchiveMultipleRuns, sampleBidsEntities, sample4DNifti1,
     assert runData.shape == incrementalData.shape
     assert np.array_equal(runData, incrementalData)
 
+    # Ensure that the run has the expected readme, events, and dataset
+    # description in it
+    assert run._readme == DEFAULT_README
+    assert run._datasetDescription == DEFAULT_DATASET_DESC
+    for column in DEFAULT_EVENTS_HEADERS:
+        assert column in run._events.columns
+
+    # Now change the archive and ensure the values for a new run are correct
+    # Change readme
+    readmeFile = Path(bidsArchive4D.getReadme().path)
+    newReadmeText = 'new pytest readme'
+    readmeFile.write_text(newReadmeText)
+
+    # Change dataset description
+    datasetDescriptionFile = Path(bidsArchive4D.rootPath,
+                                  'dataset_description.json')
+    with open(datasetDescriptionFile, 'w') as f:
+        newDatasetDescription = DEFAULT_DATASET_DESC.copy()
+        newDatasetDescription['newField'] = 'this is some new data'
+        json.dump(newDatasetDescription, f)
+
+    # Change events
+    eventsFile = bidsArchive4D.getEvents(**sampleBidsEntities)[0]
+    eventsDF = correctEventsFileDatatypes(eventsFile.get_df())
+    newEventsRow = [1, 2]
+    eventsDF.loc[len(eventsDF)] = newEventsRow
+    writeDataFrameToEvents(eventsDF, eventsFile.path)
+
+    # Get new run and test it
+    newRun = bidsArchive4D.getBidsRun(**sampleBidsEntities)
+    assert newRun._readme == newReadmeText
+    assert newRun._datasetDescription == newDatasetDescription
+    pd.util.testing.assert_frame_equal(eventsDF, newRun._events)
+
     # With multiple runs, not specifying run isn't good enough
     entities = sampleBidsEntities.copy()
     del entities['run']
@@ -774,6 +826,33 @@ def testGetBidsRun(bidsArchiveMultipleRuns, sampleBidsEntities, sample4DNifti1,
     run = bidsArchiveMultipleRuns.getBidsRun(**sampleBidsEntities)
     assert run is not None
     assert run.numIncrementals() == sample4DNifti1.header.get_data_shape()[3]
+
+
+# Test getBidsRun gets inherited events data
+def testGetBidsRunInheritedEvents(tmpdir, validBidsI, sampleBidsEntities):
+    # Add an events file on the top level with data
+    rootPath = os.path.join(tmpdir, 'dataset')
+    incrementalDFDict = {col: [4] for col in DEFAULT_EVENTS_HEADERS}
+    incrementalDF = pd.DataFrame.from_dict(incrementalDFDict)
+    validBidsI.events = correctEventsFileDatatypes(incrementalDF)
+
+    validBidsI.writeToDisk(rootPath)
+    archive = BidsArchive(rootPath)
+
+    newDFDict = {col: [1, 2, 3] for col in DEFAULT_EVENTS_HEADERS}
+    newDF = pd.DataFrame.from_dict(newDFDict)
+    newDF = correctEventsFileDatatypes(newDF)
+    writeDataFrameToEvents(newDF, '{dirPath}/task-{taskName}_events.tsv'.format(
+        dirPath=rootPath, taskName=sampleBidsEntities['task']))
+    archive._updateLayout()
+
+    # Get the BIDS run
+    run = archive.getBidsRun(**sampleBidsEntities)
+
+    # Ensure that the BIDS run has all of the data added at the top level
+    combinedDF = newDF.append(incrementalDF)
+    combinedDF.sort_values(by='onset', inplace=True, ignore_index=True)
+    assert combinedDF.equals(run._events)
 
 
 # Test appendBidsRun works with compatible images
@@ -788,3 +867,19 @@ def testAppendBidsRun(tmpdir, bidsArchive4D, bidsArchiveMultipleRuns,
     archive.appendBidsRun(run)
 
     assert archive.getBidsRun(**sampleBidsEntities) == run
+
+
+# Test dataset description can be retrieved
+def testGetDatasetDescription(bidsArchive4D):
+    path = os.path.join(bidsArchive4D.rootPath, 'dataset_description.json')
+    with open(path) as f:
+        datasetDescription = json.load(f)
+        assert datasetDescription == bidsArchive4D.getDatasetDescription()
+
+
+# Test readme can be retrieved
+def testGetReadme(bidsArchive4D):
+    path = os.path.join(bidsArchive4D.rootPath, 'README')
+    readmeFile = bidsArchive4D.getReadme()
+    with open(path) as archiveReadme, open(readmeFile.path) as returnedReadme:
+        assert archiveReadme.read() == returnedReadme.read()
