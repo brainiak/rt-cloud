@@ -7,6 +7,7 @@ as sequences of BIDS incrementals.
 
 -----------------------------------------------------------------------------"""
 import logging
+import warnings
 
 import numpy as np
 
@@ -165,6 +166,15 @@ class BidsRun:
         # Slice up the incremental into smaller component images if it has
         # multiple images in its image volume
         imagesInVolume = incremental.getImageDimensions()[3]
+
+        try:
+            import indexed_gzip
+        except ImportError:
+            warnings.warn("Package 'indexed_gzip' not available: appending a BIDS"
+                          " Incremental that uses a gzipped NIfTI file as its "
+                          "underlying data source will be very slow. Install "
+                          "the 'indexed_gzip' package with 'conda install "
+                          "indexed_gzip' to improve performance.")
 
         # Slice the dataobj so we ensure that data is read into memory
         newArrays = [incremental.image.dataobj[..., imageIdx] for imageIdx in
