@@ -36,6 +36,7 @@ if verbose:
 # import important modules
 import os
 import sys
+import time
 import argparse
 import warnings
 import numpy as np
@@ -91,6 +92,8 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     OUTPUT:
         None.
     """
+    subjInterface.setMessage("Preparing Run ...")
+    time.sleep(1)
 
     # variables we'll use throughout
     scanNum = cfg.scanNum[0]
@@ -296,7 +299,11 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         # the presentation computer.
         if verbose:
             print("| send result to the presentation computer for provide subject feedback")
-        subjInterface.setResult(runNum, int(this_TR), float(avg_niftiData))
+        # convert to value between 0 and 1
+        minAvg = 305
+        maxAvg = 315
+        feedback = (avg_niftiData - minAvg) / (maxAvg - minAvg)
+        subjInterface.setResult(runNum, int(this_TR), float(feedback))
 
         # Finally we will use use webInterface.plotDataPoint() to send the result
         # to the web browser to be plotted in the --Data Plots-- tab.
@@ -310,11 +317,14 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
 
         # save the activations value info into a vector that can be saved later
         all_avg_activations[this_TR] = avg_niftiData
+        time.sleep(1)
 
     # create the full path filename of where we want to save the activation values vector.
     #   we're going to save things as .txt and .mat files
     output_textFilename = '/tmp/cloud_directory/tmp/avg_activations.txt'
     output_matFilename = os.path.join('/tmp/cloud_directory/tmp/avg_activations.mat')
+
+    subjInterface.setMessage("End Run")
 
     # use 'putFile' from the dataInterface to save the .txt file
     #   INPUT:

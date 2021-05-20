@@ -3,21 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <style>
-    img {
-      width: 100vw;
-      height: auto;
-      max-width: none;
-      max-height: 100vh;
-      object-fit: contain;
-    }
-    .pageCenter {
-      position: absolute;
-      top: 30%;
-      left: 10%;
-    }
-  </style>
-  <title>Subject Display</title>
+  <title>jsPsych Subject Feedback</title>
   <script src="jspsych/jspsych.js"></script>
   <script src="jspsych/plugins/jspsych-preload.js"></script>
   <link href="jspsych/css/jspsych.css" rel="stylesheet" type="text/css">
@@ -28,71 +14,76 @@
 <body></body>
 
 <script>
-
+// connect to the project server to receive events
 createWebSocket();
 
 var timeline = []
 
-// var brainstate = 50
-var update_count = 0;
-var n_loops = 20;
-
-function handle_event() {
-  // TODO - dequeue and event here
-  // if setResult then add rtFeedback to timeline
-  // if setMessage then add message to timeling
-  // dequeue an event from timeline (so doesn't grow for ever)
-  // send a ping so whatever timeline is currently running ends
-  if (FeedbackStatus.doFeedback == true) {
-
-  }
-}
-document.addEventListener('rtEvent', handle_event);
-
 // this function draws a circle with a brainstate radius
-function drawCirc(c){
-    var brainstate = FeedbackStatus.val
-    var ctx = c.getContext('2d');
+function drawCircle(canvas){
+  var ctx = canvas.getContext('2d');
+  var width = canvas.width
+  var height = canvas.height
+  var minDim = Math.min(width, height)
+  var brainstate = FeedbackStatus.val * 0.66 * minDim
     ctx.beginPath();
-    ctx.arc(2*brainstate, 1.5*brainstate, 1*brainstate, 0, 2 * Math.PI);
+    ctx.arc(width/2, height/2, 1*brainstate, 0, 2 * Math.PI);
+    ctx.fillStyle = "green"
+    ctx.fill()
     ctx.stroke();
 }
 
-
-// this creates a trial of the new plugin-type brain-realtime-response
-// the trial_duration is the minimal amount of time the trial takes
-var rtFeedback = {
+// This creates a trial of type brain-realtime-response which
+//  when triggered by an 'rtEvent' will switch to the next trial.
+// The trial_duration is the minimal amount of time the trial takes
+var feedbackNode = {
   type: 'brain-realtime-response',
-  trial_duration: 500,
-  stimulus: drawCirc,
-  data: {shape: 'circle', radius: 50},
-  prompt: 'none',
-  // the on_start function redefines the circle radius and the prompt under the
-  // circle, when the trial is starting
-  on_start: function(trial){
-    trial.stimulus = drawCirc;
-    trial.prompt = 'State: ' + FeedbackStatus.message;
-    trial.data.radius = FeedbackStatus.val;
+  stimulus: drawCircle,
+  canvas_size: [window.innerHeight, window.innerWidth],
+  // QUESTION
+  data: {shape: 'circle', radius: 50}, // QUESTION - how is data retrieved or used?
+  // The on_start function redefines the circle radius when the trial is starting
+  on_start: function(trial) {
+    trial.data.radius = FeedbackStatus.val; // QUESTION - how is data retrieved?
   }
 }
 
-// this is a loop node that loops through the same trial with
-// updated brainstates as long as the return condition is true
-// for now, I set this to a counter so it does 20 trials
+var messageNode = {
+  type: 'brain-realtime-response',
+  stimulus: null,
+  prompt: FeedbackStatus.message,
+  on_start: function(trial){
+    trial.prompt = FeedbackStatus.message;
+  }
+};
+
+var if_feedback_node = {
+  timeline: [feedbackNode],
+  conditional_function: function() {
+    return FeedbackStatus.doFeedback
+  }
+
+}
+
+var if_message_node = {
+  timeline: [messageNode],
+  conditional_function: function() {
+    return !FeedbackStatus.doFeedback
+  }
+
+}
+
+// This is a loop node that loops through the same trials with
+//   updated feedback as long as the return condition is true
 var loop_node = {
-    timeline: [rtFeedback],
+    timeline: [if_feedback_node, if_message_node],
     loop_function: function(data){
-        return (update_count < n_loops)
+        return FeedbackStatus.connected
     }
 }
 
 // pushing the loop node
 timeline.push(loop_node)
-
-var message = {
-    type: "html-keyboard-response",
-    stimulus: FeedbackStatus.message
-};
 
 
 jsPsych.init({
@@ -103,17 +94,17 @@ jsPsych.init({
 });
 
 </script>
-<!-- 
+<!--
   var welcome = {
     type: "html-keyboard-response",
     stimulus: "Welcome to the experiment. Press any key to begin."
   };
   timeline.push(welcome); -->
 
-<!--   
+<!--
   /** This would be calling the saveData function every trial
    * Then you would have to rewrite it such that it only adds the latest trial's data
-  
+
   timeline.push({
     type: 'call-function',
     func: saveData

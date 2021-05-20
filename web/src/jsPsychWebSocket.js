@@ -3,9 +3,9 @@ var startTime
 
 var FeedbackStatus = {
   connected : false,
+  doFeedback: false,
   error : "No Error",
   message : "Begin Message",
-  status: "Run",
   val : 0,
 }
 
@@ -44,17 +44,19 @@ function createWebSocket() {
     var reqArgs = request['args']
     console.log(reqClass + " " + reqCmd + " " + reqArgs)
     // TODO - enqueue and event here and trigger rtEvent
+    var retVal = true
+    var retCode = 200
     if (reqCmd == 'setResult') {
       var val = reqArgs[2]
-      FeedbackStatus.val = val * 100
+      FeedbackStatus.doFeedback = true
+      FeedbackStatus.val = val
       FeedbackStatus.message = "BrainState: " + FeedbackStatus.val
-      retVal = true
-      retCode = 200
-      let event = new CustomEvent("setResult");
+      let event = new CustomEvent("rtEvent");
       document.dispatchEvent(event);
     } else if (reqCmd == 'setMessage') {
+      FeedbackStatus.doFeedback = false // display message instead
       FeedbackStatus.message = reqArgs[0]
-      let event = new CustomEvent("setMessage");
+      let event = new CustomEvent("rtEvent");
       document.dispatchEvent(event);
     } else {
       errStr = "Unknown message type: " + reqCmd

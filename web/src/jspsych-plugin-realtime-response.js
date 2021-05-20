@@ -2,7 +2,7 @@
  * jspsych-brain-realtime-response
  * Sebastian Michelmann
  *
- * plugin for a trial that ends on an external setResult event
+ * plugin for a trial that ends on an external 'rtEvent' event
 *
  **/
 
@@ -19,7 +19,7 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
       stimulus: {
         type: jsPsych.plugins.parameterType.FUNCTION,
         pretty_name: 'Stimulus',
-        default: undefined,
+        default: null,
         description: 'The drawing function to apply to the canvas. Should take the canvas object as argument.'
       },
       prompt: {
@@ -48,31 +48,47 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
 
     // display stimulus
     //var html = '<div id="jspsych-html-button-response-stimulus">'+trial.stimulus+'</div>';
-    var new_html = '<div id="jspsych-canvas-keyboard-response-stimulus">' + '<canvas id="jspsych-canvas-stimulus" height="' + trial.canvas_size[0] + '" width="' + trial.canvas_size[1] + '"></canvas>' + '</div>';
+
+    var new_html = '<div id="jspsych-canvas-keyboard-response-stimulus" ' +
+                      'height="' + trial.canvas_size[0] + '" ' +
+                      'width="' + trial.canvas_size[1] + '" ' +
+                    '>';
+
+
+    if (trial.stimulus != null) {
+      var canvas_html = '<canvas id="jspsych-canvas-stimulus" ' +
+                          'height="' + trial.canvas_size[0] + '" ' +
+                          'width="' + trial.canvas_size[1] + '" ' +
+                        '></canvas>'
+      new_html += canvas_html + '</div>'
+    }
     // add prompt
     if (trial.prompt !== null) {
-      new_html += trial.prompt;
+      new_html += '</div>' + trial.prompt;
     }
-    
+
     display_element.innerHTML = new_html;
-    let c = document.getElementById("jspsych-canvas-stimulus")
-    trial.stimulus(c)
+
+    if (trial.stimulus != null) {
+      let canvas = document.getElementById("jspsych-canvas-stimulus")
+      trial.stimulus(canvas)
+    }
 
     // start time
     var start_time = performance.now();
-    var setResult_time = null;
+    var rtEvent_time = null;
 
     // function to wrap up when the event has arrived (not finished if it's too early)
     function wrap_up(){
       // remove the listener first!
-      document.removeEventListener('setResult', wrap_up);
+      document.removeEventListener('rtEvent', wrap_up);
 
-      // store when the setResult event happened
-      setResult_time = performance.now() - start_time;
+      // store when the rtEvent event happened
+      rtEvent_time = performance.now() - start_time;
 
       // if the setResult was early we want to sleep for a bit
-      if ((trial.trial_duration !== null) && (setResult_time<trial.trial_duration)){
-        jsPsych.pluginAPI.setTimeout(end_trial, (trial.trial_duration-setResult_time))
+      if ((trial.trial_duration !== null) && (rtEvent_time < trial.trial_duration)){
+        jsPsych.pluginAPI.setTimeout(end_trial, (trial.trial_duration-rtEvent_time))
       } else{
         //otherwise we just end the trial now
         end_trial()
@@ -84,7 +100,7 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
     function end_trial() {
       // gather the data to store for the trial
       var trial_data = {
-        "setResult_time":  setResult_time
+        "rtEvent_time":  rtEvent_time
       //  "stimulus": html
       };
 
@@ -97,7 +113,7 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
     };
 
     // add event listeners to document
-    document.addEventListener('setResult', wrap_up);
+    document.addEventListener('rtEvent', wrap_up);
 
   };
 
