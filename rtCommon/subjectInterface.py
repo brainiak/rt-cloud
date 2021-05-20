@@ -41,10 +41,11 @@ class SubjectInterface(RemoteableExtensible):
         if subjectRemote is True:
             return
         self.msgQueue = Queue()
+        self.message = ""
 
     def setResult(self, runId :int, trId :int, value: float) -> None:
         """
-        Whe setResult is called by the experiment script it queues the result for
+        When setResult is called by the experiment script it queues the result for
         the presentation script to later read and use to provide subject feedback.
         Args:
             runId: experiment specific identifier of the run
@@ -59,6 +60,13 @@ class SubjectInterface(RemoteableExtensible):
             'timestamp': time.time()
         }
         self.msgQueue.put(feedbackMsg)
+
+    def setMessage(self, message: str) -> None:
+        """
+        Updates the message displayed to the subject
+        """
+        print(f'SubjectInterface: setMessage: {message}')
+        self.message = message
 
     def dequeueResult(self, block :bool=False, timeout :int=None) -> float:
         """

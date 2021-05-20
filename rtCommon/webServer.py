@@ -20,7 +20,7 @@ from rtCommon.utils import DebugLevels, loadConfigFile
 from rtCommon.certsUtils import getCertPath, getKeyPath
 from rtCommon.structDict import StructDict, recurseCreateStructDict
 from rtCommon.webHttpHandlers import HttpHandler, LoginHandler, LogoutHandler, certsDir
-from rtCommon.webSocketHandlers import sendWebSocketMessage, BaseWebSocketHandler
+from rtCommon.webSocketHandlers import BaseWebSocketHandler
 from rtCommon.webDisplayInterface import WebDisplayInterface
 from rtCommon.projectServerRPC import ProjectRPCService
 from rtCommon.dataInterface import uploadFilesFromList
@@ -66,6 +66,7 @@ class Web():
         css_root = os.path.join(Web.webDir, 'css')
         img_root = os.path.join(Web.webDir, 'img')
         build_root = os.path.join(Web.webDir, 'build')
+        jsPsych_root = os.path.join(Web.webDir, 'jsPsych')
         cookieSecret = getCookieSecret(certsDir)
         settings = {
             "cookie_secret": cookieSecret,
@@ -101,6 +102,7 @@ class Web():
         Web.app = tornado.web.Application([
             (r'/', HttpHandler, dict(htmlDir=Web.htmlDir, page='index.html')),
             (r'/feedback', HttpHandler, dict(htmlDir=Web.htmlDir, page='biofeedback.html')),  # shows image
+            (r'/jspsych', HttpHandler, dict(htmlDir=Web.htmlDir, page='jsPsychFeedback.html')),
             (r'/login', LoginHandler, dict(htmlDir=Web.htmlDir, page='login.html', testMode=Web.testMode)),
             (r'/logout', LogoutHandler),
             (r'/wsUser', BaseWebSocketHandler, dict(name='wsUser', callback=Web.browserRequestHandler._wsBrowserCallback)),
@@ -109,6 +111,10 @@ class Web():
             (r'/css/(.*)', tornado.web.StaticFileHandler, {'path': css_root}),
             (r'/img/(.*)', tornado.web.StaticFileHandler, {'path': img_root}),
             (r'/build/(.*)', tornado.web.StaticFileHandler, {'path': build_root}),
+            (r'/jspsych/(.*)', tornado.web.StaticFileHandler, {'path': jsPsych_root}),
+            # /wsSubject gets added in projectServer.py when remoteSubject is True
+            # /wsData gets added in projectServer.py when remoteData is True
+            # (r'/wsSubject', BaseWebSocketHandler, dict(name='wsSubject', callback=defaultWebsocketCallback)),
         ], **settings)
         Web.httpServer = tornado.httpserver.HTTPServer(Web.app, ssl_options=ssl_ctx)
         Web.httpServer.listen(Web.httpPort)

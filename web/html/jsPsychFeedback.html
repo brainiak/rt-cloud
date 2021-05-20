@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    img {
+      width: 100vw;
+      height: auto;
+      max-width: none;
+      max-height: 100vh;
+      object-fit: contain;
+    }
+    .pageCenter {
+      position: absolute;
+      top: 30%;
+      left: 10%;
+    }
+  </style>
+  <title>Subject Display</title>
+  <script src="jspsych/jspsych.js"></script>
+  <script src="jspsych/plugins/jspsych-preload.js"></script>
+  <link href="jspsych/css/jspsych.css" rel="stylesheet" type="text/css">
+  <script src="src/jspsych-plugin-realtime-response.js"></script>
+  <script src="src/jsPsychWebSocket.js"></script>
+</head>
+
+<body></body>
+
+<script>
+
+createWebSocket();
+
+var timeline = []
+
+// var brainstate = 50
+var update_count = 0;
+var n_loops = 20;
+
+function handle_event() {
+  // TODO - dequeue and event here
+  // if setResult then add rtFeedback to timeline
+  // if setMessage then add message to timeling
+  // dequeue an event from timeline (so doesn't grow for ever)
+  // send a ping so whatever timeline is currently running ends
+  if (FeedbackStatus.doFeedback == true) {
+
+  }
+}
+document.addEventListener('rtEvent', handle_event);
+
+// this function draws a circle with a brainstate radius
+function drawCirc(c){
+    var brainstate = FeedbackStatus.val
+    var ctx = c.getContext('2d');
+    ctx.beginPath();
+    ctx.arc(2*brainstate, 1.5*brainstate, 1*brainstate, 0, 2 * Math.PI);
+    ctx.stroke();
+}
+
+
+// this creates a trial of the new plugin-type brain-realtime-response
+// the trial_duration is the minimal amount of time the trial takes
+var rtFeedback = {
+  type: 'brain-realtime-response',
+  trial_duration: 500,
+  stimulus: drawCirc,
+  data: {shape: 'circle', radius: 50},
+  prompt: 'none',
+  // the on_start function redefines the circle radius and the prompt under the
+  // circle, when the trial is starting
+  on_start: function(trial){
+    trial.stimulus = drawCirc;
+    trial.prompt = 'State: ' + FeedbackStatus.message;
+    trial.data.radius = FeedbackStatus.val;
+  }
+}
+
+// this is a loop node that loops through the same trial with
+// updated brainstates as long as the return condition is true
+// for now, I set this to a counter so it does 20 trials
+var loop_node = {
+    timeline: [rtFeedback],
+    loop_function: function(data){
+        return (update_count < n_loops)
+    }
+}
+
+// pushing the loop node
+timeline.push(loop_node)
+
+var message = {
+    type: "html-keyboard-response",
+    stimulus: FeedbackStatus.message
+};
+
+
+jsPsych.init({
+      timeline: timeline,
+       on_finish: function(){
+        //  saveData("experiment_data", jsPsych.data.get().csv());
+       }
+});
+
+</script>
+<!-- 
+  var welcome = {
+    type: "html-keyboard-response",
+    stimulus: "Welcome to the experiment. Press any key to begin."
+  };
+  timeline.push(welcome); -->
+
+<!--   
+  /** This would be calling the saveData function every trial
+   * Then you would have to rewrite it such that it only adds the latest trial's data
+  
+  timeline.push({
+    type: 'call-function',
+    func: saveData
+  });
+  **/
+   -->
+</html>
