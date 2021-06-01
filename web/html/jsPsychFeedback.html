@@ -5,7 +5,6 @@
   <meta charset="UTF-8">
   <title>jsPsych Subject Feedback</title>
   <script src="jspsych/jspsych.js"></script>
-  <script src="jspsych/plugins/jspsych-preload.js"></script>
   <link href="jspsych/css/jspsych.css" rel="stylesheet" type="text/css">
   <script src="src/jspsych-plugin-realtime-response.js"></script>
   <script src="src/jsPsychWebSocket.js"></script>
@@ -19,13 +18,15 @@ createWebSocket();
 
 var timeline = []
 
+// TODO - add a key listener for subject responses
+
 // this function draws a circle with a brainstate radius
-function drawCircle(canvas){
+function drawCircle(canvas, stateVal){
   var ctx = canvas.getContext('2d');
   var width = canvas.width
   var height = canvas.height
   var minDim = Math.min(width, height)
-  var brainstate = FeedbackStatus.val * 0.66 * minDim
+  var brainstate = stateVal * 0.66 * minDim
     ctx.beginPath();
     ctx.arc(width/2, height/2, 1*brainstate, 0, 2 * Math.PI);
     ctx.fillStyle = "green"
@@ -34,26 +35,37 @@ function drawCircle(canvas){
 }
 
 // This creates a trial of type brain-realtime-response which
-//  when triggered by an 'rtEvent' will switch to the next trial.
-// The trial_duration is the minimal amount of time the trial takes
+//   when triggered by an 'rtEvent' will switch to the next trial.
+// The trial_duration is the minimal amount of time the trial takes.
+// on_start() called for each trial:
+//   - Add the html component to inner_html
+//   - Call the draw function on that html component
+// data field is for logging data at the end
+//   on_finish() or end_trial() could get trial.data and send back over websocket
 var feedbackNode = {
   type: 'brain-realtime-response',
-  stimulus: drawCircle,
   canvas_size: [window.innerHeight, window.innerWidth],
-  // QUESTION
-  data: {shape: 'circle', radius: 50}, // QUESTION - how is data retrieved or used?
-  // The on_start function redefines the circle radius when the trial is starting
+  data: {shape: 'circle', radius: 0},
   on_start: function(trial) {
-    trial.data.radius = FeedbackStatus.val; // QUESTION - how is data retrieved?
+    var canvas_html = '<canvas id="jspsych-canvas-stimulus" ' +
+                          'height="' + trial.canvas_size[0] + '" ' +
+                          'width="' + trial.canvas_size[1] + '" ' +
+                        '></canvas>'
+    var display_element = jsPsych.getDisplayElement();
+    display_element.innerHTML = canvas_html;
+    var canvas = document.getElementById("jspsych-canvas-stimulus");
+    trial.data.radius = FeedbackStatus.val;
+    drawCircle(canvas, FeedbackStatus.val);
   }
 }
 
+// A message node shows a message between feedback trials
 var messageNode = {
   type: 'brain-realtime-response',
-  stimulus: null,
-  prompt: FeedbackStatus.message,
   on_start: function(trial){
-    trial.prompt = FeedbackStatus.message;
+    var prompt_html = FeedbackStatus.message;
+    var display_element = jsPsych.getDisplayElement();
+    display_element.innerHTML = prompt_html;
   }
 };
 
@@ -70,7 +82,6 @@ var if_message_node = {
   conditional_function: function() {
     return !FeedbackStatus.doFeedback
   }
-
 }
 
 // This is a loop node that loops through the same trials with
@@ -88,8 +99,10 @@ timeline.push(loop_node)
 
 jsPsych.init({
       timeline: timeline,
-       on_finish: function(){
-        //  saveData("experiment_data", jsPsych.data.get().csv());
+      on_finish: function(){
+        // console.log('on_finish function');
+        // console.log(jsPsych.data.get())
+        // jsPsych.data.displayData();
        }
 });
 

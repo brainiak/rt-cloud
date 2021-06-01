@@ -130,15 +130,15 @@ class Web():
         """Stop the web server."""
         Web.ioLoopInst.add_callback(Web.ioLoopInst.stop)
         Web.app = None
-        
+
     # Possibly use raise exception to stop a thread
     # def raise_exception(self): i.e. for stop()
-        # thread_id = self.get_id() 
-        # res = ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 
-        #       ctypes.py_object(SystemExit)) 
-        # if res > 1: 
-        #     ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0) 
-        #     print('Exception raise failure') 
+        # thread_id = self.get_id()
+        # res = ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id,
+        #       ctypes.py_object(SystemExit))
+        # if res > 1:
+        #     ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0)
+        #     print('Exception raise failure')
 
     @staticmethod
     def close():
