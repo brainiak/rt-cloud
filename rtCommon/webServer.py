@@ -62,6 +62,8 @@ class Web():
             params.confDir = os.path.join(Web.webDir, 'conf/')
         if params.port:
             Web.httpPort = params.port
+        if not os.path.exists(certsDir):
+            os.makedirs(certsDir)
         src_root = os.path.join(Web.webDir, 'src')
         css_root = os.path.join(Web.webDir, 'css')
         img_root = os.path.join(Web.webDir, 'img')
