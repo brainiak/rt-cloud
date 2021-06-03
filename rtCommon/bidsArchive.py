@@ -25,10 +25,13 @@ from bids.layout import (
 from bids.layout.writing import write_to_file as bids_write_to_file
 import nibabel as nib
 import numpy as np
+import pandas as pd
 
 from rtCommon.bidsCommon import (
+    DEFAULT_EVENTS_HEADERS,
     PYBIDS_PSEUDO_ENTITIES,
     correct3DHeaderTo4D,
+    correctEventsFileDatatypes,
     getNiftiData,
     metadataAppendCompatible,
     niftiImagesAppendCompatible,
@@ -113,10 +116,8 @@ class BidsArchive:
         excludedAttributes = ['getMetadata']
 
         if attr not in excludedAttributes:
-            pattern = re.compile("get[A-Z][a-z]+")
-            if pattern.match(attr) is not None:
-                attr = attr.lower()
-                attr = attr[0:3] + '_' + attr[3:]
+            # convert to snake_case used by PyBids
+            attr = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', attr).lower()
 
         if not self.isEmpty():
             try:
@@ -198,6 +199,11 @@ class BidsArchive:
     @failIfEmpty
     def dirExistsInArchive(self, relPath: str) -> bool:
         return os.path.isdir(self.absPathFromRelPath(relPath))
+
+    @failIfEmpty
+    def getReadme(self) -> BIDSFile:
+        readmePath = os.path.join(self.rootPath, 'README')
+        return BIDSFile(readmePath)
 
     @failIfEmpty
     def getImages(self, matchExact: bool = False,
@@ -699,11 +705,75 @@ class BidsArchive:
         else:
             bidsImage = images[0]
             niftiImage = bidsImage.get_image()
+            # TODO: Add inheritance processing for higher-level metadata JSON
+            # files, in the style of the below events file inheritance
             metadata = self.getSidecarMetadata(bidsImage)
             metadata.pop('extension')  # only used in PyBids
 
             # This incremental will typically have a 4th (time) dimension > 1
             incremental = BidsIncremental(niftiImage, metadata)
+
+            # Get dataset description, set
+            incremental.datasetDescription = self.getDatasetDescription()
+
+            # Get README, set
+            with open(self.getReadme().path) as readmeFile:
+                incremental.readme = readmeFile.read()
+
+            # Get events file, set
+            # Due to inheritance, must find and process all events files the
+            # target image inherits from to create the final events file for
+            # this run
+
+            # Parse out the events files that the image file inherits from
+            inheritedFiles = []
+            searchEntities = bidsImage.get_entities()
+            # only want to compare entities, not file type
+            searchEntities.pop('extension', None)
+            searchEntities.pop('suffix', None)
+
+            allEventsFiles = self.getEvents()
+            for eventFile in allEventsFiles:
+                fileEntities = eventFile.get_entities()
+                # only want to compare entities, not file type
+                fileEntities.pop('extension', None)
+                fileEntities.pop('suffix', None)
+                if all(item in searchEntities.items() for item in
+                       fileEntities.items()):
+                    inheritedFiles.append(eventFile)
+
+            # Sort the files by their position in the hierarchy.
+            # Metric: Files with shorter path lengths are higher in the
+            # inheritance hierarchy.
+            inheritedFiles.sort(key=lambda eventsFile: len(eventsFile.path))
+
+            # Merge every subsequent events file's DataFrame, in order of
+            # inheritance (from top level to bottom level)
+            # Using a dictionary representation of the DataFrame gives access to
+            # the dict.update() method, which has exactly the desired
+            # combination behavior for inheritance (replace conflicting values
+            # with the new values, keep any non-conflicting values)
+            def mergeEventsFiles(base: dict,
+                                 eventsFile: BIDSDataFile):
+                # Set DataFrame to be indexed by 'onset' column to ensure
+                # dictionary update changes rows when onsets match
+                dfToAdd = eventsFile.get_df()
+                dfToAdd.set_index('onset', inplace=True, drop=False)
+                base.update(dfToAdd.to_dict(orient='index'))
+                return base
+
+            eventsDFDict = functools.reduce(mergeEventsFiles, inheritedFiles, {})
+            eventsDF = pd.DataFrame.from_dict(eventsDFDict, orient='index')
+            # If there's no data in the DataFrame, create the default empty
+            # events file DataFrame
+            if eventsDF.empty:
+                eventsDF = pd.DataFrame(columns=DEFAULT_EVENTS_HEADERS)
+
+            # Ensure the events file order is the same as presentation/onset
+            # order
+            eventsDF.sort_values(by='onset', inplace=True,
+                                 ignore_index=True)
+            incremental.events = correctEventsFileDatatypes(eventsDF)
 
             run = BidsRun()
             # appendIncremental will take care of splitting the BidsIncremental

@@ -244,14 +244,14 @@ def testDatasetMetadata(sample4DNifti1, imageMetadata):
     with pytest.raises(MissingMetadataError):
         BidsIncremental(image=sample4DNifti1,
                         imageMetadata=imageMetadata,
-                        datasetMetadata={"random_field": "doesnt work"})
+                        datasetDescription={"random_field": "doesnt work"})
 
     # Test valid dataset metadata
     dataset_name = "Test dataset"
     bidsInc = BidsIncremental(image=sample4DNifti1,
                               imageMetadata=imageMetadata,
-                              datasetMetadata={"Name": dataset_name,
-                                               "BIDSVersion": "1.0"})
+                              datasetDescription={"Name": dataset_name,
+                                                  "BIDSVersion": "1.0"})
     assert bidsInc.getDatasetName() == dataset_name
 
 

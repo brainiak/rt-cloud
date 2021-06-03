@@ -68,7 +68,11 @@ def isValidBidsArchive(archivePath: str, logFullOutput: bool = False) -> bool:
 
         for issue in issueDict:
             issueFiles = issue['files']
-            offendingFileNames = [f['file']['name'] for f in issueFiles]
+            # For the short README error, the file list is empty; other errors
+            # may also have an empty file list, so check to make sure the file
+            # is non-None before trying to get its name
+            offendingFileNames = [f['file']['name'] for f in issueFiles if
+                                  f['file'] is not None]
             issueKey = '{key} (Reason: {reason})'.format(key=issue['key'],
                                                          reason=issue['reason'])
             issueKeysToFiles[issueKey] = offendingFileNames

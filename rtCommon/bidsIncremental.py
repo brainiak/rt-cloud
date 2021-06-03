@@ -25,14 +25,18 @@ from rtCommon.bidsCommon import (
     BidsFileExtension,
     DATASET_DESC_REQ_FIELDS,
     DEFAULT_DATASET_DESC,
+    DEFAULT_EVENTS_HEADERS,
+    DEFAULT_README,
     PYBIDS_PSEUDO_ENTITIES,
     adjustTimeUnits,
     correct3DHeaderTo4D,
+    correctEventsFileDatatypes,
     filterEntities,
     getNiftiData,
     loadBidsEntities,
     metadataFromProtocolName,
     symmetricDictDifference,
+    writeDataFrameToEvents,
 )
 from rtCommon.errors import MissingMetadataError
 
@@ -48,7 +52,7 @@ class BidsIncremental:
     BIDS Incremental data format suitable for streaming BIDS Archives
     """
     def __init__(self, image: nib.Nifti1Image, imageMetadata: dict,
-                 datasetMetadata: dict = None):
+                 datasetDescription: dict = None):
         """
         Initializes a BIDS Incremental object with provided image and metadata.
 
@@ -56,7 +60,7 @@ class BidsIncremental:
             image: NIfTI image as an NiBabel NiftiImage or PyBids BIDSImageFile
             imageMetadata: Metadata for image, which must include all variables
                 in BidsIncremental.REQUIRED_IMAGE_METADATA.
-            datasetMetadata: Top-level dataset metadata for the BIDS dataset
+            datasetDescription: Top-level dataset metadata for the BIDS dataset
                 to be placed in a dataset_description.json. Defaults to None and
                 a default description is used.
 
@@ -71,11 +75,11 @@ class BidsIncremental:
                                  'suffix': 'bold', 'datatype': 'func',
                                  'RepetitionTime': 1.5}
             >>> image = nib.load('/tmp/testfile.nii')
-            >>> datasetMetadata = {'Name': 'Example Dataset',
+            >>> datasetDescription = {'Name': 'Example Dataset',
                                    'BIDSVersion': '1.5.1',
                                    'Authors': 'The RT-Cloud Authors'}
             >>> incremental = BidsIncremental(image, imageMetadata,
-                datasetMetadata)
+                datasetDescription)
             >>> print(incremental)
             "Image shape: (64, 64, 27, 1); Metadata Key Count: 6; BIDS-I
             Version: 1"
@@ -94,10 +98,10 @@ class BidsIncremental:
         if type(image) is BIDSImageFile:
             image = image.get_image()
 
-        # DATASET METADATA
-        if datasetMetadata is not None:
+        # DATASET DESCRIPTION
+        if datasetDescription is not None:
             missingFields = [field for field in DATASET_DESC_REQ_FIELDS
-                             if datasetMetadata.get(field, None) is None]
+                             if datasetDescription.get(field, None) is None]
             if missingFields:
                 raise MissingMetadataError(
                     f"Dataset description needs: {str(missingFields)}")
@@ -107,11 +111,11 @@ class BidsIncremental:
         self._exceptIfMissingMetadata(imageMetadata)
         self._imgMetadata = self._postprocessMetadata(imageMetadata)
 
-        """ Store dataset metadata """
-        if datasetMetadata is None:
-            self.datasetMetadata = DEFAULT_DATASET_DESC
+        """ Store dataset description"""
+        if datasetDescription is None:
+            self.datasetDescription = deepcopy(DEFAULT_DATASET_DESC)
         else:
-            self.datasetMetadata = deepcopy(datasetMetadata)
+            self.datasetDescription = deepcopy(datasetDescription)
 
         """ Validate and store image """
         # Remove singleton dimensions past the 3rd dimension
@@ -141,11 +145,11 @@ class BidsIncremental:
         self.image = image
 
         # Configure README
-        self.readme = "Generated BIDS-Incremental Dataset from RT-Cloud"
+        self.readme = DEFAULT_README
 
         # Configure events file
-        eventDefaultHeaders = ['onset', 'duration', 'response_time']
-        self.events = pd.DataFrame(columns=eventDefaultHeaders)
+        self.events = pd.DataFrame(columns=DEFAULT_EVENTS_HEADERS)
+        self.events = correctEventsFileDatatypes(self.events)
 
         # BIDS-I version for serialization
         self.version = 1
@@ -188,11 +192,11 @@ class BidsIncremental:
                          np.sum(differences) / np.size(differences) * 100.0)
             return False
 
-        # Compare dataset metadata
-        if self.datasetMetadata != other.datasetMetadata:
-            reportDifference("Dataset metadata",
-                             self.datasetMetadata,
-                             other.datasetMetadata)
+        # Compare dataset description
+        if self.datasetDescription != other.datasetDescription:
+            reportDifference("Dataset description",
+                             self.datasetDescription,
+                             other.datasetDescription)
             return False
 
         if not self.readme == other.readme:
@@ -523,7 +527,7 @@ class BidsIncremental:
         return bids_build_path(entities, BIDS_FILE_PATTERN)
 
     def getDatasetName(self) -> str:
-        return self.datasetMetadata["Name"]
+        return self.datasetDescription["Name"]
 
     def getImageFileName(self) -> str:
         # TODO(spolcyn): Support writing to a compressed NIfTI file
@@ -600,13 +604,12 @@ class BidsIncremental:
                                key not in PYBIDS_PSEUDO_ENTITIES}
             json.dump(metadataToWrite, metadataFile, sort_keys=True, indent=4)
 
-        with open(eventsPath, mode='w') as eventsFile:
-            self.events.to_csv(eventsFile, index=False, sep='\t')
+        writeDataFrameToEvents(self.events, eventsPath)
 
         if not onlyData:
             # Write out dataset description
             with open(descriptionPath, mode='w') as description:
-                json.dump(self.datasetMetadata, description, indent=4)
+                json.dump(self.datasetDescription, description, indent=4)
 
             # Write out readme
             with open(readmePath, mode='w') as readme:

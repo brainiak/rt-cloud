@@ -6,10 +6,12 @@ Implements the BIDS Run data type used for representing full fMRI scanning runs
 as sequences of BIDS incrementals.
 
 -----------------------------------------------------------------------------"""
+from copy import deepcopy
 import logging
 import warnings
 
 import numpy as np
+import pandas as pd
 
 from rtCommon.bidsCommon import (
     metadataAppendCompatible,
@@ -31,6 +33,10 @@ class BidsRun:
         self._imageAffine = None
         self._imageKlass = None
 
+        self._readme = None
+        self._datasetDescription = None
+        self._events = None
+
     def __eq__(self, other):
         if self.numIncrementals() != other.numIncrementals():
             return False
@@ -43,6 +49,12 @@ class BidsRun:
         if not np.array_equal(self._imageAffine, other._imageAffine):
             return False
         if self._imageKlass != other._imageKlass:
+            return False
+        if self._readme != other._readme:
+            return False
+        if self._datasetDescription != other._datasetDescription:
+            return False
+        if not pd.DataFrame.equals(self._events, other._events):
             return False
         for (arr1, arr2) in zip(self._dataArrays, other._dataArrays):
             if not np.array_equal(arr1, arr2):
@@ -125,9 +137,19 @@ class BidsRun:
         if self._imageKlass is None:
             self._imageKlass = incremental.image.__class__
 
+        if self._readme is None:
+            self._readme = incremental.readme
+
+        if self._datasetDescription is None:
+            self._datasetDescription = deepcopy(incremental.datasetDescription)
+
+        if self._events is None:
+            self._events = incremental.events.copy(deep=True)
+
         if validateAppend:
-            entityDifference = symmetricDictDifference(self._entities,
-                                                       incremental.getEntities())
+            entityDifference = \
+                symmetricDictDifference(self._entities,
+                                        incremental.getEntities())
             if len(entityDifference) != 0:
                 # Two cases:
                 # 1) New incremental matches all existing entities, and just
@@ -163,14 +185,46 @@ class BidsRun:
                                 f" with this run's images ({metadataErrorMsg})")
                     raise MetadataMismatchError(errorMsg)
 
+            # Verify readme
+            if not incremental.readme == self._readme:
+                errorMsg = ("Incremental's readme doesn't match run's readme "
+                            "(incremental: {}, run: {})"
+                            .format(incremental.readme, self._readme))
+                raise MetadataMismatchError(errorMsg)
+
+            # Verify dataset description
+            datasetDescriptionDifference = \
+                symmetricDictDifference(self._datasetDescription,
+                                        incremental.datasetDescription)
+            if len(datasetDescriptionDifference) != 0:
+                errorMsg = ("Incremental's dataset description doesn't match "
+                            "run's dataset description {}"
+                            .format(datasetDescriptionDifference))
+                raise MetadataMismatchError(errorMsg)
+
+            # Verify first part of new events file matches all rows in existing
+            # events file
+            incrementalSubset = incremental.events.iloc[0:len(self._events)]
+            if not incrementalSubset.equals(self._events):
+                errorMsg = ("Run's existing events must be found in first part "
+                            "of incremental's events file, weren't: "
+                            "\nexisting:\n{existing}\n"
+                            "\nnew:\n{new}\n".format(
+                                existing=self._events, new=incrementalSubset))
+                raise MetadataMismatchError(errorMsg)
+
+        # Update events file with new events
+        newRowSubset = incremental.events.iloc[len(self._events):]
+        self._events = self._events.append(newRowSubset, ignore_index=True)
+
         # Slice up the incremental into smaller component images if it has
         # multiple images in its image volume
         imagesInVolume = incremental.getImageDimensions()[3]
 
         try:
-            import indexed_gzip
+            import indexed_gzip  # noqa
         except ImportError:
-            warnings.warn("Package 'indexed_gzip' not available: appending a BIDS"
+            warnings.warn("Package 'indexed_gzip' not available: appending BIDS"
                           " Incremental that uses a gzipped NIfTI file as its "
                           "underlying data source will be very slow. Install "
                           "the 'indexed_gzip' package with 'conda install "

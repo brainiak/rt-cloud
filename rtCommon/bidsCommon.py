@@ -15,6 +15,7 @@ import re
 from bids.layout.models import Config as BidsConfig
 import nibabel as nib
 import numpy as np
+import pandas as pd
 import pydicom
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,12 @@ DEFAULT_DATASET_DESC = {"Name": "bidsi_dataset",
                         "BIDSVersion": str(BIDS_VERSION),
                         "Authors": ["The RT-Cloud Authors",
                                     "The Dataset Author"]}
+
+# Deafult readme text for RT-Cloud
+DEFAULT_README = "Generated BIDS-Incremental Dataset from RT-Cloud"
+
+# Required columns for the BIDS events files
+DEFAULT_EVENTS_HEADERS = ['onset', 'duration']
 
 # Pattern for creating BIDS filenames from all compatible fMRI entities
 BIDS_FILE_PATTERN = "sub-{subject}[_ses-{session}]_task-{task}" \
@@ -46,6 +53,15 @@ BIDS_FILE_PATH_PATTERN = BIDS_DIR_PATH_PATTERN + '/' + BIDS_FILE_PATTERN
 # 'Entities' reported by PyBids for files and used for searching, but that don't
 # actually exist in the BIDS Standard and that shouldn't be output in an archive
 PYBIDS_PSEUDO_ENTITIES = ['extension']
+
+# https://bids-specification.readthedocs.io/en/stable/04-modality-specific-files/05-task-events.html
+BIDS_EVENT_COL_TO_DTYPE = {'onset': 'float64',
+                           'duration': 'float64',
+                           'sample': 'float64',
+                           'trial_type': 'object',
+                           'response_time': 'float64',
+                           'value': 'object',  # can be str or num
+                           'HED': 'object'}
 
 
 # Valid extensions for various file types in the BIDS format
@@ -528,3 +544,23 @@ def metadataAppendCompatible(meta1: dict, meta2: dict) -> Tuple[bool, str]:
             return (False, errorMsg)
 
     return (True, "")
+
+
+# Given Pandas DataFrame representation of an events file, sets the datatypes to
+# match the BIDS Standard
+def correctEventsFileDatatypes(df: pd.DataFrame) -> pd.DataFrame:
+    # The Pandas astype method throws an error if any columns it's asked to
+    # switch the dtypes of aren't present, so pre-filter the columns to be only
+    # the ones that are present in the DataFrame to process
+    targetColsToDtypes = {col: dtype for col, dtype in
+                          BIDS_EVENT_COL_TO_DTYPE.items() if col in df.columns}
+    return df.astype(targetColsToDtypes)
+
+
+# Writes out a BIDS events file with proper formatting from a Pandas dataframe
+def writeDataFrameToEvents(df: pd.DataFrame, path: str) -> None:
+    # Tab-separated file without the Pandas index written out (including the
+    # Pandas index adds a spurious column in the first position of the TSV file
+    # that confuses later readers of the file)
+    with open(path, mode='w') as eventsFile:
+        df.to_csv(eventsFile, index=False, sep='\t')

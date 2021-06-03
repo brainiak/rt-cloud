@@ -24,9 +24,13 @@ from rtCommon.bidsCommon import (
     BIDS_DIR_PATH_PATTERN,
     BIDS_FILE_PATTERN,
     DEFAULT_DATASET_DESC,
+    DEFAULT_README,
+    DEFAULT_EVENTS_HEADERS,
     adjustTimeUnits,
+    correctEventsFileDatatypes,
     getDicomMetadata,
     getNiftiData,
+    writeDataFrameToEvents,
 )
 from rtCommon.bidsIncremental import BidsIncremental
 from tests.createTestNiftis import (
@@ -145,6 +149,7 @@ def sample4DNifti1():
 def sampleNifti2():
     return readNifti(test_4DNifti2Path)
 
+
 # Set of BIDS entities needed for BIDS-I creation
 @pytest.fixture(scope='function')
 def sampleBidsEntities():
@@ -171,6 +176,7 @@ def validBidsI(sample4DNifti1, imageMetadata):
     return BidsIncremental(image=sample4DNifti1,
                            imageMetadata=imageMetadata)
 
+
 @pytest.fixture(scope='function')
 def oneImageBidsI(sample4DNifti1, imageMetadata):
     """
@@ -182,6 +188,7 @@ def oneImageBidsI(sample4DNifti1, imageMetadata):
 
     return BidsIncremental(image=newImage,
                            imageMetadata=imageMetadata)
+
 
 def archiveWithImage(image, metadata: dict, tmpdir):
     """
@@ -196,7 +203,7 @@ def archiveWithImage(image, metadata: dict, tmpdir):
             break
 
     # Create the archive by hand, with default readme and dataset description
-    Path(rootPath, 'README').write_text("README for pytest")
+    Path(rootPath, 'README').write_text(DEFAULT_README)
     Path(rootPath, 'dataset_description.json') \
         .write_text(json.dumps(DEFAULT_DATASET_DESC))
 
@@ -210,7 +217,8 @@ def archiveWithImage(image, metadata: dict, tmpdir):
 
     nib.save(image, str(imagePath))
 
-    # BIDS-I's takes care of this automatically, but must be done manually here
+    # BIDS Incremental takes care of this automatically, but must be done
+    # manually here
     metadata['TaskName'] = metadata['task']
     metadataPath.write_text(json.dumps(metadata))
     del metadata['TaskName']
@@ -221,10 +229,9 @@ def archiveWithImage(image, metadata: dict, tmpdir):
     metadata['extension'] = '.tsv'
 
     eventsPath = Path(dataPath, bids_build_path(metadata, BIDS_FILE_PATTERN))
-    with open(eventsPath, mode='w') as eventsFile:
-        eventDefaultHeaders = ['onset', 'duration', 'response_time']
-        pd.DataFrame(columns=eventDefaultHeaders).to_csv(eventsFile,
-                                                         index=False, sep='\t')
+    df = pd.DataFrame(columns=DEFAULT_EVENTS_HEADERS)
+    df = correctEventsFileDatatypes(df)
+    writeDataFrameToEvents(df, str(eventsPath))
 
     # Create an archive from the directory and return it
     return BidsArchive(rootPath)
