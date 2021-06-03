@@ -1,18 +1,19 @@
-var refreshCount = 0
-var startTime
+var refreshCount = 0;
+var startTime;
 
+// Store the incoming feedback (i.e. classification results)
 var FeedbackStatus = {
   connected : false,
   doFeedback: false,
   error : "No Error",
   message : "Begin Message",
+  runId : 0,
+  trId : 0,
   val : 0,
-}
+};
 
-// function randomNumber() {
-//   FeedbackStatus.val = Math.random() * 100
-//   console.log(FeedbackStatus.val)
-// }
+// Collect the subject's keyboard responses
+var ResponseQueue = [];
 
 // setInterval(randomNumber, 1000)
 
@@ -42,15 +43,18 @@ function createWebSocket() {
     var reqClass = request['class']
     var reqCmd = request['attribute']
     var reqArgs = request['args']
-    console.log(reqClass + " " + reqCmd + " " + reqArgs)
-    // TODO - enqueue and event here and trigger rtEvent
     var retVal = true
     var retCode = 200
     if (reqCmd == 'setResult') {
+      var runId = reqArgs[0]
+      var trId = reqArgs[1]
       var val = reqArgs[2]
       FeedbackStatus.doFeedback = true
+      FeedbackStatus.runId = runId
+      FeedbackStatus.trId = trId
       FeedbackStatus.val = val
       FeedbackStatus.message = "BrainState: " + FeedbackStatus.val
+      // Trigger the rtEvent to end the previous trial and start this next one
       let event = new CustomEvent("rtEvent");
       document.dispatchEvent(event);
     } else if (reqCmd == 'setMessage') {
@@ -58,6 +62,13 @@ function createWebSocket() {
       FeedbackStatus.message = reqArgs[0]
       let event = new CustomEvent("rtEvent");
       document.dispatchEvent(event);
+    } else if (reqCmd = 'getResponses') {
+      // Dequeue and return all data from ResponseQueue
+      retVal = []
+      while (ResponseQueue.length > 0) {
+        var entry = ResponseQueue.shift();
+        retVal.push(entry);
+      }
     } else {
       errStr = "Unknown message type: " + reqCmd
       FeedbackStatus.error = errStr

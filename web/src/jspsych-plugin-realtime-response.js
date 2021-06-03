@@ -28,23 +28,53 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
         pretty_name: 'Canvas size',
         default: [500, 500],
         description: 'Array containing the height (first value) and width (second value) of the canvas element.'
-      }
+      },
+      choices: {
+        type: jsPsych.plugins.parameterType.KEY,
+        array: true,
+        pretty_name: 'Choices',
+        default: jsPsych.NO_KEYS,
+        description: 'The keys the subject is allowed to press to respond to the stimulus.'
+      },
     }
   }
 
   plugin.trial = function(display_element, trial) {
-
-    // start time
     var start_time = performance.now();
     var rtEvent_time = null;
+    // store subject's keyboard response
+    var response = {
+      rt: null,   // response time
+      key: null,  // key pressed
+    };
 
     // add event listeners to document
-    document.addEventListener('rtEvent', wrap_up);
+    document.addEventListener('rtEvent', event_handler);
+
+    // function to handle responses by the subject
+    var after_response = function(info) {
+      // only record the first response
+      if (response.key == null) {
+        response = info;
+      }
+    };
+
+    // start the response listener
+    var keyboardListener = null;
+    if (trial.choices != jsPsych.NO_KEYS) {
+      keyboardListener = jsPsych.pluginAPI.getKeyboardResponse({
+        callback_function: after_response,
+        valid_responses: trial.choices,
+        rt_method: 'performance',
+        persist: false,
+        allow_held_key: false,
+      });
+    }
 
     // function to wrap up when the event has arrived (not finished if it's too early)
-    function wrap_up(){
+    function event_handler(){
       // remove the listener first!
-      document.removeEventListener('rtEvent', wrap_up);
+      document.removeEventListener('rtEvent', event_handler);
 
       // store when the rtEvent event happened
       rtEvent_time = performance.now() - start_time;
@@ -60,9 +90,15 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
 
     // function to end trial when it is time
     function end_trial() {
+      if (keyboardListener != null) {
+        jsPsych.pluginAPI.cancelKeyboardResponse(keyboardListener)
+      }
+
       // gather the data to store for the trial
       var trial_data = {
-        "rtEvent_time":  rtEvent_time
+        "rtEvent_time":  rtEvent_time,
+        "key_pressed": response.key,
+        "key_response_time": response.rt,
       };
 
       // clear the display

@@ -68,16 +68,25 @@ class SubjectInterface(RemoteableExtensible):
         print(f'SubjectInterface: setMessage: {message}')
         self.message = message
 
-    def dequeueResult(self, block :bool=False, timeout :int=None) -> float:
-        """
-        Return the next result value send by the experiment script. Used by the
-        presentation script.
-        """
-        return self.msgQueue.get(block=block, timeout=timeout)
-
     def getResponse(self, runId :int, trId :int):
         """
         Retrieve the subject response, used by the classification script.
         """
         print(f'SubjectInterface: getResponse: run {runId}, tr {trId}')
         pass
+
+    def getResponses(self):
+        """
+        Retrieve all subject responses since the last time this call was made
+        """
+        print(f'SubjectInterface: getResponses')
+        pass
+
+    def dequeueResult(self, block :bool=False, timeout :int=None) -> float:
+        """
+        Return the next result value sent by the experiment script. Used by the
+        presentation script.
+        """
+        return self.msgQueue.get(block=block, timeout=timeout)
+
+

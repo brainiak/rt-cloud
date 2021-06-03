@@ -325,6 +325,9 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     output_matFilename = os.path.join('/tmp/cloud_directory/tmp/avg_activations.mat')
 
     subjInterface.setMessage("End Run")
+    responses = subjInterface.getResponses()
+    if verbose:
+        print(f'Responses: {responses}')
 
     # use 'putFile' from the dataInterface to save the .txt file
     #   INPUT:

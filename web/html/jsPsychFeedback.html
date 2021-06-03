@@ -18,8 +18,6 @@ createWebSocket();
 
 var timeline = []
 
-// TODO - add a key listener for subject responses
-
 // this function draws a circle with a brainstate radius
 function drawCircle(canvas, stateVal){
   var ctx = canvas.getContext('2d');
@@ -34,18 +32,20 @@ function drawCircle(canvas, stateVal){
     ctx.stroke();
 }
 
-// This creates a trial of type brain-realtime-response which
-//   when triggered by an 'rtEvent' will switch to the next trial.
-// The trial_duration is the minimal amount of time the trial takes.
-// on_start() called for each trial:
-//   - Add the html component to inner_html
-//   - Call the draw function on that html component
-// data field is for logging data at the end
-//   on_finish() or end_trial() could get trial.data and send back over websocket
+/* This creates a trial of type brain-realtime-response which
+ *   when triggered by an 'rtEvent' will switch to the next trial.
+ * The trial_duration is the minimal amount of time the trial takes.
+ * on_start() called for each trial:
+ *   - Add the html component to inner_html
+ *   - Call the draw function on that html component
+ * data field is for logging data at the end
+ *   on_finish() or end_trial() could get trial.data and send back over websocket
+ */
 var feedbackNode = {
   type: 'brain-realtime-response',
+  choices: jsPsych.ALL_KEYS,
   canvas_size: [window.innerHeight, window.innerWidth],
-  data: {shape: 'circle', radius: 0},
+  data: {shape: 'circle', runId: 0, trId: 0, val: 0},
   on_start: function(trial) {
     var canvas_html = '<canvas id="jspsych-canvas-stimulus" ' +
                           'height="' + trial.canvas_size[0] + '" ' +
@@ -54,9 +54,14 @@ var feedbackNode = {
     var display_element = jsPsych.getDisplayElement();
     display_element.innerHTML = canvas_html;
     var canvas = document.getElementById("jspsych-canvas-stimulus");
-    trial.data.radius = FeedbackStatus.val;
+    trial.data.runId = FeedbackStatus.runId;
+    trial.data.trId = FeedbackStatus.trId;
+    trial.data.val = FeedbackStatus.val;
     drawCircle(canvas, FeedbackStatus.val);
-  }
+  },
+  on_finish: function(data) {
+    ResponseQueue.push(data);
+  },
 }
 
 // A message node shows a message between feedback trials
@@ -107,21 +112,4 @@ jsPsych.init({
 });
 
 </script>
-<!--
-  var welcome = {
-    type: "html-keyboard-response",
-    stimulus: "Welcome to the experiment. Press any key to begin."
-  };
-  timeline.push(welcome); -->
-
-<!--
-  /** This would be calling the saveData function every trial
-   * Then you would have to rewrite it such that it only adds the latest trial's data
-
-  timeline.push({
-    type: 'call-function',
-    func: saveData
-  });
-  **/
-   -->
 </html>
