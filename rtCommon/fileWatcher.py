@@ -102,7 +102,7 @@ class WatchdogFileWatcher():
         self.observer.schedule(self.fileNotifyHandler, dir, recursive=False)
         self.observer.start()
 
-    def waitForFile(self, filename: str, timeout: int=0) -> Optional[str]:
+    def waitForFile(self, filename: str, timeout: int=0, timeCheckIncrement: int=1) -> Optional[str]:
         """
         Wait for a specific filename to be created in the directory specified in initFileNotifier.
         Args:
@@ -110,6 +110,8 @@ class WatchdogFileWatcher():
                 match that specified in initFileNotifier.
             timeout: Max number of seconds to watch for the file creation. If timeout expires
                 before the file is created then None will be returned
+            timeCheckIncrement: Time interval (secs) to check if file exists in case file
+                creation events are somehow missed.
         Returns:
             The filename of the created file (same as input arg) or None if timeout expires
         """
@@ -130,14 +132,18 @@ class WatchdogFileWatcher():
         exitWithFileEvent = False
         eventTimeStamp = 0
         startTime = time.time()
-        timeToCheckForFile = time.time() + 1  # check if file exists at least every second
         while not fileExists:
-            if timeout > 0 and time.time() > (startTime + timeout):
-                return None
+            if timeout > 0:
+                remainingTime = (startTime + timeout) - time.time()
+                if remainingTime <= 0:
+                    return None
+                if remainingTime < timeCheckIncrement:
+                    timeCheckIncrement = remainingTime
             # look for file creation event
             eventLoopCount += 1
+            timeToCheckForFile = time.time() + timeCheckIncrement
             try:
-                event, ts = self.fileNotifyQ.get(block=True, timeout=1.0)
+                event, ts = self.fileNotifyQ.get(block=True, timeout=timeCheckIncrement)
             except Empty:
                 # The timeout occured on fileNotifyQ.get()
                 fileExists = os.path.exists(filename)
@@ -152,11 +158,10 @@ class WatchdogFileWatcher():
                 exitWithFileEvent = True
                 eventTimeStamp = ts
                 continue
-            if time.time() > timeToCheckForFile:
+            if time.time() >= timeToCheckForFile:
                 # periodically check if file exists, can occur if we get
                 #   swamped with unrelated events
                 fileExists = os.path.exists(filename)
-                timeToCheckForFile = time.time() + 1
 
         # wait for the full file to be written, wait at most 300 ms
         waitIncrement = 0.1
@@ -250,7 +255,7 @@ class InotifyFileWatcher():
             self.watchDir = dir
             self.notifier.add_watch(self.watchDir, mask=inotify.constants.IN_CLOSE_WRITE)
 
-    def waitForFile(self, filename: str, timeout: int=0) -> Optional[str]:
+    def waitForFile(self, filename: str, timeout: int=0, timeCheckIncrement: int=1) -> Optional[str]:
         """
         Wait for a specific filename to be created in the directory specified in initFileNotifier.
         Args:
@@ -258,6 +263,8 @@ class InotifyFileWatcher():
                 match that specified in initFileNotifier.
             timeout: Max number of seconds to watch for the file creation. If timeout expires
                 before the file is created then None will be returned
+            timeCheckIncrement: Time interval (secs) to check if file exists in case file
+                creation events are somehow missed.
         Returns:
             The filename of the created file (same as input arg) or None if timeout expires
         """
@@ -278,14 +285,18 @@ class InotifyFileWatcher():
         exitWithFileEvent = False
         eventTimeStamp = 0
         startTime = time.time()
-        timeToCheckForFile = time.time() + 1  # check if file exists at least every second
         while not fileExists:
-            if timeout > 0 and time.time() > (startTime + timeout):
-                return None
+            if timeout > 0:
+                remainingTime = (startTime + timeout) - time.time()
+                if remainingTime <= 0:
+                    return None
+                if remainingTime < timeCheckIncrement:
+                    timeCheckIncrement = remainingTime
             # look for file creation event
             eventLoopCount += 1
+            timeToCheckForFile = time.time() + timeCheckIncrement
             try:
-                eventfile, ts = self.fileNotifyQ.get(block=True, timeout=1.0)
+                eventfile, ts = self.fileNotifyQ.get(block=True, timeout=timeCheckIncrement)
             except Empty:
                 # The timeout occured on fileNotifyQ.get()
                 fileExists = os.path.exists(filename)
@@ -300,11 +311,10 @@ class InotifyFileWatcher():
                 exitWithFileEvent = True
                 eventTimeStamp = ts
                 continue
-            if time.time() > timeToCheckForFile:
+            if time.time() >= timeToCheckForFile:
                 # periodically check if file exists, can occur if we get
                 #   swamped with unrelated events
                 fileExists = os.path.exists(filename)
-                timeToCheckForFile = time.time() + 1
         if exitWithFileEvent is False:
             # We didn't get a file-close event because the file already existed.
             # Check the file size and sleep up to 300 ms waitig for full size

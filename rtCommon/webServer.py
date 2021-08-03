@@ -290,6 +290,7 @@ class WsBrowserRequestHandler:
             toml.dump(cfg, fd)
 
         # specify -u python option to disable buffering print commands
+        # TODO - handle spaces in pyScript or rootDir
         cmdStr = f'python -u {pyScript} -c {configFileName}'
         # add to the rtCommon dir to the PYTHONPATH env variable
         env = os.environ.copy()
