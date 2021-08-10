@@ -66,11 +66,14 @@ class WatchdogFileWatcher():
         self.minFileSize = 0
         self.demoStep = 0
         self.prevEventTime = 0
+        self.foundWithFileEvent = False
+        self.waitLoopCount = 0
 
     def __del__(self):
         if self.observer is not None:
             try:
                 self.observer.stop()
+                self.observer.join()
             except Exception as err:
                 # TODO - change back to log once can figure out what the observer.stop streamRef error is
                 print("FileWatcher: oberver.stop(): %s", str(err))
@@ -93,14 +96,16 @@ class WatchdogFileWatcher():
         self.minFileSize = minFileSize
         if self.observer is not None:
             self.observer.stop()
+            self.observer.join()
         self.observer = Observer()
         if filePattern is None or filePattern == '':
             filePattern = '*'
         self.filePattern = filePattern
         self.watchDir = dir
         self.fileNotifyHandler = FileNotifyHandler(self.fileNotifyQ, [filePattern])
-        self.observer.schedule(self.fileNotifyHandler, dir, recursive=False)
+        self.observer.schedule(self.fileNotifyHandler, os.path.realpath(dir), recursive=False)
         self.observer.start()
+
 
     def waitForFile(self, filename: str, timeout: int=0, timeCheckIncrement: int=1) -> Optional[str]:
         """
@@ -129,10 +134,12 @@ class WatchdogFileWatcher():
                 logStr = "FileWatcher: Waiting for file {}, timeout {}s ".format(filename, timeout)
                 logging.log(DebugLevels.L6, logStr)
         eventLoopCount = 0
-        exitWithFileEvent = False
+        self.foundWithFileEvent = False
         eventTimeStamp = 0
         startTime = time.time()
+        self.waitLoopCount = 0
         while not fileExists:
+            self.waitLoopCount += 1
             if timeout > 0:
                 remainingTime = (startTime + timeout) - time.time()
                 if remainingTime <= 0:
@@ -153,10 +160,13 @@ class WatchdogFileWatcher():
             # We may have a stale event from a previous file if multiple events
             #   are created per file or if the previous file eventloop
             #   timed out and then the event arrived later.
-            if event.src_path == filename:
+            if os.path.realpath(event.src_path) == os.path.realpath(filename):
                 fileExists = True
-                exitWithFileEvent = True
+                self.foundWithFileEvent = True
                 eventTimeStamp = ts
+                if event.event_type == 'created':
+                    # brief sleep after created event
+                    time.sleep(.05)
                 continue
             if time.time() >= timeToCheckForFile:
                 # periodically check if file exists, can occur if we get
@@ -175,7 +185,7 @@ class WatchdogFileWatcher():
                     "File avail: eventLoopCount %d, writeWaitTime %.3f, "
                     "fileEventCaptured %s, fileName %s, eventTimeStamp %.5f",
                     eventLoopCount, totalWriteWait,
-                    exitWithFileEvent, filename, eventTimeStamp)
+                    self.foundWithFileEvent, filename, eventTimeStamp)
         if self.demoStep is not None and self.demoStep > 0:
             self.prevEventTime = demoDelay(self.demoStep, self.prevEventTime)
         return filename
@@ -217,6 +227,8 @@ class InotifyFileWatcher():
         self.shouldExit = False
         self.demoStep = 0
         self.prevEventTime = 0
+        self.foundWithFileEvent = False
+        self.waitLoopCount = 0
         # create a listening thread
         self.fileNotifyQ = Queue()  # type: None
         self.notifier = inotify.adapters.Inotify()
@@ -253,7 +265,8 @@ class InotifyFileWatcher():
             if self.watchDir is not None:
                 self.notifier.remove_watch(self.watchDir)
             self.watchDir = dir
-            self.notifier.add_watch(self.watchDir, mask=inotify.constants.IN_CLOSE_WRITE)
+            self.notifier.add_watch(os.path.realpath(self.watchDir), 
+                                    mask=inotify.constants.IN_CLOSE_WRITE)
 
     def waitForFile(self, filename: str, timeout: int=0, timeCheckIncrement: int=1) -> Optional[str]:
         """
@@ -282,10 +295,12 @@ class InotifyFileWatcher():
                 logStr = "FileWatcher: Waiting for file {}, timeout {}s ".format(filename, timeout)
                 logging.log(DebugLevels.L6, logStr)
         eventLoopCount = 0
-        exitWithFileEvent = False
+        self.foundWithFileEvent = False
         eventTimeStamp = 0
         startTime = time.time()
+        self.waitLoopCount = 0
         while not fileExists:
+            self.waitLoopCount += 1
             if timeout > 0:
                 remainingTime = (startTime + timeout) - time.time()
                 if remainingTime <= 0:
@@ -306,16 +321,16 @@ class InotifyFileWatcher():
             # We may have a stale event from a previous file if multiple events
             #   are created per file or if the previous file eventloop
             #   timed out and then the event arrived later.
-            if eventfile == filename:
+            if os.path.realpath(eventfile) == os.path.realpath(filename):
                 fileExists = True
-                exitWithFileEvent = True
+                self.foundWithFileEvent = True
                 eventTimeStamp = ts
                 continue
             if time.time() >= timeToCheckForFile:
                 # periodically check if file exists, can occur if we get
                 #   swamped with unrelated events
                 fileExists = os.path.exists(filename)
-        if exitWithFileEvent is False:
+        if self.foundWithFileEvent is False:
             # We didn't get a file-close event because the file already existed.
             # Check the file size and sleep up to 300 ms waitig for full size
             waitIncrement = 0.1
@@ -328,7 +343,7 @@ class InotifyFileWatcher():
         logging.log(DebugLevels.L6,
                     "File avail: eventLoopCount %d, fileEventCaptured %s, "
                     "fileName %s, eventTimeStamp %d", eventLoopCount,
-                    exitWithFileEvent, filename, eventTimeStamp)
+                    self.foundWithFileEvent, filename, eventTimeStamp)
         if self.demoStep is not None and self.demoStep > 0:
             self.prevEventTime = demoDelay(self.demoStep, self.prevEventTime)
         return filename
