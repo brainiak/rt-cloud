@@ -8,6 +8,7 @@ for Mac and Windows (WatchdogFileWatcher) and one for Linux (InotifyFileWatcher)
 import os
 import sys
 import time
+import pathlib
 import logging
 import threading
 from typing import Optional
@@ -223,6 +224,7 @@ class InotifyFileWatcher():
     """Version of FileWatcher for Linux using Inotify interface."""
     def __init__(self):
         self.watchDir = None
+        self.filePattern = None
         self.minFileSize = 0
         self.shouldExit = False
         self.demoStep = 0
@@ -255,6 +257,7 @@ class InotifyFileWatcher():
                 This is used when the image files are pre-existing but we want to simulate as if
                 the arrive from the scanner every few seconds (demoStep seconds).
         """
+        self.filePattern = filePattern
         self.demoStep = demoStep
         self.minFileSize = minFileSize
         if dir is None:
@@ -358,7 +361,9 @@ class InotifyFileWatcher():
             if event is not None:
                 # print(event)      # uncomment to see all events generated
                 if 'IN_CLOSE_WRITE' in event[1]:
-                    fullpath = os.path.join(event[2], event[3])
-                    self.fileNotifyQ.put((fullpath, time.time()))
+                    path = pathlib.Path(event[3])
+                    if path.match(self.filePattern):
+                        fullpath = os.path.join(event[2], event[3])
+                        self.fileNotifyQ.put((fullpath, time.time()))
                 else:
                     self.fileNotifyQ.put(('', time.time()))
