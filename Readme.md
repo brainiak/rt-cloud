@@ -145,6 +145,14 @@ For the sample we will run all services (the projectInterface, scannerDataServic
 6. An error in your script. Try running your script without starting the projectInterface. The clientInterface() method called by your script will create an internal version of the data services if there is no projectInterface started on localhost. If you specify yesToPrompts=True when instantiating the clientInterface (ClientInterface(yesToPrompts=True)) it will automatically use local services if there is no projectInterface running.
 7. A DICOM error is reported such as, *"ValueError: The length of the pixel data in the dataset (287580 bytes) doesn't match the expected length (294912 bytes). The dataset may be corrupted or there may be an issue with the pixel data handler"*. This usually indicates that the DICOM file was read by the FileWatcher before the file was completely written. To handle this, adjust the 'minFileSize' parameter that is passed to dataInterface.initWatch() or dataInterface.initScannerStream(), see the projects/sample/sample.py for an example. The minFileSize indicates a lower bound below which the FileWatcher will continue waiting before reading a file. Set the minFileSize to slightly below the smallest DICOM file size expected.
 
+## Running the Automated Test Suite
+1. Follow the installation instructions detailed above
+2. Activate the conda environment
+    - <code>conda activate rtcloud</code>
+3. Additionally, install bids-validator
+    - <code>npm install -g bids-validator</code>
+4. Run the test suite
+    - <code>python -m pytest -s -v tests/</code>
 
 ## Further Reading
 - [Run Project in a Docker Container](docs/run-in-docker.md)

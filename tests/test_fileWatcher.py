@@ -108,6 +108,7 @@ def test_waitForFile_wrongDir():
 
     watcher = fileWatcher.FileWatcher()
     wrongPath = os.path.join(watchTmpPath, 'nodir')
+    os.makedirs(wrongPath, exist_ok=True)
     watcher.initFileNotifier(wrongPath, '*.dcm', 300000)
 
     # Calling waitForFile on a path different from the initFileNotifier path should fail
