@@ -46,7 +46,7 @@ class FileWatcher():
         logging.log(logging.ERROR, "FileWatcher is abstract class. initFileNotifier not implemented")
         return None
 
-    def waitForFile(self, filename, timeout=0):
+    def waitForFile(self, filename, timeout=0, timeCheckIncrement=1):
         logging.log(logging.ERROR, "FileWatcher is abstract class. waitForFile not implemented")
         return ''
 

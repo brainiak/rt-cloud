@@ -298,7 +298,7 @@ class WsBrowserRequestHandler:
         cmd = ['python', '-u', pyScript, '-c', configFileName] # shlex.split(cmdStr)
         print('###RUN: ' + ' '.join(cmd))
         proc = subprocess.Popen(cmd, cwd=rootDir, env=env, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+                                stderr=subprocess.STDOUT, stdin=subprocess.PIPE, shell=False)
         # send running status to user web page
         self.webUI.sendRunStatus(tag + ' running')
         # start a separate thread to read the process output

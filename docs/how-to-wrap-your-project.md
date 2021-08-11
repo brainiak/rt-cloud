@@ -51,6 +51,8 @@ Or use the streaming interface to receive image data:
     streamId = dataInterface.initScannerStream('/tmp/dicoms', 'samp*.dcm', minFileSize)
     dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout=10)
 
+Set the minFileSize parameter to the minimum size expected for DICOM files. This can be determined by listing the sizes of a set of previously collected DICOM files and selecting slightly less than the smallest as the minimumFileSize. The FileWatcher will not return a file until its minimum size has been reached, this helps ensure that a file is completely written before being made available. However, if this parmeter is set to high (higher than the file size) the file will never be returned.
+
 ### **Send Classification Results for Subject Feedback**
 
 Send classification results to the presentation computer using the subjectInterface setResult() command:
@@ -77,12 +79,14 @@ Or read the newest file matching a file pattern such as 'samp*.dcm'
 
 
 ### **Load Project Configurations**
-Use a TOML file for configuration settings. Use the loadConfigFile funtion to load your configurations into a structured object
+RT-Cloud experiments use a TOML file for configuration settings. You can define your own configuration variables just by adding them to the TOML configuration file. Your configuration variables will automatically appear in the web interface 'settings' tab and you can adjust the values from the page.
+
+Use the loadConfigFile funtion from your experiment script to load your configurations into a structured object
 
     import rtCommon.utils as utils
     cfg = utils.loadConfigFile(args.config)
 
-Access configurations within the config structure
+Access configurations within the experiment script using the config structure
 
     print(cfg.subjectName, cfg.subjectDay)
 
@@ -92,7 +96,7 @@ The following fields must be present in the config toml file for the projectInte
   - subjectName = 'subject01'
   - subjectDay = 1
 
-  Optional Parameters:
+Optional parameters used for plotting:
   - title = 'Project Title'
   - plotTitle = 'Plot Title'
   - plotXLabel = 'Sample #'
@@ -101,6 +105,15 @@ The following fields must be present in the config toml file for the projectInte
   - plotXRangeHigh = 20
   - plotYRangeLow = -1
   - plotYRangeHigh = 1
+
+Additionally, create any of your own unique parameters that you may need for your experiment.
+
+### **Timeout Settings**
+RT-Cloud uses RPC (Remote Procedure Calls) to send command requests from the researcher's experiment script to the dataInterface, subjectInterface and webInterface. There are two RPC hops to handle a request. The first if usying rpyc (native Python RPC library) to make a call from the scirpt to the projectServer. The second is using a WebSocket RPC implemented in rtCommon/remoteable.py and invoked from rtCommon/projectServerRPC.py to make the call from the projectServer to the remote service (such as DataService). Each hop has an adjustable timeout. 
+
+The rpyc timeout can be set when the ClientInterface is created in the experiment script, such as in the sample.py project. Simply include the rpyc_timeout= parameter (e.g. ClientInterface(rpyc_timeout=60)), the default is 60 seconds. Rpyc also has a timed() function which can be used to adjust the timeout of individual rpc calls. 
+
+The websocket timeout can be set using the setRPCTimeout() of remoteable objects. For example to increase the timeout of the dataInterface in the experiment script, call dataInterface.setRPCTimeout(5). The default websocket timeout is 5 seconds. 
 
 ## **Some Alternate Configurations For Your Experiment**
 ### **Running everything on the same computer**
