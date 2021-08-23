@@ -262,7 +262,8 @@ def saveAsNiftiImage(dicomDataObject, fullNiftiFilename, cfg, reference):
 def convertDicomFileToNifti(dicomFilename, niftiFilename):
     global binPath
     if binPath is None:
-        result = subprocess.run(['which', 'python'], stdout=subprocess.PIPE)
+        # Used to use 'which python' to find the conda env path
+        result = subprocess.run(['which', 'dcm2niix'], stdout=subprocess.PIPE)
         binPath = result.stdout.decode('utf-8')
         binPath = os.path.dirname(binPath)
     dcm2niiCmd = os.path.join(binPath, 'dcm2niix')

@@ -8,6 +8,7 @@ for Mac and Windows (WatchdogFileWatcher) and one for Linux (InotifyFileWatcher)
 import os
 import sys
 import time
+import pathlib
 import logging
 import threading
 from typing import Optional
@@ -45,7 +46,7 @@ class FileWatcher():
         logging.log(logging.ERROR, "FileWatcher is abstract class. initFileNotifier not implemented")
         return None
 
-    def waitForFile(self, filename, timeout=0):
+    def waitForFile(self, filename, timeout=0, timeCheckIncrement=1):
         logging.log(logging.ERROR, "FileWatcher is abstract class. waitForFile not implemented")
         return ''
 
@@ -66,11 +67,14 @@ class WatchdogFileWatcher():
         self.minFileSize = 0
         self.demoStep = 0
         self.prevEventTime = 0
+        self.foundWithFileEvent = False
+        self.waitLoopCount = 0
 
     def __del__(self):
         if self.observer is not None:
             try:
                 self.observer.stop()
+                self.observer.join()
             except Exception as err:
                 # TODO - change back to log once can figure out what the observer.stop streamRef error is
                 print("FileWatcher: oberver.stop(): %s", str(err))
@@ -93,16 +97,18 @@ class WatchdogFileWatcher():
         self.minFileSize = minFileSize
         if self.observer is not None:
             self.observer.stop()
+            self.observer.join()
         self.observer = Observer()
         if filePattern is None or filePattern == '':
             filePattern = '*'
         self.filePattern = filePattern
         self.watchDir = dir
         self.fileNotifyHandler = FileNotifyHandler(self.fileNotifyQ, [filePattern])
-        self.observer.schedule(self.fileNotifyHandler, dir, recursive=False)
+        self.observer.schedule(self.fileNotifyHandler, os.path.realpath(dir), recursive=False)
         self.observer.start()
 
-    def waitForFile(self, filename: str, timeout: int=0) -> Optional[str]:
+
+    def waitForFile(self, filename: str, timeout: int=0, timeCheckIncrement: int=1) -> Optional[str]:
         """
         Wait for a specific filename to be created in the directory specified in initFileNotifier.
         Args:
@@ -110,6 +116,8 @@ class WatchdogFileWatcher():
                 match that specified in initFileNotifier.
             timeout: Max number of seconds to watch for the file creation. If timeout expires
                 before the file is created then None will be returned
+            timeCheckIncrement: Time interval (secs) to check if file exists in case file
+                creation events are somehow missed.
         Returns:
             The filename of the created file (same as input arg) or None if timeout expires
         """
@@ -127,17 +135,23 @@ class WatchdogFileWatcher():
                 logStr = "FileWatcher: Waiting for file {}, timeout {}s ".format(filename, timeout)
                 logging.log(DebugLevels.L6, logStr)
         eventLoopCount = 0
-        exitWithFileEvent = False
+        self.foundWithFileEvent = False
         eventTimeStamp = 0
         startTime = time.time()
-        timeToCheckForFile = time.time() + 1  # check if file exists at least every second
+        self.waitLoopCount = 0
         while not fileExists:
-            if timeout > 0 and time.time() > (startTime + timeout):
-                return None
+            self.waitLoopCount += 1
+            if timeout > 0:
+                remainingTime = (startTime + timeout) - time.time()
+                if remainingTime <= 0:
+                    return None
+                if remainingTime < timeCheckIncrement:
+                    timeCheckIncrement = remainingTime
             # look for file creation event
             eventLoopCount += 1
+            timeToCheckForFile = time.time() + timeCheckIncrement
             try:
-                event, ts = self.fileNotifyQ.get(block=True, timeout=1.0)
+                event, ts = self.fileNotifyQ.get(block=True, timeout=timeCheckIncrement)
             except Empty:
                 # The timeout occured on fileNotifyQ.get()
                 fileExists = os.path.exists(filename)
@@ -147,16 +161,18 @@ class WatchdogFileWatcher():
             # We may have a stale event from a previous file if multiple events
             #   are created per file or if the previous file eventloop
             #   timed out and then the event arrived later.
-            if event.src_path == filename:
+            if os.path.realpath(event.src_path) == os.path.realpath(filename):
                 fileExists = True
-                exitWithFileEvent = True
+                self.foundWithFileEvent = True
                 eventTimeStamp = ts
+                if event.event_type == 'created':
+                    # brief sleep after created event
+                    time.sleep(.05)
                 continue
-            if time.time() > timeToCheckForFile:
+            if time.time() >= timeToCheckForFile:
                 # periodically check if file exists, can occur if we get
                 #   swamped with unrelated events
                 fileExists = os.path.exists(filename)
-                timeToCheckForFile = time.time() + 1
 
         # wait for the full file to be written, wait at most 300 ms
         waitIncrement = 0.1
@@ -170,7 +186,7 @@ class WatchdogFileWatcher():
                     "File avail: eventLoopCount %d, writeWaitTime %.3f, "
                     "fileEventCaptured %s, fileName %s, eventTimeStamp %.5f",
                     eventLoopCount, totalWriteWait,
-                    exitWithFileEvent, filename, eventTimeStamp)
+                    self.foundWithFileEvent, filename, eventTimeStamp)
         if self.demoStep is not None and self.demoStep > 0:
             self.prevEventTime = demoDelay(self.demoStep, self.prevEventTime)
         return filename
@@ -208,10 +224,13 @@ class InotifyFileWatcher():
     """Version of FileWatcher for Linux using Inotify interface."""
     def __init__(self):
         self.watchDir = None
+        self.filePattern = None
         self.minFileSize = 0
         self.shouldExit = False
         self.demoStep = 0
         self.prevEventTime = 0
+        self.foundWithFileEvent = False
+        self.waitLoopCount = 0
         # create a listening thread
         self.fileNotifyQ = Queue()  # type: None
         self.notifier = inotify.adapters.Inotify()
@@ -238,6 +257,7 @@ class InotifyFileWatcher():
                 This is used when the image files are pre-existing but we want to simulate as if
                 the arrive from the scanner every few seconds (demoStep seconds).
         """
+        self.filePattern = filePattern
         self.demoStep = demoStep
         self.minFileSize = minFileSize
         if dir is None:
@@ -248,9 +268,10 @@ class InotifyFileWatcher():
             if self.watchDir is not None:
                 self.notifier.remove_watch(self.watchDir)
             self.watchDir = dir
-            self.notifier.add_watch(self.watchDir, mask=inotify.constants.IN_CLOSE_WRITE)
+            self.notifier.add_watch(os.path.realpath(self.watchDir), 
+                                    mask=inotify.constants.IN_CLOSE_WRITE)
 
-    def waitForFile(self, filename: str, timeout: int=0) -> Optional[str]:
+    def waitForFile(self, filename: str, timeout: int=0, timeCheckIncrement: int=1) -> Optional[str]:
         """
         Wait for a specific filename to be created in the directory specified in initFileNotifier.
         Args:
@@ -258,6 +279,8 @@ class InotifyFileWatcher():
                 match that specified in initFileNotifier.
             timeout: Max number of seconds to watch for the file creation. If timeout expires
                 before the file is created then None will be returned
+            timeCheckIncrement: Time interval (secs) to check if file exists in case file
+                creation events are somehow missed.
         Returns:
             The filename of the created file (same as input arg) or None if timeout expires
         """
@@ -275,17 +298,23 @@ class InotifyFileWatcher():
                 logStr = "FileWatcher: Waiting for file {}, timeout {}s ".format(filename, timeout)
                 logging.log(DebugLevels.L6, logStr)
         eventLoopCount = 0
-        exitWithFileEvent = False
+        self.foundWithFileEvent = False
         eventTimeStamp = 0
         startTime = time.time()
-        timeToCheckForFile = time.time() + 1  # check if file exists at least every second
+        self.waitLoopCount = 0
         while not fileExists:
-            if timeout > 0 and time.time() > (startTime + timeout):
-                return None
+            self.waitLoopCount += 1
+            if timeout > 0:
+                remainingTime = (startTime + timeout) - time.time()
+                if remainingTime <= 0:
+                    return None
+                if remainingTime < timeCheckIncrement:
+                    timeCheckIncrement = remainingTime
             # look for file creation event
             eventLoopCount += 1
+            timeToCheckForFile = time.time() + timeCheckIncrement
             try:
-                eventfile, ts = self.fileNotifyQ.get(block=True, timeout=1.0)
+                eventfile, ts = self.fileNotifyQ.get(block=True, timeout=timeCheckIncrement)
             except Empty:
                 # The timeout occured on fileNotifyQ.get()
                 fileExists = os.path.exists(filename)
@@ -295,17 +324,16 @@ class InotifyFileWatcher():
             # We may have a stale event from a previous file if multiple events
             #   are created per file or if the previous file eventloop
             #   timed out and then the event arrived later.
-            if eventfile == filename:
+            if os.path.realpath(eventfile) == os.path.realpath(filename):
                 fileExists = True
-                exitWithFileEvent = True
+                self.foundWithFileEvent = True
                 eventTimeStamp = ts
                 continue
-            if time.time() > timeToCheckForFile:
+            if time.time() >= timeToCheckForFile:
                 # periodically check if file exists, can occur if we get
                 #   swamped with unrelated events
                 fileExists = os.path.exists(filename)
-                timeToCheckForFile = time.time() + 1
-        if exitWithFileEvent is False:
+        if self.foundWithFileEvent is False:
             # We didn't get a file-close event because the file already existed.
             # Check the file size and sleep up to 300 ms waitig for full size
             waitIncrement = 0.1
@@ -318,7 +346,7 @@ class InotifyFileWatcher():
         logging.log(DebugLevels.L6,
                     "File avail: eventLoopCount %d, fileEventCaptured %s, "
                     "fileName %s, eventTimeStamp %d", eventLoopCount,
-                    exitWithFileEvent, filename, eventTimeStamp)
+                    self.foundWithFileEvent, filename, eventTimeStamp)
         if self.demoStep is not None and self.demoStep > 0:
             self.prevEventTime = demoDelay(self.demoStep, self.prevEventTime)
         return filename
@@ -333,7 +361,9 @@ class InotifyFileWatcher():
             if event is not None:
                 # print(event)      # uncomment to see all events generated
                 if 'IN_CLOSE_WRITE' in event[1]:
-                    fullpath = os.path.join(event[2], event[3])
-                    self.fileNotifyQ.put((fullpath, time.time()))
+                    path = pathlib.Path(event[3])
+                    if path.match(self.filePattern):
+                        fullpath = os.path.join(event[2], event[3])
+                        self.fileNotifyQ.put((fullpath, time.time()))
                 else:
                     self.fileNotifyQ.put(('', time.time()))

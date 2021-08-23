@@ -289,15 +289,17 @@ class WsBrowserRequestHandler:
         with open(configFileName, 'w+') as fd:
             toml.dump(cfg, fd)
 
-        # specify -u python option to disable buffering print commands
-        cmdStr = f'python -u {pyScript} -c {configFileName}'
+        # To handle spaces in pyScript or rootDir, use quoted rootDir
+        #  in env and use shell=False in the subprocess.Popen() command.
         # add to the rtCommon dir to the PYTHONPATH env variable
         env = os.environ.copy()
-        env["PYTHONPATH"] = f'{rootDir}:' + env.get("PYTHONPATH", '')
-        print('###RUN: ' + cmdStr)
-        cmd = shlex.split(cmdStr)
+        env['PYTHONPATH'] = f'\"{rootDir}:' + env.get('PYTHONPATH', '') + '\"'
+        # specify -u python option to disable buffering print commands
+        # command w/ shell=True: cmdStr = f'python -u {pyScript} -c {configFileName}'
+        cmd = ['python', '-u', pyScript, '-c', configFileName] # shlex.split(cmdStr)
+        print('###RUN: ' + ' '.join(cmd))
         proc = subprocess.Popen(cmd, cwd=rootDir, env=env, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+                                stderr=subprocess.STDOUT, stdin=subprocess.PIPE, shell=False)
         # send running status to user web page
         self.webUI.sendRunStatus(tag + ' running')
         # start a separate thread to read the process output

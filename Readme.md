@@ -143,7 +143,16 @@ For the sample we will run all services (the projectInterface, scannerDataServic
 4. ProjectInterface cannot find your experiment script. Make sure your script's name matches the project directory. Or specify the '--mainScript [script-name]' option when starting the projectInterface. In addition the '--initScript [init-script]' and '--finalizeScript [finalize-script]' options can be used to specify the session initialization and finalization scripts.
 5. ProjectInterface or web page indicate 'RemoteServie: DataService not connected'. This means you started the projectInterface using the --dataRemote option but that a scannerDataService has not established a connection to the projectInterface, so it cannot make remote requests for data. Similarly for 'SubjectService not connected' errors.
 6. An error in your script. Try running your script without starting the projectInterface. The clientInterface() method called by your script will create an internal version of the data services if there is no projectInterface started on localhost. If you specify yesToPrompts=True when instantiating the clientInterface (ClientInterface(yesToPrompts=True)) it will automatically use local services if there is no projectInterface running.
+7. A DICOM error is reported such as, *"ValueError: The length of the pixel data in the dataset (287580 bytes) doesn't match the expected length (294912 bytes). The dataset may be corrupted or there may be an issue with the pixel data handler"*. This usually indicates that the DICOM file was read by the FileWatcher before the file was completely written. To handle this, adjust the 'minFileSize' parameter that is passed to dataInterface.initWatch() or dataInterface.initScannerStream(), see the projects/sample/sample.py for an example. The minFileSize indicates a lower bound below which the FileWatcher will continue waiting before reading a file. Set the minFileSize to slightly below the smallest DICOM file size expected.
 
+## Running the Automated Test Suite
+1. Follow the installation instructions detailed above
+2. Activate the conda environment
+    - <code>conda activate rtcloud</code>
+3. Additionally, install bids-validator
+    - <code>npm install -g bids-validator</code>
+4. Run the test suite
+    - <code>python -m pytest -s -v tests/</code>
 
 ## Further Reading
 - [Run Project in a Docker Container](docs/run-in-docker.md)
