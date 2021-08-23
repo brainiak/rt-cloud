@@ -1,11 +1,10 @@
 import os
-from rtCommon.errors import StateError
 import threading
 import random
 import time
 import pytest
-
 import rtCommon.fileWatcher as fileWatcher
+from rtCommon.errors import StateError
 from tests.common import tmpDir, rtCloudPath
 
 test_sampleProjectPath = os.path.join(rtCloudPath, 'projects', 'sample')
@@ -116,6 +115,8 @@ def test_waitForFile_wrongDir():
     with pytest.raises(StateError):
         result = watcher.waitForFile(fullName, timeout=2, timeCheckIncrement=0.5)
 
+    # Now try waiting for Dicoms using only the filename (no path), it should
+    #  timeout because the filewatch was initialized on the wrong path.
     numFiles = 2
     copyThread = startCopyThread(numFiles)
     try:
