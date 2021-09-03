@@ -13,7 +13,6 @@ import os
 import re
 import time
 import glob
-import chardet
 import threading
 import logging
 from pathlib import Path
@@ -462,3 +461,4 @@ def downloadFilesFromCloud(dataInterface, srcFilePattern :str, outputDir :str, d
 #             'downloadFilesFromCloud',
 #         ]
 #         self.addLocalAttributes(localOnlyFunctions)
+
