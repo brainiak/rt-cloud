@@ -37,10 +37,12 @@ def runSubjectFeedbackTest(isRemote):
     runId = 3
     for trId in range(1, 10):
         value = 20 + trId
-        subjInterface.setResult(runId, trId, value)
+        msTimeDelay = trId + 4
+        subjInterface.setResult(runId, trId, value, msTimeDelay)
 
     for i in range(1, 10):
         feedbackMsg = subjInterface.dequeueResult(block=False, timeout=1)
         assert feedbackMsg['runId'] == runId
         assert feedbackMsg['trId'] == i
         assert feedbackMsg['value'] == 20 + i
+        assert feedbackMsg['msTimeDelay'] == i + 4

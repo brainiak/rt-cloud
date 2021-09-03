@@ -20,7 +20,7 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
         type: jsPsych.plugins.parameterType.INT,
         pretty_name: 'Trial duration',
         default: null,
-        description: 'The minimal duration of the trial.'
+        description: 'The minimal duration of the trial in milliseconds.'
       },
       canvas_size: {
         type: jsPsych.plugins.parameterType.INT,
@@ -72,15 +72,26 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
     }
 
     // function to wrap up when the event has arrived (not finished if it's too early)
-    function event_handler(){
+    function event_handler(e){
       // remove the listener first!
+      // TODO - maybe don't remove listener? - how would we cancel a previous set timeout?
       document.removeEventListener('rtEvent', event_handler);
+
+      var msTimeDelay = 0;
+      if ("detail" in e) {
+        if ("msTimeDelay" in e.detail) {
+          msTimeDelay = e.detail.msTimeDelay;
+        }
+      }
 
       // store when the rtEvent event happened
       rtEvent_time = performance.now() - start_time;
 
-      // if the setResult was early we want to sleep for a bit
-      if ((trial.trial_duration !== null) && (rtEvent_time < trial.trial_duration)){
+      if (msTimeDelay > 0) {
+        // setTimeout input is time in miliseconds
+        jsPsych.pluginAPI.setTimeout(end_trial, msTimeDelay)
+      } else if ((trial.trial_duration !== null) && (rtEvent_time < trial.trial_duration)){
+        // if the setResult was early we want to sleep for a bit
         jsPsych.pluginAPI.setTimeout(end_trial, (trial.trial_duration-rtEvent_time))
       } else{
         //otherwise we just end the trial now

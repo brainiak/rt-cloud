@@ -303,7 +303,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         minAvg = 305
         maxAvg = 315
         feedback = (avg_niftiData - minAvg) / (maxAvg - minAvg)
-        subjInterface.setResult(runNum, int(this_TR), float(feedback))
+        subjInterface.setResult(runNum, int(this_TR), float(feedback), float(0.5))
 
         # Finally we will use use webInterface.plotDataPoint() to send the result
         # to the web browser to be plotted in the --Data Plots-- tab.

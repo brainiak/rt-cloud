@@ -43,7 +43,7 @@ class SubjectInterface(RemoteableExtensible):
         self.msgQueue = Queue()
         self.message = ""
 
-    def setResult(self, runId :int, trId :int, value: float) -> None:
+    def setResult(self, runId :int, trId :int, value: float, msTimeDelay: float=0) -> None:
         """
         When setResult is called by the experiment script it queues the result for
         the presentation script to later read and use to provide subject feedback.
@@ -51,12 +51,14 @@ class SubjectInterface(RemoteableExtensible):
             runId: experiment specific identifier of the run
             trId: volume number of the dicom within a run
             value: the classification result from processing the dicom image for this TR
+            msTimeDelay: time in milliseconds to wait before presenting the feedback stimulus
         """
         print(f'SubjectInterface: setResult: run {runId}, tr {trId}, value {value}')
         feedbackMsg = {
             'runId': runId,
             'trId': trId,
             'value': value,
+            'msTimeDelay': msTimeDelay,
             'timestamp': time.time()
         }
         self.msgQueue.put(feedbackMsg)
