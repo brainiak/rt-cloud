@@ -49,21 +49,21 @@ function createWebSocket() {
       var runId = reqArgs[0]
       var trId = reqArgs[1]
       var val = reqArgs[2]
-      var msTimeDelay = reqArgs[3]
+      var onsetTimeDelayMs = reqArgs[3]
       FeedbackStatus.doFeedback = true
       FeedbackStatus.runId = runId
       FeedbackStatus.trId = trId
       FeedbackStatus.val = val
       FeedbackStatus.message = "BrainState: " + FeedbackStatus.val
       // Trigger the rtEvent to end the previous trial and start this next one
-      let event = new CustomEvent("rtEvent", {detail: {msTimeDelay: msTimeDelay}});
+      let event = new CustomEvent("rtEvent", {detail: {onsetTimeDelayMs: onsetTimeDelayMs}});
       document.dispatchEvent(event);
     } else if (reqCmd == 'setMessage') {
       FeedbackStatus.doFeedback = false // display message instead
       FeedbackStatus.message = reqArgs[0]
-      let event = new CustomEvent("rtEvent", {detail: {msTimeDelay: 0}});
+      let event = new CustomEvent("rtEvent", {detail: {onsetTimeDelayMs: 0}});
       document.dispatchEvent(event);
-    } else if (reqCmd = 'getResponses') {
+    } else if (reqCmd = 'getAllResponses') {
       // Dequeue and return all data from ResponseQueue
       retVal = []
       while (ResponseQueue.length > 0) {

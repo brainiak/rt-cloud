@@ -303,7 +303,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         minAvg = 305
         maxAvg = 315
         feedback = (avg_niftiData - minAvg) / (maxAvg - minAvg)
-        subjInterface.setResult(runNum, int(this_TR), float(feedback), float(0.5))
+        subjInterface.setResult(runNum, int(this_TR), float(feedback), 1000)
 
         # Finally we will use use webInterface.plotDataPoint() to send the result
         # to the web browser to be plotted in the --Data Plots-- tab.
@@ -324,10 +324,14 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     output_textFilename = '/tmp/cloud_directory/tmp/avg_activations.txt'
     output_matFilename = os.path.join('/tmp/cloud_directory/tmp/avg_activations.mat')
 
+    time.sleep(1)
     subjInterface.setMessage("End Run")
-    responses = subjInterface.getResponses()
+    responses = subjInterface.getAllResponses()
+    keypresses = [response.get('key_pressed') for response in responses]
+    stimDurations = [response.get('stimulus_duration') for response in responses]
     if verbose:
-        print(f'Responses: {responses}')
+        print(f'Keypresses: {keypresses}')
+        print(f'Durations: {stimDurations}')
 
     # use 'putFile' from the dataInterface to save the .txt file
     #   INPUT:

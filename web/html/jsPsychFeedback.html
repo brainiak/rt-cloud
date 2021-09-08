@@ -10,27 +10,28 @@
   <script src="src/jsPsychWebSocket.js"></script>
 </head>
 
-<body></body>
+<body>
+  <span id="error_display"></span>
+</body>
 
 <script>
-// connect to the project server to receive events
-createWebSocket();
+
+try {
+  // connect to the project server to receive events
+  createWebSocket();
+} catch(error) {
+  console.error(error);
+  var display_element = document.getElementById("error_display")
+  var error_html = "Error in websocket connection: " + error;
+  display_element.innerHTML = error_html;
+  throw new Error(error);
+}
+
+drawFunction = drawCircle;
+// drawFunction = drawEllipse;
+// drawFunction = drawRectangle;
 
 var timeline = []
-
-// this function draws a circle with a brainstate radius
-function drawCircle(canvas, stateVal){
-  var ctx = canvas.getContext('2d');
-  var width = canvas.width
-  var height = canvas.height
-  var minDim = Math.min(width, height)
-  var brainstate = stateVal * 0.66 * minDim
-    ctx.beginPath();
-    ctx.arc(width/2, height/2, 1*brainstate, 0, 2 * Math.PI);
-    ctx.fillStyle = "green"
-    ctx.fill()
-    ctx.stroke();
-}
 
 /* This creates a trial of type brain-realtime-response which
  *   when triggered by an 'rtEvent' will switch to the next trial.
@@ -57,7 +58,9 @@ var feedbackNode = {
     trial.data.runId = FeedbackStatus.runId;
     trial.data.trId = FeedbackStatus.trId;
     trial.data.val = FeedbackStatus.val;
-    drawCircle(canvas, FeedbackStatus.val);
+    drawFunction(canvas, 'radius', FeedbackStatus.val);
+    // drawFunction(canvas, 'angle', FeedbackStatus.val);
+    // drawFunction(canvas, 'height', FeedbackStatus.val);
   },
   on_finish: function(data) {
     ResponseQueue.push(data);
@@ -110,6 +113,70 @@ jsPsych.init({
         // jsPsych.data.displayData();
        }
 });
+
+// this function draws feedback circle with a brainstate radius
+function drawCircle(canvas, parameter, stateVal){
+  var ctx = canvas.getContext('2d');
+  var width = canvas.width
+  var height = canvas.height
+  var minDim = Math.min(width, height)
+  var radius = 0.66 * minDim;
+  eval(parameter + '*=' + String(stateVal));
+  ctx.beginPath();
+  // arc(x, y, radius, start_angle, end_angle)
+  ctx.arc(width/2, height/2, radius, 0, 2 * Math.PI);
+  ctx.fillStyle = "green"
+  ctx.fill()
+  ctx.stroke();
+}
+
+// this function draws feedback elipse
+function drawEllipse(canvas, parameter, stateVal){
+  var ctx = canvas.getContext('2d');
+  var width = canvas.width
+  var height = canvas.height
+  var minDim = Math.min(width, height)
+  var xradius = 0.125 * minDim;
+  var yradius = 0.125 * minDim;
+  var angle = 0;
+  if (parameter == 'radius') {
+    if (stateVal < 0.5) {
+      xradius = (1-stateVal) * minDim * 0.66;
+    } else {
+      yradius = stateVal * minDim * 0.66;
+    }
+  } else if (parameter == 'angle') {
+    xradius = 0.5 * minDim;
+    angle = stateVal * Math.PI / 2;
+  }
+  ctx.beginPath();
+  ctx.ellipse(width/2, height/2, xradius, yradius, angle, 0, 2 * Math.PI);
+  ctx.fillStyle = "green"
+  ctx.fill()
+  ctx.stroke();
+}
+
+// this function draws feedback rectangle
+function drawRectangle(canvas, parameter, stateVal){
+  var ctx = canvas.getContext('2d');
+  var x_pos = canvas.width / 2;
+  var y_pos = canvas.height / 2;
+  var width = canvas.width / 8;
+  var height = canvas.height / 8;
+  var minDim = Math.min(width, height)
+  if (parameter == 'height') {
+    y_pos = canvas.height * (1 - stateVal);
+    height = canvas.height * stateVal;
+  } else if (parameter == 'width') {
+    x_pos = 0;
+    width = canvas.width * stateVal;
+  }
+  ctx.beginPath();
+  ctx.rect(x_pos, y_pos, width, height);
+  ctx.fillStyle = "green"
+  ctx.fill()
+  ctx.stroke();
+}
 
 </script>
 </html>

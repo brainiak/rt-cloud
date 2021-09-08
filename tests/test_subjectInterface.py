@@ -1,6 +1,7 @@
 import pytest
 from tests.backgroundTestServers import BackgroundTestServers
 from rtCommon.clientInterface import ClientInterface
+from rtCommon.errors import ValidationError
 
 
 class TestSubjectInterface:
@@ -37,12 +38,20 @@ def runSubjectFeedbackTest(isRemote):
     runId = 3
     for trId in range(1, 10):
         value = 20 + trId
-        msTimeDelay = trId + 4
-        subjInterface.setResult(runId, trId, value, msTimeDelay)
+        onsetTimeDelayMs = trId + 4
+        subjInterface.setResult(runId, trId, value, onsetTimeDelayMs)
 
     for i in range(1, 10):
         feedbackMsg = subjInterface.dequeueResult(block=False, timeout=1)
         assert feedbackMsg['runId'] == runId
         assert feedbackMsg['trId'] == i
         assert feedbackMsg['value'] == 20 + i
-        assert feedbackMsg['msTimeDelay'] == i + 4
+        assert feedbackMsg['onsetTimeDelayMs'] == i + 4
+
+    subjInterface.setResult(1, 2, 3, 3.1)
+    feedbackMsg = subjInterface.dequeueResult(block=False, timeout=1)
+    assert feedbackMsg['onsetTimeDelayMs']  == 3.1
+
+    with pytest.raises((ValidationError, Exception)):
+        # Try setting a negative onsetTimeDelay
+        subjInterface.setResult(1, 2, 3, -1)

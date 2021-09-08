@@ -41,7 +41,7 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
 
   plugin.trial = function(display_element, trial) {
     var start_time = performance.now();
-    var rtEvent_time = null;
+    var websocketEvent_time = null;
     // store subject's keyboard response
     var response = {
       rt: null,   // response time
@@ -77,22 +77,24 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
       // TODO - maybe don't remove listener? - how would we cancel a previous set timeout?
       document.removeEventListener('rtEvent', event_handler);
 
-      var msTimeDelay = 0;
+      // onsetTimeDelay is provided as part of the setResult() call from
+      //   the researcher's script. It specifies the time to wait before
+      //   showing the next feedback stimulus (for example to align to a TR).
+      // The event_handler function takes a parameter dictionary where the
+      //   "detail" field can contain caller defined information.
+      var onsetTimeDelayMs = 0;
       if ("detail" in e) {
-        if ("msTimeDelay" in e.detail) {
-          msTimeDelay = e.detail.msTimeDelay;
+        if ("onsetTimeDelayMs" in e.detail) {
+          onsetTimeDelayMs = e.detail.onsetTimeDelayMs;
         }
       }
 
       // store when the rtEvent event happened
-      rtEvent_time = performance.now() - start_time;
+      websocketEvent_time = performance.now() - start_time;
 
-      if (msTimeDelay > 0) {
+      if (onsetTimeDelayMs > 0) {
         // setTimeout input is time in miliseconds
-        jsPsych.pluginAPI.setTimeout(end_trial, msTimeDelay)
-      } else if ((trial.trial_duration !== null) && (rtEvent_time < trial.trial_duration)){
-        // if the setResult was early we want to sleep for a bit
-        jsPsych.pluginAPI.setTimeout(end_trial, (trial.trial_duration-rtEvent_time))
+        jsPsych.pluginAPI.setTimeout(end_trial, onsetTimeDelayMs)
       } else{
         //otherwise we just end the trial now
         end_trial()
@@ -105,11 +107,15 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
         jsPsych.pluginAPI.cancelKeyboardResponse(keyboardListener)
       }
 
+      var stimulus_duration = performance.now() - start_time;
+
       // gather the data to store for the trial
       var trial_data = {
-        "rtEvent_time":  rtEvent_time,
         "key_pressed": response.key,
         "key_response_time": response.rt,
+        "stimulus_duration":  stimulus_duration,
+        "stimulus_onset_time": start_time,
+        "websocket_event_time": websocketEvent_time,
       };
 
       // clear the display
