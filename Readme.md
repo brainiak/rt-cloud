@@ -37,6 +37,7 @@ A subjectService is started on the presentation computer. The subjecService list
 - [Running a Realtime Experiment](docs/how-to-run.md)
 - [Run Project in a Docker Container](docs/run-in-docker.md)
 - [Using BIDS Data Format in RT-Cloud](docs/using-bids-data.md)
+- [Providing Subject Feedback](docs/subject-feedback.md)
 
 
 ## Installation
