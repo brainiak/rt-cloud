@@ -1,9 +1,11 @@
 import os
+import math
 import tempfile
 
 from nibabel.nicom import dicomreaders
 import numpy as np
 import pytest
+from datetime import time as dtime
 
 from rtCommon.dataInterface import DataInterface
 from rtCommon.errors import ValidationError
@@ -76,3 +78,15 @@ def test_nifti():
         assert niftiImg1.header == niftiImgFromDcm.header
         assert np.array_equal(np.array(niftiImg1.dataobj),
                               np.array(niftiImgFromDcm.dataobj))
+
+
+def test_dicomTimeToTr(dicomImage):
+    now = dtime(hour=12, minute=47, second=57, microsecond=500000)
+    clockSkew = 0.0
+    secToTr = imgHandler.dicomTimeToNextTr(dicomImage, clockSkew, now=now)
+    assert math.isclose(secToTr, 0.3275)
+
+    now = dtime(hour=12, minute=47, second=57, microsecond=500000)
+    clockSkew = 0.1
+    secToTr = imgHandler.dicomTimeToNextTr(dicomImage, clockSkew, now=now)
+    assert math.isclose(secToTr, 0.2275) is True

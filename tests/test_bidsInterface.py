@@ -1,11 +1,15 @@
 import os
+import time
+import math
 import pytest
+from numpy.core.numeric import isclose
 from rtCommon.bidsArchive import BidsArchive
 from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.imageHandling import convertDicomImgToNifti, readDicomFromFile
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.bidsInterface import BidsInterface, tmpDownloadOpenNeuro
 from rtCommon.bidsCommon import getDicomMetadata
+import rtCommon.utils as utils
 from tests.backgroundTestServers import BackgroundTestServers
 from tests.common import rtCloudPath, tmpDir
 
@@ -104,6 +108,15 @@ def dicomStreamTest(bidsInterface):
         localIncremental = readLocalDicomIncremental(idx, entities)
         print(f"Dicom stream check: image {idx}")
         assert streamIncremental == localIncremental
+
+    # check clock skew function
+    rtt = utils.calcAvgRoundTripTime(bidsInterface.ping)
+    now = time.time()
+    skew = bidsInterface.getClockSkew(now, rtt)
+    if bidsInterface.isRunningRemote():
+        assert math.isclose(skew, 1.23, abs_tol=0.001) is True
+    else:
+        assert math.isclose(skew, 0, abs_tol=0.001) is True
 
 
 def openNeuroStreamTest(bidsInterface):

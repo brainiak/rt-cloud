@@ -1,7 +1,9 @@
 from copy import deepcopy
 import logging
+import math
 import os
 import pickle
+from datetime import time as dtime
 
 from bids.layout import BIDSImageFile
 from bids.layout.writing import build_path as bids_build_path
@@ -22,7 +24,6 @@ from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsArchive import BidsArchive
 from rtCommon.errors import MissingMetadataError
 from tests.common import isValidBidsArchive
-
 logger = logging.getLogger(__name__)
 
 
@@ -432,3 +433,15 @@ def testSerialization(validBidsI, sample4DNifti1, imageMetadata, tmpdir):
 
     # Check there's no file mapping
     assert deserialized.image.file_map['image'].filename is None
+
+
+def test_bidsTimeToTr(validBidsI):
+    now = dtime(hour=12, minute=47, second=57, microsecond=500000)
+    clockSkew = 0.0
+    secToTr = validBidsI.timeToNextTr(clockSkew, now=now)
+    assert math.isclose(secToTr, 0.3275)
+
+    now = dtime(hour=12, minute=47, second=57, microsecond=500000)
+    clockSkew = 0.10
+    secToTr = validBidsI.timeToNextTr(clockSkew, now=now)
+    assert math.isclose(secToTr, .2275)

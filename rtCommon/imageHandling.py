@@ -17,7 +17,9 @@ import warnings
 import numpy as np  # type: ignore
 import nibabel as nib
 import pydicom
-from rtCommon.errors import StateError, ValidationError, InvocationError, RequestError
+from datetime import datetime
+from rtCommon.utils import getTimeToNextTR
+from rtCommon.errors import StateError, ValidationError, InvocationError
 from nilearn.image import new_img_like
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -63,11 +65,12 @@ def getDicomFileName(cfg, scanNum, fileNum):
 
     return fullFileName
 
+# Note: don't anonymize AcquisitionTime, needed to sync with TR
 attributesToAnonymize = [
         'PatientID', 'PatientAge', 'PatientBirthDate', 'PatientName',
         'PatientSex', 'PatientSize', 'PatientWeight', 'PatientPosition',
         'StudyDate', 'StudyTime', 'SeriesDate', 'SeriesTime',
-        'AcquisitionDate', 'AcquisitionTime', 'ContentDate', 'ContentTime',
+        'AcquisitionDate', 'ContentDate', 'ContentTime',
         'InstanceCreationDate', 'InstanceCreationTime',
         'PerformedProcedureStepStartDate', 'PerformedProcedureStepStartTime'
 ]
@@ -196,6 +199,34 @@ def parseDicomVolume(dicomImg, sliceDim):
             sliceNum += 1
     return volume
 
+
+def getDicomAcquisitionTime(dicomImg) -> datetime.time:
+    """
+    Returns the acquisition time as a datetime.time
+    Note: day, month and year are not specified
+    """
+    acqTm = dicomImg.get('AcquisitionTime', None)
+    if acqTm is None:
+        return None
+    dtm = datetime.strptime(acqTm, '%H%M%S.%f')
+    return dtm.time()
+
+def getDicomRepetitionTime(dicomImg) -> float:
+    """Returns the TR repetition time in seconds"""
+    repTm = dicomImg.get('RepetitionTime', None)
+    if repTm is None:
+        return None
+    tr_sec = float(repTm) / 1000
+    return tr_sec
+
+def dicomTimeToNextTr(dicomImg, clockSkew, now=None):
+    """Based on Dicom header returns seconds to next TR start"""
+    acquisitionTime = getDicomAcquisitionTime(dicomImg)
+    repetitionTime = getDicomRepetitionTime(dicomImg)
+    if now is None:  # now variable may be passed in for testing purposes
+        now = datetime.now().time()
+    secToNextTr = getTimeToNextTR(acquisitionTime, repetitionTime, now, clockSkew)
+    return secToNextTr
 
 """-----------------------------------------------------------------------------
 

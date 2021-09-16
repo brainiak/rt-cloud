@@ -7,6 +7,7 @@ different applications.
 
 -----------------------------------------------------------------------------"""
 from copy import deepcopy
+from datetime import datetime
 from operator import eq as opeq
 from typing import Any, Callable
 import json
@@ -38,6 +39,7 @@ from rtCommon.bidsCommon import (
     symmetricDictDifference,
     writeDataFrameToEvents,
 )
+from rtCommon.utils import getTimeToNextTR
 from rtCommon.errors import MissingMetadataError
 
 logger = logging.getLogger(__name__)
@@ -561,6 +563,27 @@ class BidsIncremental:
             sub-01/ses-2011/anat
         """
         return bids_build_path(self._imgMetadata, BIDS_DIR_PATH_PATTERN)
+
+    def getAcquisitionTime(self) -> datetime.time:
+        """Returns the acquisition time as a datetime.time """
+        acqTm = self.getMetadataField('AcquisitionTime')
+        dtm = datetime.strptime(acqTm, '%H%M%S.%f')
+        return dtm.time()
+
+    def getRepeitionTime(self) -> float:
+        """Returns the TR repetition time in seconds"""
+        repTm = self.getMetadataField('RepetitionTime')
+        tr_ms = float(repTm)
+        return tr_ms
+
+    def timeToNextTr(self, clockSkew, now=None) -> float:
+        """Based on acquisition time returns seconds to next TR start"""
+        acquisitionTime = self.getAcquisitionTime()
+        repetitionTime = self.getRepeitionTime()
+        if now is None:  # now variable can be passed in for testing
+            now = datetime.now().time()
+        secToNextTr = getTimeToNextTR(acquisitionTime, repetitionTime, now, clockSkew)
+        return secToNextTr
 
     def writeToDisk(self, datasetRoot: str, onlyData=False) -> None:
         """
