@@ -18,7 +18,7 @@ from datetime import time as dtime
 import numpy as np  # type: ignore
 import scipy.io as sio  # type: ignore
 from .structDict import MatlabStructDict, isStructuredArray, recurseCreateStructDict
-from .errors import InvocationError
+from .errors import InvocationError, ValidationError
 
 
 def parseMatlabStruct(top_struct) -> MatlabStructDict:
@@ -314,7 +314,9 @@ def getTimeToNextTR(lastTrTime, trRepSec, nowTime, clockSkew) -> float:
     nowTsec = dtimeToSeconds(nowTime)
     lastTrTsec = dtimeToSeconds(lastTrTime)
     secSinceTr = ((nowTsec + clockSkew) - lastTrTsec)
-    assert secSinceTr > 0  # lastTrTsec should be less than now
+    if secSinceTr < 0:
+        # lastTrTsec should be less than now
+        raise ValidationError(f"lastTrTime later than current time: {secSinceTr}")
     secSinceTr = secSinceTr % trRepSec  # remove any multipes of TRs that have elapsed
     secToNextTr = trRepSec - secSinceTr
     assert secToNextTr < trRepSec

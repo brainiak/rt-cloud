@@ -436,6 +436,14 @@ def testSerialization(validBidsI, sample4DNifti1, imageMetadata, tmpdir):
 
 
 def test_bidsTimeToTr(validBidsI):
+    # The validBidsI acquisition time is 12:47:56.327500
+    bidsAcqTm = validBidsI.getAcquisitionTime()
+    assert bidsAcqTm == dtime(12, 47, 56, 327500)
+
+    repTm = validBidsI.getRepetitionTime()
+    assert repTm == 1.5
+
+    # create a nowTm about a second ahead of the bidsI acquisition time
     now = dtime(hour=12, minute=47, second=57, microsecond=500000)
     clockSkew = 0.0
     secToTr = validBidsI.timeToNextTr(clockSkew, now=now)

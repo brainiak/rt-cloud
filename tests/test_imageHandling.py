@@ -81,6 +81,14 @@ def test_nifti():
 
 
 def test_dicomTimeToTr(dicomImage):
+    # The dicomImage acquisition time is 12:47:56.327500
+    dcmAcqTm = imgHandler.getDicomAcquisitionTime(dicomImage)
+    assert dcmAcqTm == dtime(12, 47, 56, 327500)
+
+    repTm = imgHandler.getDicomRepetitionTime(dicomImage)
+    assert repTm == 1.5
+
+    # create a nowTm about a second ahead of the dicom acquisition time
     now = dtime(hour=12, minute=47, second=57, microsecond=500000)
     clockSkew = 0.0
     secToTr = imgHandler.dicomTimeToNextTr(dicomImage, clockSkew, now=now)

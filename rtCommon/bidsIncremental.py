@@ -570,7 +570,7 @@ class BidsIncremental:
         dtm = datetime.strptime(acqTm, '%H%M%S.%f')
         return dtm.time()
 
-    def getRepeitionTime(self) -> float:
+    def getRepetitionTime(self) -> float:
         """Returns the TR repetition time in seconds"""
         repTm = self.getMetadataField('RepetitionTime')
         tr_ms = float(repTm)
@@ -579,7 +579,7 @@ class BidsIncremental:
     def timeToNextTr(self, clockSkew, now=None) -> float:
         """Based on acquisition time returns seconds to next TR start"""
         acquisitionTime = self.getAcquisitionTime()
-        repetitionTime = self.getRepeitionTime()
+        repetitionTime = self.getRepetitionTime()
         if now is None:  # now variable can be passed in for testing
             now = datetime.now().time()
         secToNextTr = getTimeToNextTR(acquisitionTime, repetitionTime, now, clockSkew)

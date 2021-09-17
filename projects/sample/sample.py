@@ -311,8 +311,11 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         feedback = (avg_niftiData - minAvg) / (maxAvg - minAvg)
         # Get the seconds remaining before next TR starts, this can be passed to
         #  the setResult function to delay stimulus until that time
-        secUntilNextTr = dicomTimeToNextTr(dicomData, clockSkew)
-        print(f"## Secs to next TR {secUntilNextTr}")
+        try:
+            secUntilNextTr = dicomTimeToNextTr(dicomData, clockSkew)
+            print(f"## Secs to next TR {secUntilNextTr}")
+        except Exception as err:
+            print(f'dicomTimeToNextTr error: {err}')
 
         subjInterface.setResult(runNum, int(this_TR), float(feedback), 1000)
 
