@@ -114,9 +114,9 @@ def dicomStreamTest(bidsInterface):
     now = time.time()
     skew = bidsInterface.getClockSkew(now, rtt)
     if bidsInterface.isRunningRemote():
-        assert math.isclose(skew, 1.23, abs_tol=0.001) is True
+        assert math.isclose(skew, 1.23, abs_tol=0.05) is True
     else:
-        assert math.isclose(skew, 0, abs_tol=0.001) is True
+        assert math.isclose(skew, 0, abs_tol=0.05) is True
 
 
 def openNeuroStreamTest(bidsInterface):

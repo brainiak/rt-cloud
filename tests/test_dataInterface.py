@@ -187,9 +187,9 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
     now = time.time()
     skew = dataInterface.getClockSkew(now, rtt)
     if dataInterface.isRemote == True:
-        assert math.isclose(skew, 1.23, abs_tol=0.001) is True
+        assert math.isclose(skew, 1.23, abs_tol=0.05) is True
     else:
-        assert math.isclose(skew, 0, abs_tol=0.001) is True
+        assert math.isclose(skew, 0, abs_tol=0.05) is True
 
 def runRemoteFileValidationTests(dataInterface):
     # Tests for remote dataInterface
