@@ -2,7 +2,9 @@ import pytest
 import os
 import copy
 import time
+import math
 import shutil
+import rtCommon.utils as utils
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.dataInterface import DataInterface, uploadFilesToCloud, downloadFilesFromCloud
 from rtCommon.imageHandling import readDicomFromBuffer
@@ -179,6 +181,15 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
         directImage = readDicomFromBuffer(directImageData)
         print(f"Stream seek check: image {i}")
         assert streamImage == directImage
+
+    # check clock skew function
+    rtt = utils.calcAvgRoundTripTime(dataInterface.ping)
+    now = time.time()
+    skew = dataInterface.getClockSkew(now, rtt)
+    if dataInterface.isRemote == True:
+        assert math.isclose(skew, 1.23, abs_tol=0.05) is True
+    else:
+        assert math.isclose(skew, 0, abs_tol=0.05) is True
 
 def runRemoteFileValidationTests(dataInterface):
     # Tests for remote dataInterface

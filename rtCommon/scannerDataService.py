@@ -33,10 +33,16 @@ class ScannerDataService:
             webSocketChannelName: The websocket url extension used to connecy and communicate
                 to the remote projectServer, e.g. 'wsData' would connect to 'ws://server:port/wsData'
         """
+        if args.scannerClockSkew is None:
+            args.scannerClockSkew = 0
+
         self.dataInterface = DataInterface(dataRemote=False,
                                            allowedDirs=args.allowedDirs,
-                                           allowedFileTypes=args.allowedFileTypes)
-        self.bidsInterface = BidsInterface(dataRemote=False, allowedDirs=args.allowedDirs)
+                                           allowedFileTypes=args.allowedFileTypes,
+                                           scannerClockSkew=args.scannerClockSkew)
+        self.bidsInterface = BidsInterface(dataRemote=False,
+                                           allowedDirs=args.allowedDirs,
+                                           scannerClockSkew=args.scannerClockSkew)
 
         self.wsRemoteService = WsRemoteService(args, webSocketChannelName)
         self.wsRemoteService.addHandlerClass(DataInterface, self.dataInterface)
@@ -57,6 +63,8 @@ if __name__ == "__main__":
                         help="Allowed directories to server files from - comma separated list")
     parser.add_argument('-f', action="store", dest="allowedFileTypes", default=defaultAllowedTypes,
                         help="Allowed file types - comma separated list")
+    parser.add_argument('--scannerClockSkew', default=0.0, type=float,
+                        help="Seconds (float) that the scanner clock is ahead of the data server clock")
     args, _ = parser.parse_known_args(namespace=connectionArgs)
 
     if type(args.allowedDirs) is str:

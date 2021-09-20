@@ -114,6 +114,7 @@ class BackgroundTestServers:
                                'username': 'test',
                                'password': 'test',
                                'test': True,
+                               'scannerClockSkew' : 1.23,
                                })
             isRunningEvent = multiprocessing.Event()
             self.dataProc = multiprocessing.Process(target=runDataService, args=(args, isRunningEvent))

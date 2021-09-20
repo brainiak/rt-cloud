@@ -64,9 +64,10 @@ rootPath = os.path.dirname(os.path.dirname(currPath))
 #   project modules from rt-cloud
 sys.path.append(rootPath)
 # import project modules from rt-cloud
-from rtCommon.utils import loadConfigFile, stringPartialFormat
+from rtCommon.utils import loadConfigFile, stringPartialFormat, calcAvgRoundTripTime
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.imageHandling import readRetryDicomFromDataInterface, convertDicomImgToNifti
+from rtCommon.imageHandling import dicomTimeToNextTr
 
 # obtain the full path for the configuration toml file
 defaultConfig = os.path.join(currPath, 'conf/sample.toml')
@@ -93,7 +94,14 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         None.
     """
     subjInterface.setMessage("Preparing Run ...")
-    time.sleep(1)
+
+    # Time delay to add between retrieving pre-collected dicoms (for re-runs)
+    demoTimeDelay = 1
+
+    # get round trip time to dataInterface computer
+    rttSec = calcAvgRoundTripTime(dataInterface.ping)
+    # get clockSkew between this computer and the dataInterface computer
+    clockSkew = dataInterface.getClockSkew(time.time(), rttSec)
 
     # variables we'll use throughout
     scanNum = cfg.scanNum[0]
@@ -157,7 +165,8 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         """
         if verbose:
             print("• initalize a watch for the dicoms using 'initWatch'")
-        dataInterface.initWatch(cfg.dicomDir, dicomScanNamePattern, cfg.minExpectedDicomSize)
+        dataInterface.initWatch(cfg.dicomDir, dicomScanNamePattern, 
+                                cfg.minExpectedDicomSize, demoStep=demoTimeDelay)
 
     else:  # use Stream functions
         """
@@ -172,7 +181,8 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         """
         streamId = dataInterface.initScannerStream(cfg.dicomDir,
                                                 dicomScanNamePattern,
-                                                cfg.minExpectedDicomSize)
+                                                cfg.minExpectedDicomSize,
+                                                demoStep=demoTimeDelay)
 
 
     """
@@ -303,7 +313,16 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         minAvg = 305
         maxAvg = 315
         feedback = (avg_niftiData - minAvg) / (maxAvg - minAvg)
-        subjInterface.setResult(runNum, int(this_TR), float(feedback), 1000)
+        # Get the seconds remaining before next TR starts, this can be passed to
+        #  the setResult function to delay stimulus until that time
+        try:
+            secUntilNextTr = dicomTimeToNextTr(dicomData, clockSkew)
+            print(f"## Secs to next TR {secUntilNextTr}")
+        except Exception as err:
+            print(f'dicomTimeToNextTr error: {err}')
+
+        setFeedbackDelay = 500 # milliseconds
+        subjInterface.setResult(runNum, int(this_TR), float(feedback), setFeedbackDelay)
 
         # Finally we will use use webInterface.plotDataPoint() to send the result
         # to the web browser to be plotted in the --Data Plots-- tab.
@@ -317,14 +336,12 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
 
         # save the activations value info into a vector that can be saved later
         all_avg_activations[this_TR] = avg_niftiData
-        time.sleep(1)
 
     # create the full path filename of where we want to save the activation values vector.
     #   we're going to save things as .txt and .mat files
     output_textFilename = '/tmp/cloud_directory/tmp/avg_activations.txt'
     output_matFilename = os.path.join('/tmp/cloud_directory/tmp/avg_activations.mat')
 
-    time.sleep(1)
     subjInterface.setMessage("End Run")
     responses = subjInterface.getAllResponses()
     keypresses = [response.get('key_pressed') for response in responses]

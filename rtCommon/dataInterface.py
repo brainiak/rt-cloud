@@ -38,7 +38,8 @@ class DataInterface(RemoteableExtensible):
     If dataRemote=False, then the methods below will be invoked locally and the RemoteExtensible
     parent class is inoperable (i.e. does nothing).
     """
-    def __init__(self, dataRemote :bool=False, allowedDirs :List[str]=None, allowedFileTypes :List[str]=None):
+    def __init__(self, dataRemote :bool=False, allowedDirs :List[str]=None, 
+                 allowedFileTypes :List[str]=None, scannerClockSkew :float=0):
         """
         Args:
             dataRemote (bool): whether data will be served from the local instance or requests forwarded
@@ -48,6 +49,8 @@ class DataInterface(RemoteableExtensible):
             allowedFileTypes (list): list of file extensions, such as '.dcm', '.txt', for which file
                 operations are permitted. No file operations will be done unless the file extension matches
                 one on the list.
+            scannerClockSkew (float): number of seconds the scanner's clock is ahead of the
+                data server clock
         """
         super().__init__(isRemote=dataRemote)
         if dataRemote is True:
@@ -57,6 +60,7 @@ class DataInterface(RemoteableExtensible):
         self.currentStreamId = 0
         self.streamInfo = None
         self.allowedDirs = allowedDirs
+        self.scannerClockSkew = scannerClockSkew
         # Remove trailing slash from dir names
         if allowedDirs is not None:
             self.allowedDirs = [dir.rstrip('/') for dir in allowedDirs]
@@ -289,6 +293,32 @@ class DataInterface(RemoteableExtensible):
     def getAllowedFileTypes(self) -> List[str]:
         """Returns the list of file extensions which are allowed for read and write"""
         return self.allowedFileTypes
+
+    def getClockSkew(self, callerClockTime: float, roundTripTime: float) -> float:
+        """
+        Returns the clock skew between the caller's computer and the scanner clock.
+        This function is assumed to be running in the scanner room and have adjustments
+        to translate this server's clock to the scanner clock.
+        Value returned is in seconds. A positive number means the scanner clock
+        is ahead of the caller's clock. The caller should add the skew to their
+        localtime to get the time in the scanner's clock.
+        Args:
+            callerClockTime - current time (secs since epoch) of caller's clock
+            roundTripTime - measured RTT in seconds to remote caller
+        Returns:
+            Clockskew - seconds the scanner's clock is ahead of the caller's clock
+        """
+        # Adjust the caller's clock forward by 1/2 round trip time
+        callerClockAdjToNow = callerClockTime + roundTripTime / 2.0
+        now = time.time()
+        # calcluate the time this server's clock is ahead of the caller's clock
+        skew = now - callerClockAdjToNow
+        # add the time skew from this server to the scanner clock
+        return skew + self.scannerClockSkew
+
+    def ping(self) -> float:
+        """Returns seconds since the epoch"""
+        return time.time()
 
     def _checkAllowedDirs(self, dir: str) -> bool:
         if self.allowedDirs is None or len(self.allowedDirs) == 0:

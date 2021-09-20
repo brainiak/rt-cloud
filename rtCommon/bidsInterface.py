@@ -11,6 +11,7 @@ one instance of dataInterface, as part of the projectServer with dataRemote=Fals
 """
 import os
 import glob
+import time
 import tempfile
 import nibabel as nib
 from rtCommon.remoteable import RemoteableExtensible
@@ -35,13 +36,15 @@ class BidsInterface(RemoteableExtensible):
     If dataRemote=False, then the methods below will be invoked locally and the RemoteExtensible
     parent class is inoperable (i.e. does nothing).
     """
-    def __init__(self, dataRemote=False, allowedDirs=[]):
+    def __init__(self, dataRemote=False, allowedDirs=[], scannerClockSkew=0):
         """
         Args:
             dataRemote (bool): Set to true for a passthrough instance that will forward requests.
                                Set to false for the actual instance running remotely
             allowedDirs (list): Only applicable for DicomToBidsStreams. Indicates the
                                 directories that Dicom files are allowed to be read from.
+            scannerClockSkew (float): number of seconds the scanner's clock is ahead of the
+                data server clock
         """
         super().__init__(isRemote=dataRemote)
         if dataRemote is True:
@@ -54,6 +57,7 @@ class BidsInterface(RemoteableExtensible):
         self.streamMap = {}
         # Store the allowed directories to be used by the DicomToBidsStream class
         self.allowedDirs = allowedDirs
+        self.scannerClockSkew = scannerClockSkew
 
 
     def initDicomBidsStream(self, dicomDir, dicomFilePattern, dicomMinSize, **entities) -> int:
@@ -136,6 +140,34 @@ class BidsInterface(RemoteableExtensible):
         """
         stream = self.streamMap[streamId]
         return stream.getNumVolumes()
+
+
+    def getClockSkew(self, callerClockTime: float, roundTripTime: float) -> float:
+        """
+        Returns the clock skew between the caller's computer and the scanner clock.
+        This function is assumed to be running in the scanner room and have adjustments
+        to translate this server's clock to the scanner clock.
+        Value returned is in seconds. A positive number means the scanner clock
+        is ahead of the caller's clock. The caller should add the skew to their
+        localtime to get the time in the scanner's clock.
+        Args:
+            callerClockTime - current time (secs since epoch) of caller's clock
+            roundTripTime - measured RTT in seconds to remote caller
+        Returns:
+            Clockskew - seconds the scanner's clock is ahead of the caller's clock
+        """
+        # Adjust the caller's clock forward by 1/2 round trip time
+        callerClockAdjToNow = callerClockTime + roundTripTime / 2.0
+        now = time.time()
+        # calcluate the time this server's clock is ahead of the caller's clock
+        skew = now - callerClockAdjToNow
+        # add the time skew from this server to the scanner clock
+        totalSkew = skew + self.scannerClockSkew
+        return totalSkew
+
+    def ping(self) -> float:
+        """Returns seconds since the epoch"""
+        return time.time()
 
 
 class DicomToBidsStream():

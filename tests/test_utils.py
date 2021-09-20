@@ -8,7 +8,8 @@ import pathlib
 import numpy as np  # type: ignore
 import numpy
 from glob import iglob
-from pathlib import Path
+from datetime import time as dtime
+from math import isclose
 import rtCommon.utils as utils  # type: ignore
 import rtCommon.projectUtils as putils  # type: ignore
 import rtCommon.validationUtils as vutils  # type: ignore
@@ -214,6 +215,23 @@ class TestProjectUtils:
         res = putils.npToPy(args)
         assert res == args_py
 
+def test_timeToTr():
+    lastTrTime = dtime(hour=5, minute=10, second=1, microsecond=120000)
+    nowTime = dtime(5, 10, 2, 300000)
+    timeDiff = (utils.dtimeToSeconds(nowTime) - utils.dtimeToSeconds(lastTrTime))
+    trRep = 2.0
+    clockSkew = 0.0
+    secToNextTr = utils.getTimeToNextTR(lastTrTime, trRep, nowTime, clockSkew)
+    assert isclose(secToNextTr, (trRep - timeDiff))
+
+    lastTrTime = dtime(hour=5, minute=10, second=1, microsecond=120000)
+    nowTime = dtime(5, 20, 2, 300000)
+    clockSkew = 0.120
+    timeDiff = utils.dtimeToSeconds(nowTime) + clockSkew - utils.dtimeToSeconds(lastTrTime)
+    trRep = 2.0
+    timeDiff = timeDiff % trRep
+    msToNextTr = utils.getTimeToNextTR(lastTrTime, trRep, nowTime, clockSkew)
+    assert isclose(msToNextTr, (trRep - timeDiff))
 
 if __name__ == "__main__":
     print("PYTEST MAIN:")

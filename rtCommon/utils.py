@@ -13,10 +13,12 @@ import shutil
 import subprocess
 import pathlib
 import logging
+from datetime import datetime, date
+from datetime import time as dtime
 import numpy as np  # type: ignore
 import scipy.io as sio  # type: ignore
 from .structDict import MatlabStructDict, isStructuredArray, recurseCreateStructDict
-from .errors import InvocationError
+from .errors import InvocationError, ValidationError
 
 
 def parseMatlabStruct(top_struct) -> MatlabStructDict:
@@ -292,6 +294,51 @@ def trimDictBytes(msg, trimSize=64):
             if len(msg[key]) > trimSize:
                 msg.pop(key, None)
 
+
+def getTimeToNextTR(lastTrTime, trRepSec, nowTime, clockSkew) -> float:
+    """
+    Returns seconds to next TR start time
+    Args:
+        lastTrTime - datetime.time of the start of last TR
+        trRepSec - repetition time in seconds between TRs
+        nowTime - current time as datetime.time struct
+        clockSkew - seconds that scanner clock is ahead of caller clock
+    Returns:
+        seconds to next TR start (as float)
+    """
+    # now + clockSkew  (gives time according to scanner clock)
+    # ((now + clockSkew) - lastTr) % trRep  (gives how many secs into tr)
+    # trRepSec - (above)  (is sec to next TR)
+    assert type(lastTrTime) == dtime
+    assert type(nowTime) == dtime
+    nowTsec = dtimeToSeconds(nowTime)
+    lastTrTsec = dtimeToSeconds(lastTrTime)
+    secSinceTr = ((nowTsec + clockSkew) - lastTrTsec)
+    if secSinceTr < 0:
+        # lastTrTsec should be less than now
+        raise ValidationError(f"lastTrTime later than current time: {secSinceTr}")
+    secSinceTr = secSinceTr % trRepSec  # remove any multipes of TRs that have elapsed
+    secToNextTr = trRepSec - secSinceTr
+    assert secToNextTr < trRepSec
+    return secToNextTr
+
+def dtimeToSeconds(valTime) -> float:
+    """Given a datetime.time return seconds.fraction since day beginning"""
+    assert type(valTime) == dtime
+    tdelta = datetime.combine(date.min, valTime) - datetime.min
+    return tdelta.total_seconds()
+
+def calcAvgRoundTripTime(pingFunc):
+    """Returns average round trip time in seconds"""
+    numCalls = 10
+    accRtt = 0
+    for i in range(numCalls):
+        t1 = time.time()
+        pingFunc()
+        t2 = time.time()
+        rtt = t2-t1
+        accRtt += rtt
+    return accRtt / 10
 
 '''
 import inspect  # type: ignore
