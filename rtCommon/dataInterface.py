@@ -297,6 +297,8 @@ class DataInterface(RemoteableExtensible):
     def getClockSkew(self, callerClockTime: float, roundTripTime: float) -> float:
         """
         Returns the clock skew between the caller's computer and the scanner clock.
+        This function is assumed to be running in the scanner room and have adjustments
+        to translate this server's clock to the scanner clock.
         Value returned is in seconds. A positive number means the scanner clock
         is ahead of the caller's clock. The caller should add the skew to their
         localtime to get the time in the scanner's clock.
@@ -306,9 +308,12 @@ class DataInterface(RemoteableExtensible):
         Returns:
             Clockskew - seconds the scanner's clock is ahead of the caller's clock
         """
+        # Adjust the caller's clock forward by 1/2 round trip time
         callerClockAdjToNow = callerClockTime + roundTripTime / 2.0
         now = time.time()
+        # calcluate the time this server's clock is ahead of the caller's clock
         skew = now - callerClockAdjToNow
+        # add the time skew from this server to the scanner clock
         return skew + self.scannerClockSkew
 
     def ping(self) -> float:

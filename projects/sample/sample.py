@@ -94,7 +94,9 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         None.
     """
     subjInterface.setMessage("Preparing Run ...")
-    # time.sleep(1)
+
+    # Time delay to add between retrieving pre-collected dicoms (for re-runs)
+    demoTimeDelay = 1
 
     # get round trip time to dataInterface computer
     rttSec = calcAvgRoundTripTime(dataInterface.ping)
@@ -163,7 +165,8 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         """
         if verbose:
             print("• initalize a watch for the dicoms using 'initWatch'")
-        dataInterface.initWatch(cfg.dicomDir, dicomScanNamePattern, cfg.minExpectedDicomSize)
+        dataInterface.initWatch(cfg.dicomDir, dicomScanNamePattern, 
+                                cfg.minExpectedDicomSize, demoStep=demoTimeDelay)
 
     else:  # use Stream functions
         """
@@ -178,7 +181,8 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         """
         streamId = dataInterface.initScannerStream(cfg.dicomDir,
                                                 dicomScanNamePattern,
-                                                cfg.minExpectedDicomSize)
+                                                cfg.minExpectedDicomSize,
+                                                demoStep=demoTimeDelay)
 
 
     """
@@ -317,7 +321,8 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         except Exception as err:
             print(f'dicomTimeToNextTr error: {err}')
 
-        subjInterface.setResult(runNum, int(this_TR), float(feedback), 1000)
+        setFeedbackDelay = 500 # milliseconds
+        subjInterface.setResult(runNum, int(this_TR), float(feedback), setFeedbackDelay)
 
         # Finally we will use use webInterface.plotDataPoint() to send the result
         # to the web browser to be plotted in the --Data Plots-- tab.
@@ -331,14 +336,12 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
 
         # save the activations value info into a vector that can be saved later
         all_avg_activations[this_TR] = avg_niftiData
-        time.sleep(.1)
 
     # create the full path filename of where we want to save the activation values vector.
     #   we're going to save things as .txt and .mat files
     output_textFilename = '/tmp/cloud_directory/tmp/avg_activations.txt'
     output_matFilename = os.path.join('/tmp/cloud_directory/tmp/avg_activations.mat')
 
-    # time.sleep(1)
     subjInterface.setMessage("End Run")
     responses = subjInterface.getAllResponses()
     keypresses = [response.get('key_pressed') for response in responses]

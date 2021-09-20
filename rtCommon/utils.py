@@ -308,7 +308,7 @@ def getTimeToNextTR(lastTrTime, trRepSec, nowTime, clockSkew) -> float:
     """
     # now + clockSkew  (gives time according to scanner clock)
     # ((now + clockSkew) - lastTr) % trRep  (gives how many secs into tr)
-    # trRepMs - (above)  (is sec to next TR)
+    # trRepSec - (above)  (is sec to next TR)
     assert type(lastTrTime) == dtime
     assert type(nowTime) == dtime
     nowTsec = dtimeToSeconds(nowTime)
