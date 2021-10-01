@@ -2,13 +2,13 @@ import os
 import time
 import math
 import pytest
-from numpy.core.numeric import isclose
 from rtCommon.bidsArchive import BidsArchive
 from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.imageHandling import convertDicomImgToNifti, readDicomFromFile
 from rtCommon.clientInterface import ClientInterface
-from rtCommon.bidsInterface import BidsInterface, tmpDownloadOpenNeuro
+from rtCommon.bidsInterface import BidsInterface
 from rtCommon.bidsCommon import getDicomMetadata
+from rtCommon.openNeuroInterface import OpenNeuroInterface
 import rtCommon.utils as utils
 from tests.backgroundTestServers import BackgroundTestServers
 from tests.common import rtCloudPath, tmpDir
@@ -122,11 +122,19 @@ def dicomStreamTest(bidsInterface):
 def openNeuroStreamTest(bidsInterface):
     dsAccessionNumber = 'ds002338'
     dsSubject = 'xp201'
-    datasetDir = tmpDownloadOpenNeuro(dsAccessionNumber, dsSubject, 1)
     localEntities = {'subject': dsSubject, 'run': 1, 'suffix': 'bold', 'datatype': 'func'}
-    remoteEntities = {'subject': dsSubject, 'run': 1}
+    remoteEntities = {'subject': dsSubject, 'run': 1, 'suffix': 'bold'}
+    extraKwargs = {}
+    if bidsInterface.isRunningRemote():
+        # Set longer timeout for potentially downloading data
+        extraKwargs = {"rpc_timeout": 60}
+    streamId = bidsInterface.initOpenNeuroStream(dsAccessionNumber, **remoteEntities,
+                                                 **extraKwargs)
+    openNeuroClass = OpenNeuroInterface()
+    datasetDir = openNeuroClass.downloadData(dsAccessionNumber, subject=dsSubject,
+                                             run=1, suffix='bold')
     localBidsArchive = BidsArchive(datasetDir)
-    streamId = bidsInterface.initOpenNeuroStream(dsAccessionNumber, **remoteEntities)
+
     for idx in range(3):
         streamIncremental = bidsInterface.getIncremental(streamId)
         localIncremental = localBidsArchive._getIncremental(idx, **localEntities)

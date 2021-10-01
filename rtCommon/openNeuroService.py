@@ -1,5 +1,5 @@
 """
-A command-line service to be run where the where OpenNeuro data is downloaded and cached.
+A command-line service to be run where the OpenNeuro data is downloaded and cached.
 This service instantiates a BidsInterface object for serving the data back to the client
 running in the cloud. It connects to the remote projectServer.
 Once a connection is established it waits for requets and invokes the BidsInterface
