@@ -11,7 +11,7 @@ from botocore import UNSIGNED
 import rtCommon.utils as utils
 
 
-class OpenNeuroInterface(object):
+class OpenNeuroCache():
     def __init__(self, cachePath="/tmp/openneuro/"):
         self.cachePath = cachePath
         self.datasetList = None
@@ -108,8 +108,7 @@ class OpenNeuroInterface(object):
         return archivePath
 
 
-    def downloadData(self, dsAccessionNum, subject=None, session=None, run=None, 
-                     task=None, suffix=None, downloadWholeDataset=False):
+    def downloadData(self, dsAccessionNum, downloadWholeDataset=False, **entities):
         """
         This command will sync the specified portion of the dataset to the cache directory.
         Note if only the accessionNum is supplied then it will just sync the top-level files.
@@ -121,23 +120,28 @@ class OpenNeuroInterface(object):
             return False
 
         includePattern = ''
-        if subject is not None:
+        if 'subject' in entities:
+            subject = entities['subject']
             if type(subject) is int:
                 subject = f'{subject:02d}'
             includePattern += f'sub-{subject}/'
-        if session is not None:
+        if 'session' in entities:
+            session = entities['session']
             if includePattern == '':
                 includePattern = '*'
             if type(session) is int:
                 session = f'{session:02d}'
             includePattern += f'ses-{session}/'
-        if task is not None:
+        if 'task' in entities:
+            task = entities['task']
             includePattern += f'*task-{task}'
-        if run is not None:
+        if 'run' in entities:
+            run = entities['run']
             if type(run) is int:
                 run = f'{run:02d}'
             includePattern += f'*run-{run}'
-        if suffix is not None:
+        if 'suffix' in entities:
+            suffix = entities['suffix']
             includePattern += f'*{suffix}'
         if includePattern != '' or downloadWholeDataset is True:
             includePattern += '*'

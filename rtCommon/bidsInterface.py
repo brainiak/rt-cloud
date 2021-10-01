@@ -17,7 +17,7 @@ from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsCommon import getDicomMetadata
 from rtCommon.imageHandling import convertDicomImgToNifti
 from rtCommon.dataInterface import DataInterface
-from rtCommon.openNeuroInterface import OpenNeuroInterface
+from rtCommon.openNeuro import OpenNeuroCache
 from rtCommon.errors import RequestError, MissingMetadataError
 
 
@@ -55,7 +55,7 @@ class BidsInterface(RemoteableExtensible):
         # Store the allowed directories to be used by the DicomToBidsStream class
         self.allowedDirs = allowedDirs
         self.scannerClockSkew = scannerClockSkew
-        self.openNeuroInterface = OpenNeuroInterface(cachePath="/tmp/openneuro")
+        self.openNeuroCache = OpenNeuroCache(cachePath="/tmp/openneuro")
 
 
     def initDicomBidsStream(self, dicomDir, dicomFilePattern, dicomMinSize, **entities) -> int:
@@ -107,16 +107,9 @@ class BidsInterface(RemoteableExtensible):
         Returns:
             streamId: An identifier used when calling stream functions, such as getIncremental()
         """
-        subject = entities.get('subject')
-        run = entities.get('run')
-        session = entities.get('session')
-        task = entities.get('task')
-        suffix = entities.get('suffix')
-        if subject is None or run is None:
+        if 'subject' not in entities or 'run' not in entities:
             raise RequestError("initOpenNeuroStream: Must specify subject and run number")
-        archivePath = self.openNeuroInterface.downloadData(dsAccessionNumber,
-                            subject=subject, run=run, session=session,
-                            task=task, suffix=suffix)
+        archivePath = self.openNeuroCache.downloadData(dsAccessionNumber, **entities)
         # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
         bidsStream = BidsStream(archivePath, **entities)

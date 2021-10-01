@@ -8,7 +8,7 @@ from rtCommon.imageHandling import convertDicomImgToNifti, readDicomFromFile
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.bidsInterface import BidsInterface
 from rtCommon.bidsCommon import getDicomMetadata
-from rtCommon.openNeuroInterface import OpenNeuroInterface
+from rtCommon.openNeuro import OpenNeuroCache
 import rtCommon.utils as utils
 from tests.backgroundTestServers import BackgroundTestServers
 from tests.common import rtCloudPath, tmpDir
@@ -130,9 +130,8 @@ def openNeuroStreamTest(bidsInterface):
         extraKwargs = {"rpc_timeout": 60}
     streamId = bidsInterface.initOpenNeuroStream(dsAccessionNumber, **remoteEntities,
                                                  **extraKwargs)
-    openNeuroClass = OpenNeuroInterface()
-    datasetDir = openNeuroClass.downloadData(dsAccessionNumber, subject=dsSubject,
-                                             run=1, suffix='bold')
+    openNeuroCache = OpenNeuroCache()
+    datasetDir = openNeuroCache.downloadData(dsAccessionNumber, **localEntities)
     localBidsArchive = BidsArchive(datasetDir)
 
     for idx in range(3):
