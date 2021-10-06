@@ -78,7 +78,7 @@ def test_openNeuroDownloads():
 def fileCount(path):
     if not os.path.exists(path):
         return 0
-    cmd = f'find {path} -type file | wc -l'
+    cmd = f'find {path} -type f | wc -l'
     cmdList = cmd.split(' ')
     # Only seems to work with shell=True, maybe because of the pipe to wc
     result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
