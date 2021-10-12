@@ -1,10 +1,9 @@
 """
-An interface OpenNeuro data and metadata. It can download and cached OpenNeuro data for playback.
+An interface to access OpenNeuro data and metadata. It can download
+and cache OpenNeuro data for playback.
 """
 import os
 import json
-import toml
-import shutil
 import boto3
 from botocore.config import Config
 from botocore import UNSIGNED
@@ -22,6 +21,9 @@ class OpenNeuroCache():
         return self.cachePath
 
     def getS3Client(self):
+        """Returns an s3 client in order to reuse the same s3 client without
+           always creating a new one. Not thread safe currently.
+        """
         if self.s3Client is None:
             self.s3Client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
         return self.s3Client
@@ -33,13 +35,13 @@ class OpenNeuroCache():
         Alternate method to access from a command line call:
             aws s3 --no-sign-request ls s3://openneuro.org/
         """
-        if self.datasetList is None or refresh is True:
+        if self.datasetList is None or len(self.datasetList)==0 or refresh is True:
             s3Client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
-            all_dataset = s3Client.list_objects(Bucket='openneuro.org', Delimiter="/")
+            all_datasets = s3Client.list_objects(Bucket='openneuro.org', Delimiter="/")
             self.datasetList = []
-            for dataset in all_dataset.get('CommonPrefixes'):
+            for dataset in all_datasets.get('CommonPrefixes'):
                 dsetName = dataset.get('Prefix')
-                # strip training slash characters
+                # strip trailing slash characters
                 dsetName = dsetName.rstrip('/\\')
                 self.datasetList.append(dsetName)
         return self.datasetList
@@ -52,35 +54,37 @@ class OpenNeuroCache():
 
     def getSubjectList(self, dsAccessionNum):
         """
-        read all files and subdirectory of this dataset
-        :param dsAccessionNum: the dataset id
-        :return: a list of file and subdirectory names of this dataset
+        Returns a list of all the subjects in a dataset
+        Args:
+            dsAccessionNum - accession number of dataset to lookup
+        Returns:
+            list of subjects in that dataset
         """
         if not self.isValidAccessionNumber(dsAccessionNum):
             return None
         s3 = boto3.client("s3", config=Config(signature_version=UNSIGNED))
         prefix = dsAccessionNum + '/sub-'
-        dataset = s3.list_objects(Bucket='openneuro.org', Delimiter="/", Prefix=prefix)
-        dataset_info = []
-        for info in dataset.get('CommonPrefixes'):
+        dsSubjDirs = s3.list_objects(Bucket='openneuro.org', Delimiter="/", Prefix=prefix)
+        subjects = []
+        for info in dsSubjDirs.get('CommonPrefixes'):
             subj = info.get('Prefix')
             if subj is not None:
                 subj = subj.split('sub-')[1]
                 if subj is not None:
                     subj = subj.rstrip('/\\')
-                    dataset_info.append(subj)
-        return dataset_info
+                    subjects.append(subj)
+        return subjects
 
     def getDescription(self, dsAccessionNum):
         """
-        Returns the description file as a python dictionary
+        Returns the dataset description file as a python dictionary
         """
         if not self.isValidAccessionNumber(dsAccessionNum):
             return None
-        self.downloadData(dsAccessionNum, downloadWholeDataset=False)
+        dsDir = self.downloadData(dsAccessionNum, downloadWholeDataset=False)
+        filePath = os.path.join(dsDir, 'dataset_description.json')
         descDict = None
         try:
-            filePath = os.path.join(self.cachePath, dsAccessionNum, 'dataset_description.json')
             with open(filePath, 'r') as fp:
                 descDict = json.load(fp)
         except Exception as err:
@@ -89,14 +93,15 @@ class OpenNeuroCache():
 
     def getReadme(self, dsAccessionNum):
         """
-        Return the contents of the README file. Downloads topleve files if needed
+        Return the contents of the dataset README file.
+        Downloads toplevel dataset files if needed.
         """
-        readme = None
         if not self.isValidAccessionNumber(dsAccessionNum):
             return None
-        self.downloadData(dsAccessionNum, downloadWholeDataset=False)
+        dsDir = self.downloadData(dsAccessionNum, downloadWholeDataset=False)
+        filePath = os.path.join(dsDir, 'README')
+        readme = None
         try:
-            filePath = os.path.join(self.cachePath, dsAccessionNum, 'README')
             readme = utils.readFile(filePath)
         except Exception as err:
             print(f"Failed to load README: {err}")
@@ -104,6 +109,7 @@ class OpenNeuroCache():
 
 
     def getArchivePath(self, dsAccessionNum):
+        """Returns the directory path to the cached dataset files"""
         archivePath = os.path.join(self.cachePath, dsAccessionNum)
         return archivePath
 
@@ -111,9 +117,17 @@ class OpenNeuroCache():
     def downloadData(self, dsAccessionNum, downloadWholeDataset=False, **entities):
         """
         This command will sync the specified portion of the dataset to the cache directory.
-        Note if only the accessionNum is supplied then it will just sync the top-level files.
+        Note: if only the accessionNum is supplied then it will just sync the top-level files.
         Sync doesn't re-download files that are already present in the directory.
         Consider using --delete which removes local cache files no longer on the remote.
+        Args:
+            dsAccessionNum: accession number of the dataset to download data for.
+            downloadWholeDataset: boolean, if true all files in the dataset
+                                    will be downloaded.
+            entities: BIDS entities (subject, session, task, run, suffix) that
+                define the particular subject/run of the data to download.
+        Returns:
+            Path to the directory containing the downloaded dataset data.
         """
         if not self.isValidAccessionNumber(dsAccessionNum):
             print(f"{dsAccessionNum} not in the OpenNeuro S3 datasets.")
