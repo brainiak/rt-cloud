@@ -120,7 +120,7 @@ class DataInterface(RemoteableExtensible):
 
     def getImageData(self, streamId: int, imageIndex: int=None, timeout: int=5) -> pydicom.dataset.FileDataset:
         """
-        Get data from a stream initialized with initScannerStream or initOpenNeuroStream
+        Get data from a stream initialized with initScannerStream
 
         Args:
             streamId: Id of a previously opened stream.

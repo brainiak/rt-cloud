@@ -10,17 +10,14 @@ When not using RPC, i.e. when the projectServer is run without --dataRemote, the
 one instance of dataInterface, as part of the projectServer with dataRemote=False.
 """
 import os
-import glob
 import time
-import tempfile
-import nibabel as nib
 from rtCommon.remoteable import RemoteableExtensible
 from rtCommon.bidsArchive import BidsArchive
-from rtCommon.bidsRun import BidsRun
 from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.bidsCommon import getDicomMetadata
 from rtCommon.imageHandling import convertDicomImgToNifti
 from rtCommon.dataInterface import DataInterface
+from rtCommon.openNeuro import OpenNeuroCache
 from rtCommon.errors import RequestError, MissingMetadataError
 
 
@@ -58,6 +55,7 @@ class BidsInterface(RemoteableExtensible):
         # Store the allowed directories to be used by the DicomToBidsStream class
         self.allowedDirs = allowedDirs
         self.scannerClockSkew = scannerClockSkew
+        self.openNeuroCache = OpenNeuroCache(cachePath="/tmp/openneuro")
 
 
     def initDicomBidsStream(self, dicomDir, dicomFilePattern, dicomMinSize, **entities) -> int:
@@ -109,10 +107,13 @@ class BidsInterface(RemoteableExtensible):
         Returns:
             streamId: An identifier used when calling stream functions, such as getIncremental()
         """
+        if 'subject' not in entities or 'run' not in entities:
+            raise RequestError("initOpenNeuroStream: Must specify subject and run number")
+        archivePath = self.openNeuroCache.downloadData(dsAccessionNumber, **entities)
         # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
-        openNeuroStream = OpenNeuroStream(dsAccessionNumber, **entities)
-        self.streamMap[streamId] = openNeuroStream
+        bidsStream = BidsStream(archivePath, **entities)
+        self.streamMap[streamId] = bidsStream
         return streamId
 
     def getIncremental(self, streamId, volIdx=-1) -> BidsIncremental:
@@ -141,6 +142,9 @@ class BidsInterface(RemoteableExtensible):
         stream = self.streamMap[streamId]
         return stream.getNumVolumes()
 
+    def closeStream(self, streamId):
+        # remove the stream from the map
+        self.streamMap.pop(streamId, None)
 
     def getClockSkew(self, callerClockTime: float, roundTripTime: float) -> float:
         """
@@ -299,55 +303,3 @@ class BidsStream:
             return incremental
         else:
             return None
-
-
-class OpenNeuroStream(BidsStream):
-    """
-    A BidsStream from an OpenNeuro dataset. The OpenNeuro dataset will be automatically
-    downloaded, as needed, on the computer where this stream is intialized.
-    """
-    def __init__(self, dsAccessionNumber, **entities):
-        """
-        Args:
-            dsAccessionNumber: The OpenNeruo specific accession number for the dataset
-                to stream.
-            entities: BIDS entities (subject, session, task, run, suffix, datatype) that
-                define the particular subject/run of the data to stream
-        """
-        subject = entities.get('subject')
-        run = entities.get('run')
-        if subject is None or run is None:
-            raise RequestError("OpenNeuroStream: Must specify subject and run number")
-        # TODO - Use OpenNeuroService when it is available, to download
-        #   and access the dataset and get dataset entities
-        # OpenNeuroService to provide path to dataset
-        datasetPath = tmpDownloadOpenNeuro(dsAccessionNumber, subject, run)
-        super().__init__(datasetPath, **entities)
-
-
-def tmpDownloadOpenNeuro(dsAccessNumber, subject, run) -> str:
-    """
-    Temporary function used until we integrate in the OpenNeuro service. Downloads
-    a portion of an OpenNeuro dataset corresponding to the subject/run.
-    Args:
-        dsAccessionNumber: The OpenNeruo specific accession number for the dataset
-            to stream.
-        subject: the specific subject name within the OpenNeuro dataset to download
-        run: the specific run within the subject's data to download.
-    Returns:
-        Absolute path to where the dataset has been downloaded.
-
-    """
-    tmpDir = tempfile.gettempdir()
-    print(f'OpenNeuro Data cached to {tmpDir}')
-    datasetDir = os.path.join(tmpDir, dsAccessNumber)
-    # check if already downloaded
-    includePattern = f'sub-{subject}/func/*run-{run:02d}*'
-    files = glob.glob(os.path.join(datasetDir, includePattern))
-    if len(files) == 0:
-        os.makedirs(datasetDir, exist_ok = True)
-        awsCmd = f'aws s3 sync --no-sign-request s3://openneuro.org/{dsAccessNumber} ' \
-                f'{datasetDir} --exclude "*/*" --include "{includePattern}"'
-        print(f'run {awsCmd}')
-        os.system(awsCmd)
-    return datasetDir

@@ -64,7 +64,7 @@ class TestDataInterface:
                                                        allowedFileTypes=allowedFileTypes,
                                                        dataRemote=False,
                                                        subjectRemote=False)
-        clientInterface = ClientInterface()
+        clientInterface = ClientInterface(rpyc_timeout=70)
         dataInterface = clientInterface.dataInterface
         assert clientInterface.isDataRemote() == False
         assert dataInterface.isRemote == False
@@ -80,7 +80,7 @@ class TestDataInterface:
                                                        allowedFileTypes=allowedFileTypes,
                                                        dataRemote=True,
                                                        subjectRemote=False)
-        clientInterface = ClientInterface()
+        clientInterface = ClientInterface(rpyc_timeout=70)
         dataInterface = clientInterface.dataInterface
         assert clientInterface.isDataRemote() == True
         assert dataInterface.isRemote == True

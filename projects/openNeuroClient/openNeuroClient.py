@@ -1,6 +1,5 @@
 # import important modules
 import os
-from rtCommon.bidsRun import BidsRun
 import sys
 import numpy
 import uuid
@@ -15,6 +14,7 @@ sys.path.append(rootPath)
 from rtCommon.utils import loadConfigFile, stringPartialFormat
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.bidsArchive import BidsArchive
+from rtCommon.bidsRun import BidsRun
 
 # path for default configuration toml file
 defaultConfig = os.path.join(currPath, 'conf', 'openNeuroClient.toml')
@@ -41,8 +41,11 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
         print(f'BIDS Archive will be written to {bidsArchivePath}')
         newArchive = BidsArchive(bidsArchivePath)
         newRun = BidsRun(**entities)
+    extraKwargs = {}
+    if bidsInterface.isRunningRemote():
+        extraKwargs = {"rpc_timeout": 60}
     # Initialize the bids stream
-    streamId = bidsInterface.initOpenNeuroStream(cfg.dsAccessionNumber, **entities)
+    streamId = bidsInterface.initOpenNeuroStream(cfg.dsAccessionNumber, **entities, **extraKwargs)
     numVols = bidsInterface.getNumVolumes(streamId)
     for idx in range(numVols):
         bidsIncremental = bidsInterface.getIncremental(streamId, idx)

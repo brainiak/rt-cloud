@@ -48,6 +48,7 @@ def startCopyThread(numFiles=10):
 
 
 def test_waitForFile():
+    """Test to make sure file events are being triggered"""
     global exitThread, watchTmpPath, rndTimeouts
 
     clearWatchDir()
@@ -60,12 +61,16 @@ def test_waitForFile():
         # call waitForFile
         for i in range(10):
             dicomName = f'001_000013_00000{i}.dcm'
-            tout = rndTimeouts[i] + 0.1
-            result = watcher.waitForFile(dicomName, timeout=tout, timeCheckIncrement=0.5)
-            print(f'Got {result}')
+            tout = rndTimeouts[i] + 0.2
+            result = watcher.waitForFile(dicomName, timeout=tout, timeCheckIncrement=2.2)
+            print(f'Got {result}, timeout {tout}, loopCount {watcher.waitLoopCount}')
             # assert filename match
             assert result == os.path.join(watchTmpPath, dicomName)
             # assert file found by event trigger
+            # If this assert fails, it could be because two events are triggered
+            #  per file on Mac/Windows, a creation event and a modified event. This
+            #  will cause the loop count to go through twice in general and the
+            #  file could be found to exist (without an event) in traversing twice.
             assert watcher.foundWithFileEvent == True or watcher.waitLoopCount == 0
     finally:
         exitThread = True
@@ -99,7 +104,7 @@ def test_waitForFile_noEvents():
 
 
 def test_waitForFile_wrongDir():
-     # Init a file watcher on the wrong directory, 
+     # Init a file watcher on the wrong directory,
      #  the filewatch should time out and fail
     global exitThread, watchTmpPath, rndTimeouts
 
