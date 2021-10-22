@@ -1,14 +1,15 @@
 This README explains how the automated code documentation building system works.
 
-## Initial Setup
+# Initial Setup
 The `sphinx-quickstart` command (more info
-[here](https://sphinx-rtd-tutorial.readthedocs.io/en/latest/sphinx-quickstart.html#quickstart))
+[here](https://sphinx-rtd-tutorial.readthedocs.io/en/latest/sphinx-quickstart.tml#quickstart
+)
 sets up the boilerplate files to fill out.
 
 The `conf.py` file is the primary way of controlling/modifying the building
 process.
 
-## Rebuilding
+# Rebuilding
 `sphinx-build` with type/source/destination arguments builds the docs. The
 AutoAPI extension is configured with the source directory (rtCommon), and it
 automatically discovers modules to document during the `sphinx-build` process.

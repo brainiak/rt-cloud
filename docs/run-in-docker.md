@@ -8,7 +8,7 @@ https://docs.microsoft.com/en-us/azure/virtual-machines/linux/quick-create-porta
 - Amazon AWS instructions:<br>
 https://aws.amazon.com/getting-started/tutorials/launch-a-virtual-machine/
 
-#### Some notes for Azure VM:
+### Some notes for Azure VM:
 - Choose CentOS 7.5 (which the following instructions are based on)
 - Create a resource group 'rtcloud' to make it easier to track later
 - Choose VM instance type F4s_v2, F8s_v2, or F16s_v2 (depending on number of cores desired)

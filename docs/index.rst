@@ -10,6 +10,13 @@ Welcome to rtCloud's documentation!
    :maxdepth: 4
    :caption: Contents:
 
+   readme
+   how-to-run
+   how-to-wrap-your-project
+   subject-feedback
+   using-bids-data
+   run-in-docker
+
 
 Indices and tables
 ==================

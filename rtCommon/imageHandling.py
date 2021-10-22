@@ -1,12 +1,8 @@
-"""-----------------------------------------------------------------------------
-
-imageHandling.py (Last Updated: 05/27/2020)
-
+"""
 This script includes all of the functions that are needed (1) to transfer dicom
 files back and forth from the cloud and (2) to convert the dicom files to
 nifti files, which is a file format that is better for data analyses.
-
------------------------------------------------------------------------------"""
+"""
 
 import os
 import time
@@ -32,13 +28,11 @@ except ModuleNotFoundError:
 # binary path of the conda environment
 binPath = None
 
-"""-----------------------------------------------------------------------------
-
-The following functions are used to transfer dicom files back and forth from the
-cloud. We note whether a function is used externally (e.g., not exclusively by
-other functions found in rtCommon) or internally.
-
------------------------------------------------------------------------------"""
+###########
+# The following functions are used to transfer dicom files back and forth from the
+# cloud. We note whether a function is used externally (e.g., not exclusively by
+# other functions found in rtCommon) or internally.
+###########
 
 def getDicomFileName(cfg, scanNum, fileNum):
     """
@@ -114,7 +108,7 @@ def writeDicomToBuffer(dicomImg):
     This function write dicom data to binary mode so that it can be transferred
     to the cloud, where it again becomes a dicom. This is needed because files are
     transferred to the cloud in the following manner:
-        dicom from scanner --> binary file  --> transfer to cloud --> dicom file
+    dicom from scanner --> binary file  --> transfer to cloud --> dicom file
 
     Used internally.
     """
@@ -130,7 +124,7 @@ def readDicomFromBuffer(data) -> pydicom.dataset.FileDataset:
     This function reads data that is in binary mode and then converts it into a
     structure that can be read as a dicom file. This is necessary because files are
     transferred to the cloud in the following manner:
-        dicom from scanner --> binary file  --> transfer to cloud --> dicom file
+    dicom from scanner --> binary file  --> transfer to cloud --> dicom file
 
     Use internally.
     """
@@ -228,13 +222,11 @@ def dicomTimeToNextTr(dicomImg, clockSkew, now=None):
     secToNextTr = getTimeToNextTR(acquisitionTime, repetitionTime, now, clockSkew)
     return secToNextTr
 
-"""-----------------------------------------------------------------------------
-
-The following functions are used to convert dicom files into nifti files, which
-can then be easily used in fMRI analyses. Again, we denote whether functions are
-used externally or internally.
-
------------------------------------------------------------------------------"""
+###########
+# The following functions are used to convert dicom files into nifti files, which
+# can then be easily used in fMRI analyses. Again, we denote whether functions are
+# used externally or internally.
+###########
 
 ## ANNE - is this the correct order in which these functions would be used?
 
@@ -327,10 +319,9 @@ def readNifti(niftiFilename, memCached=True):
 
 def convertDicomImgToNifti(dicomImg, dicomFilename=None):
     '''
-    Given an in-memory dicomImg, convert it to an in-memory niftiImg
+    Given an in-memory dicomImg, convert it to an in-memory niftiImg. 
     Note: due to how nibabel niftiImage works, it is just a pointer to a file
-          on disk, so we can't delete the niftiFile while niftiImage is
-          is in use.
+    on disk, so we can't delete the niftiFile while niftiImage is in use.
     '''
     if dicomFilename is None:
         dicomFilename = os.path.join('/tmp', 'tmp_nifti_' + uuid.uuid4().hex + '.dcm')

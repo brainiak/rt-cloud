@@ -12,7 +12,7 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../'))
+sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
 
@@ -29,7 +29,8 @@ author = 'Princeton Neuroscience Institute'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
-    'autoapi.extension'
+    'autoapi.extension',
+    'myst_parser',
 ]
 
 # Set the directories for AutoAPI to find source code
@@ -38,7 +39,8 @@ extensions = [
 # separate, manual step to generate RST files.
 # 2) AutoAPI uses code parsing instead of code imports, which means there's no
 # need to install the full RT-Cloud conda environment (takes >10m on RTD).
-autoapi_dirs = ['../../rtCommon']
+autoapi_dirs = ['../rtCommon']
+# autoapi_keep_files = True  # Useful for debuggin warnings and errors
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -57,7 +59,7 @@ autoclass_content = 'both'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'default'
+html_theme = 'sphinx_rtd_theme'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
