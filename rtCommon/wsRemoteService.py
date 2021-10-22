@@ -168,8 +168,8 @@ def isNativeType(var):
 def encodeByteTypeArgs(cmd) -> dict:
     """
     Check if any args are of type 'bytes' and if so base64 encode them.
-    The original arg will be replaced with a tag that will reference the encoded bytes
-        within the cmd dict.
+    The original arg will be replaced with a tag that will reference
+    the encoded bytes within the cmd dict.
     Args:
         cmd: a dictionary of the command to check
     Returns:

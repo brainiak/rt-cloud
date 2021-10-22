@@ -1,7 +1,7 @@
 """
 This module provides the RPC server that provides communication services to the experiment script.
 Note: When using services local to the projectServer, RPCs call do one hop, client --> rpyc server (method)
-      When using remote services RPC calls traverse two links, client --> rpyc server --> (via websockets) remote service
+When using remote services RPC calls traverse two links, client --> rpyc server --> (via websockets) remote service
 """
 import rpyc
 import json
@@ -99,9 +99,9 @@ class ProjectRPCService(rpyc.Service):
 
 def startRPCThread(rpcService, hostname=None, port=12345):
     """
-    This function starts the Project RPC server for communication between the projectServer
-        and the experiment script.
-        IT DOES NOT RETURN.
+    This function starts the Project RPC server for communication between
+    the projectServer and the experiment script.
+    IT DOES NOT RETURN.
     """
     safe_attrs = rpyc.core.protocol.DEFAULT_CONFIG.get('safe_attrs')
     safe_attrs.add('__format__')
@@ -130,9 +130,10 @@ def startRPCThread(rpcService, hostname=None, port=12345):
 class RPCHandlers:
     """
     Class for websocket RPC handlers. This class handles the second hop described in
-        note below, namely from rpyc server to the remote service via websockets.
+    note below, namely from rpyc server to the remote service via websockets.
+
     Note: When using local services, RPC call do one hop, client --> rypc server object/method
-          When using remote services RPC calls traverse two links, client --> rpyc server --> (via websockets) remote service
+    When using remote services RPC calls traverse two links, client --> rpyc server --> (via websockets) remote service
     """
     def __init__(self, ioLoopInst, webDisplayInterface):
         """

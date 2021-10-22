@@ -21,8 +21,9 @@ class OpenNeuroCache():
         return self.cachePath
 
     def getS3Client(self):
-        """Returns an s3 client in order to reuse the same s3 client without
-           always creating a new one. Not thread safe currently.
+        """
+        Returns an s3 client in order to reuse the same s3 client without
+        always creating a new one. Not thread safe currently.
         """
         if self.s3Client is None:
             self.s3Client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
@@ -30,10 +31,10 @@ class OpenNeuroCache():
 
     def getDatasetList(self, refresh=False):
         """
-        Returns a list of all datasets available in OpenNeuro S3 storage
-        "See https://openneuro.org/public/datasets for datasets info"
+        Returns a list of all datasets available in OpenNeuro S3 storage.
+        See https://openneuro.org/public/datasets for datasets info.
         Alternate method to access from a command line call:
-            aws s3 --no-sign-request ls s3://openneuro.org/
+        [aws s3 --no-sign-request ls s3://openneuro.org/]
         """
         if self.datasetList is None or len(self.datasetList)==0 or refresh is True:
             s3Client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
@@ -55,8 +56,10 @@ class OpenNeuroCache():
     def getSubjectList(self, dsAccessionNum):
         """
         Returns a list of all the subjects in a dataset
+
         Args:
-            dsAccessionNum - accession number of dataset to lookup
+            dsAccessionNum: accession number of dataset to lookup
+
         Returns:
             list of subjects in that dataset
         """
@@ -120,10 +123,11 @@ class OpenNeuroCache():
         Note: if only the accessionNum is supplied then it will just sync the top-level files.
         Sync doesn't re-download files that are already present in the directory.
         Consider using --delete which removes local cache files no longer on the remote.
+
         Args:
             dsAccessionNum: accession number of the dataset to download data for.
             downloadWholeDataset: boolean, if true all files in the dataset
-                                    will be downloaded.
+                will be downloaded.
             entities: BIDS entities (subject, session, task, run, suffix) that
                 define the particular subject/run of the data to download.
         Returns:

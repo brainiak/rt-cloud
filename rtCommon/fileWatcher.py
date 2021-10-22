@@ -83,6 +83,7 @@ class WatchdogFileWatcher():
         """
         Initialize the file watcher to watch in the specified directory for the specified
         regex-based filepattern.
+
         Args:
             dir (str): Directory to watch in
             filePattern (str): Regex-based filepattern to watch for
@@ -111,6 +112,7 @@ class WatchdogFileWatcher():
     def waitForFile(self, filename: str, timeout: int=0, timeCheckIncrement: int=1) -> Optional[str]:
         """
         Wait for a specific filename to be created in the directory specified in initFileNotifier.
+
         Args:
             filename: Name of File to watch for creation of. If filename includes a path it must 
                 match that specified in initFileNotifier.
@@ -274,6 +276,7 @@ class InotifyFileWatcher():
     def waitForFile(self, filename: str, timeout: int=0, timeCheckIncrement: int=1) -> Optional[str]:
         """
         Wait for a specific filename to be created in the directory specified in initFileNotifier.
+
         Args:
             filename: Name of File to watch for creation of. If filename includes a path it must 
                 match that specified in initFileNotifier.

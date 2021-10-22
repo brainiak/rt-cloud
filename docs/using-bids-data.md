@@ -182,13 +182,13 @@ newArchive.appendBidsRun(newRun)
 ```
 
 An overview of how these classes all fit together for sending data from the MRI
-scanner to a BIDS Archive is shown in [Overview of Streaming From MRI to BIDS
-Archive](append-overview.png), and retrieving BIDS data from an archive is
-simply the reverse of that diagram.
+scanner to a BIDS Archive is shown here:
+![Overview of Streaming From MRI to BIDS Archive](append-overview.png)
+Retrieving BIDS data from an archive is simply the reverse of that diagram.
 
 For a more in-depth introduction to the various classes and how to use them,
-check out the [bids_tutorial Jupyter
-notebook](tutorials/bids_tutorial.ipynb).
+check out the bids_tutorial Jupyter
+notebook [tutorials/bids_tutorial.ipynb](tutorials/bids_tutorial.ipynb).
 
 ## **Replaying Data from OpenNeuro**
 One goal of this project is to facilitate collaboration and sharing of code and data. To this end we introduce an OpenNeuro module which can access and stream data from the [OpenNeuro.org](https://openneuro.org/) data repository. In essence this is a 'NetFlix' type service for fMRI datasets. Researchers can replay datasets through their processing pipelines to try new models, reproduce results or test and debug experiments.

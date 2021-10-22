@@ -202,7 +202,7 @@ class DataInterface(RemoteableExtensible):
 
         Args:
             dir: Directory to watch for arrival (creation) of new files
-            filePattern: Regex style filename pattern of files to watch for (i.e. *.dcm)
+            filePattern: Regex style filename pattern of files to watch for (i.e. \*.dcm)
             minFileSize: Minimum size of the file to return (continue waiting if below this size)
             demoStep: Minimum interval (in seconds) to wait before returning files.
                 Useful for demos replaying existing files while mimicking original timing.

@@ -83,8 +83,8 @@ class SubjectInterface(RemoteableExtensible):
         """
         Retrieve the subject response, used by the classification script.
         See *note* above - these local versions of the function are just
-          for testing or as a place holder when no external subjectInterface
-          is used.
+        for testing or as a place holder when no external subjectInterface
+        is used.
         """
         print(f'SubjectInterface: getResponse: run {runId}, tr {trId}')
         return {}
@@ -101,7 +101,7 @@ class SubjectInterface(RemoteableExtensible):
         Return the next result value sent by the experiment script. Used by the
         presentation script.
         See *note* above - these local versions of the function are just
-          for testing or as a place holder when no external version is used.
+        for testing or as a place holder when no external version is used.
         """
         return self.msgQueue.get(block=block, timeout=timeout)
 

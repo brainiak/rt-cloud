@@ -1,0 +1,8 @@
+name: rtcloud_docs
+channels:
+  - conda-forge
+dependencies:
+  - sphinx
+  - sphinx-autoapi
+  - sphinx_rtd_theme
+  - myst-parser

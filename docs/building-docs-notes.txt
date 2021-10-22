@@ -1,0 +1,11 @@
+conda env create --file docs/env_build_docs.yml
+conda activate rtcloud_docs
+
+# Above command will handle these installations
+# conda install sphinx
+# conda install -c conda-forge sphinx-autoapi
+# conda install -c conda-forge myst-parser
+# conda install sphinx_rtd_theme
+
+make clean
+make html

@@ -63,6 +63,7 @@ class BidsInterface(RemoteableExtensible):
         Intialize a data stream that watches a directory for DICOM files to be written that
         match the given file pattern. When a DICOM is written it will be converted to a BIDS
         incremental and returned.
+
         Args:
             dicomDir: the directory where the images are or will be written from the MRI scanner.
             dicomFilePattern: a pattern of the image file names that has a TR tag which will be used
@@ -72,7 +73,7 @@ class BidsInterface(RemoteableExtensible):
             entities: BIDS entities (subject, session, task, run, suffix, datatype) that will be
                 required to fill in the BIDS metadata in the BIDS Incremental
         Returns:
-            streamId: An identifier used when calling stream functions, such as getIncremental()
+            streamId: An int identifier to be used when calling stream functions, such as getIncremental()
         """
         # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
@@ -84,12 +85,13 @@ class BidsInterface(RemoteableExtensible):
     def initBidsStream(self, archivePath, **entities) -> int:
         """
         Initialize a data stream from an existing BIDS archive.
+
         Args:
             archivePath: Full path to the BIDS archive
             entities: BIDS entities (subject, session, task, run, suffix, datatype) that
                 define the particular subject/run of the data to stream
         Returns:
-            streamId: An identifier used when calling stream functions, such as getIncremental()
+            streamId: An int identifier to be used when calling stream functions, such as getIncremental()
         """
         # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
@@ -100,6 +102,7 @@ class BidsInterface(RemoteableExtensible):
     def initOpenNeuroStream(self, dsAccessionNumber, **entities) -> int:
         """
         Initialize a data stream that replays an OpenNeuro dataset.
+
         Args:
             dsAccessionNumber: OpenNeuro accession number of the dataset to replay
             entities: BIDS entities (subject, session, task, run, suffix, datatype) that
@@ -119,6 +122,7 @@ class BidsInterface(RemoteableExtensible):
     def getIncremental(self, streamId, volIdx=-1) -> BidsIncremental:
         """
         Get a BIDS Incremental from a stream
+
         Args:
             streamId: The stream handle returned by the initXXStream call
             volIdx: The brain volume index of the image to return. If -1 is
@@ -134,6 +138,7 @@ class BidsInterface(RemoteableExtensible):
         """
         Return the number of image volumes contained in the stream. This is only
         defined for Bids/OpenNeuro streams (not for DicomBidsStreams)
+
         Args:
             streamId: The stream handle returned by the initXXStream call
         Returns:
@@ -154,6 +159,7 @@ class BidsInterface(RemoteableExtensible):
         Value returned is in seconds. A positive number means the scanner clock
         is ahead of the caller's clock. The caller should add the skew to their
         localtime to get the time in the scanner's clock.
+
         Args:
             callerClockTime - current time (secs since epoch) of caller's clock
             roundTripTime - measured RTT in seconds to remote caller
@@ -188,6 +194,7 @@ class DicomToBidsStream():
     def initStream(self, dicomDir, dicomFilePattern, dicomMinSize, **entities):
         """
         Intialize a new DicomToBids stream, watches for Dicoms and streams as BIDS
+
         Args:
             dicomDir: The directory where the scanner will write new DICOM files
             dicomFilePattern: A regex style pattern of the DICOM filenames to
@@ -231,11 +238,13 @@ class DicomToBidsStream():
     def getIncremental(self, volIdx=-1) -> BidsIncremental:
         """
         Get the BIDS incremental for the corresponding DICOM image indicated
-            by the volIdx, where volIdx is equivalent to TR id.
+        by the volIdx, where volIdx is equivalent to TR id.
+
         VolIdx acts similar to a file_seek pointer. If a volIdx >= 0 is supplied
-            the volume pointer is advanced to that position. If no volIdx or
-            a volIdx < 0 is supplied, then the next image volume after the previous
-            position is returned and the pointer is incremented.
+        the volume pointer is advanced to that position. If no volIdx or
+        a volIdx < 0 is supplied, then the next image volume after the previous
+        position is returned and the pointer is incremented.
+
         Args:
             volIdx: The volume index (or TR) within the run to retrieve.
         Returns:
@@ -282,9 +291,10 @@ class BidsStream:
         """
         Get a BIDS incremental for the indicated index in the current subject/run
         VolIdx acts similar to a file_seek pointer. If a volIdx >= 0 is supplied
-            the volume pointer is advanced to that position. If no volIdx or
-            a volIdx < 0 is supplied, then the next image volume after the previous
-            position is returned and the pointer is incremented.
+        the volume pointer is advanced to that position. If no volIdx or
+        a volIdx < 0 is supplied, then the next image volume after the previous
+        position is returned and the pointer is incremented.
+
         Args:
             volIdx: The volume index (or TR) within the run to retrieve.
         Returns:
