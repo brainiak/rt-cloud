@@ -28,7 +28,8 @@ jobs:
         path: /usr/share/miniconda
         key:
           ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('environment.yml') }}
+            hashFiles('environment.yml') }}-${{
+            hashFiles('environment-synthetic-data.yml') }}
 
     - name: Add conda to system path
       run: |
@@ -44,6 +45,7 @@ jobs:
       run: |
         conda list
         conda env update --file environment.yml --name base
+        conda env update --file environment-synthetic-data.yml --name base
 
     - name: Lint with flake8
       run: |
