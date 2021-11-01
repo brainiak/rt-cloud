@@ -3,6 +3,7 @@ channels:
   - defaults
   - conda-forge
 dependencies:
+  - awscli
   - bcrypt
   - boto3
   - dcm2niix
