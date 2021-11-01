@@ -2,36 +2,29 @@ name: rtcloud
 channels:
   - defaults
   - conda-forge
-  - brainiak
 dependencies:
-  - awscli
   - bcrypt
-  - brainiak
   - boto3
   - dcm2niix
   - flake8
   - indexed_gzip  # for efficient random access of gzipped files with Nibabel
-  - inflect
-  - ipython
   - jupyter
   - mypy
   - nibabel
   - nilearn
   - nodejs
   - numpy
-  - openssl
   - pip
   - pydicom
   - pytest
   - python=3.7
   - requests
   - rpyc
-  - scikit-learn
   - scipy
   - toml
   - tornado
   - websocket-client
-  - wsaccel
+  - wsaccel # for websocket acceleration
   - pip:
     - inotify
     - pybids

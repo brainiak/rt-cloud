@@ -1,0 +1,8 @@
+name: rtcloud
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - brainiak::brainiak  # specifing the channel
+  - nomkl
+  - scikit-learn
