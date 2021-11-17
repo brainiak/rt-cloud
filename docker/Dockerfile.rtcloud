@@ -1,41 +1,37 @@
-FROM grantwallace/rtbase:1.0
+FROM grantwallace/rtconda:1.1 as CONDA_IMAGE
 
-SHELL ["/bin/bash", "-c"]
+# Create rtuser account
+RUN adduser -u 5454 -U rtuser
 
-RUN \
-echo "## Install NodeJs ##" && \
-yum install -y epel-release && \
-yum install -y nodejs && \
-echo "## Completed Installing NodeJs ##"
+# RUN \
+# echo "## Install NodeJs ##" && \
+# yum install -y epel-release && \
+# yum install -y nodejs && \
+# echo "## Completed Installing NodeJs ##"
 
 RUN \
 mkdir /rt-cloud && \
 chown rtuser:rtuser /rt-cloud
 
 USER rtuser
-
+SHELL ["/bin/bash", "-c"]
 ENV PATH="~/miniconda3/bin:${PATH}"
 
+# Get latests commit tag - to prevent caching old git clone of repo
+ADD https://api.github.com/repos/brainiak/rt-cloud/git/refs/heads/master version.json
+
 RUN \
-echo "## Install rt-cloud ##" && \
+echo "## Clone rt-cloud repo ##" && \
 git clone https://github.com/brainiak/rt-cloud.git /rt-cloud && \
-pushd /rt-cloud && \
-mkdir /rt-cloud/certs && \
-conda env create -f environment.yml && \
-cd web && \
+mkdir /rt-cloud/certs
+
+RUN \
+echo "## Install web environment ##" && \
+cd /rt-cloud/web && \
 npm install && \
-popd && \
 echo "## Completed Installing rt-cloud ##"
 
-RUN \
-echo "## Install Brainiak ##" && \
-source /home/rtuser/miniconda3/etc/profile.d/conda.sh && \
-conda activate rtcloud && \
-conda install -y -c brainiak -c defaults -c conda-forge brainiak && \
-echo "## Completed Installing Brainiak ##"
-
 WORKDIR /rt-cloud
-
 EXPOSE 8888
 
 CMD /bin/bash

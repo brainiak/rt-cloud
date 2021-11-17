@@ -54,12 +54,12 @@ Add a new group with GID 5454 which matches the user and group ID used in the rt
 This will create a self-signed SSL certificate called **rtcloud.crt** to allow encrypted communication with the projectInterface. You will need to install the rtcloud.crt certificate in your browser for trusted communication. The certificate will be created in location:<br> /var/lib/docker/volumes/certs/\_data/rtcloud.crt
 
     IP=`curl https://ifconfig.co/`
-    docker run --rm -v certs:/rt-cloud/certs brainiak/rtcloud:1.0 scripts/make-sslcert.sh -ip $IP
+    docker run --rm -it -v certs:/rt-cloud/certs brainiak/rtcloud:1.0 scripts/make-sslcert.sh -ip $IP
 
 **Add user for web interface**<br>
 The web connection to projectInterface requires a user/password to authenticate. You can create a username and password with this command.
 
-    docker run -it --rm -v certs:/rt-cloud/certs brainiak/rtcloud:1.0 scripts/add-user.sh -u <username>
+    docker run -it --rm -it -v certs:/rt-cloud/certs brainiak/rtcloud:1.0 scripts/add-user.sh -u <username>
 
 ## Run rtcloud projectInterface
 Once the above installation only needs to be run once, then the projectInterface can be started whenever needed with these commands.
