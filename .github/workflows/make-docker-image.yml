@@ -14,8 +14,11 @@ jobs:
         DOCKER_USER: ${{secrets.DOCKER_USER}}
         DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
       run: |
-        echo "${{secrets.DOCKER_USER}} ${{secrets.DOCKER_PASSWORD}}" > tt.txt
-        # echo ${{secrets.DOCKER_PASSWORD}} | docker login -u ${{secrets.DOCKER_USER}} --password-stdin
+        echo ${{secrets.DOCKER_PASSWORD}} | docker login -u ${{secrets.DOCKER_USER}} --password-stdin
 
-    - name: check env
-      run: cat tt.txt
+    # - name: Build the Docker image
+      # --tag my-image-name:$(date +%s)
+      # run: docker build . --file docker/Dockerfile.rtcloud --tag brainiak/rtcloud:latest
+  
+    # - name: Docker Push
+      # run: docker push brainiak/rtcloud:latest
