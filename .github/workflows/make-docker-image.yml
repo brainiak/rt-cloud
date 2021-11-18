@@ -8,12 +8,13 @@ jobs:
 
     steps:
       #- uses: actions/checkout@v2
-      #docker login -u ${{secrets.DOCKER_USER}} -p ${{secrets.DOCKER_PASSWORD}} 
+      #echo "${{secrets.DOCKER_PASSWORD}}" | docker login -u ${{secrets.DOCKER_USER}} --password-stdin
+
 
     - name: docker login
       run: |
-        echo "${{secrets.DOCKER_PASSWORD}}" | docker login -u ${{secrets.DOCKER_USER}} --password-stdin
-
+        docker login -u ${{secrets.DOCKER_USER}} -p ${{secrets.DOCKER_PASSWORD}}
+        
 
     # - name: Build the Docker image
       # --tag my-image-name:$(date +%s)
