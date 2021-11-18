@@ -1,4 +1,6 @@
-FROM grantwallace/rtconda:1.1
+FROM grantwallace/rtconda:1.1 as CONDA_IMAGE
+
+FROM grantwallace/rtbase:1.1
 
 SHELL ["/bin/bash", "-c"]
 
@@ -7,6 +9,17 @@ mkdir /rt-cloud && \
 chown rtuser:rtuser /rt-cloud
 
 USER rtuser
+
+# Copy miniconda environment from the conda_image
+COPY --from=CONDA_IMAGE /home/rtuser/miniconda3 /home/rtuser/miniconda3
+COPY --from=CONDA_IMAGE /home/rtuser/.bashrc /tmp/conda_bashrc
+
+# Combine bashrc files from the conda_image
+WORKDIR /home/rtuser
+RUN \
+cp .bashrc bashrc.bak && \
+grep -Fvxf .bashrc /tmp/conda_bashrc > /tmp/bashrc_patch && \
+cat bashrc.bak /tmp/bashrc_patch > .bashrc
 
 # Get latests commit tag - to prevent caching old git clone of repo
 ADD https://api.github.com/repos/brainiak/rt-cloud/git/refs/heads/master version.json

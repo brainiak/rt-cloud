@@ -18,10 +18,6 @@ for i in ${!args[@]}; do
     fi
 done
 
-pushd web
-npm run build
-popd
-
 if [ -z $IP ]; then
     echo "Warning: no ip address supplied, credentials won't be updated"
 else
@@ -34,6 +30,10 @@ if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "rtcloud" ]; then
     source ~/.bashrc
     conda activate rtcloud
 fi
+
+pushd web
+npm run build
+popd
 
 export PYTHONPATH=./rtCommon/:$PYTHONPATH
 echo "python rtCommon/projectServer.py ${args[@]}"
