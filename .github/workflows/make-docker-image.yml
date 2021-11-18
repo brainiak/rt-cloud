@@ -1,0 +1,17 @@
+name: Make and Push Docker Images to Dockerhub
+
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      #- uses: actions/checkout@v2
+
+    - name: docker login
+      env:
+        DOCKER_USER: ${{secrets.DOCKER_USER}}
+        DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+      run: |
+        echo $DOCKER_USER $DOCKER_PASSWORD
