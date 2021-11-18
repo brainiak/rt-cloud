@@ -14,7 +14,8 @@ jobs:
         DOCKER_USER: ${{secrets.DOCKER_USER}}
         DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
       run: |
-        echo "$DOCKER_USER $DOCKER_PASSWORD" > tt.txt
+        echo "${{secrets.DOCKER_USER}} ${{secrets.DOCKER_PASSWORD}}" > tt.txt
+        docker login -u ${{secrets.DOCKER_USER}} -p ${{secrets.DOCKER_PASSWORD}}
 
     - name: check env
       run: cat tt.txt
