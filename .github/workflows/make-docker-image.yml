@@ -7,18 +7,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      #- uses: actions/checkout@v2
-      #echo "${{secrets.DOCKER_PASSWORD}}" | docker login -u ${{secrets.DOCKER_USER}} --password-stdin
+    - uses: actions/checkout@v2
 
-
-    - name: docker login
+    - name: Docker login
       run: |
-        docker login -u ${{secrets.DOCKER_USER}} -p ${{secrets.DOCKER_PASSWORD}}
+        echo "${{secrets.DOCKER_PASSWORD}}" | docker login -u ${{secrets.DOCKER_USER}} --password-stdin
         
 
-    # - name: Build the Docker image
+    - name: Build the Docker image
       # --tag my-image-name:$(date +%s)
-      # run: docker build . --file docker/Dockerfile.rtcloud --tag brainiak/rtcloud:latest
+      run: docker build . --file docker/Dockerfile.rtcloud --tag brainiak/rtcloud:latest
   
-    # - name: Docker Push
-      # run: docker push brainiak/rtcloud:latest
+    - name: Docker Push
+      run: docker push brainiak/rtcloud:latest
