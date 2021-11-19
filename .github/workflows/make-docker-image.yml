@@ -9,14 +9,21 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Build the Docker image
+      # --tag my-image-name:$(date +%s)
+      run: |
+        docker build . --file docker/Dockerfile.rtcloud --tag brainiak/rtcloud:latest
+        docker build . --file docker/Dockerfile.rtcloudXL --tag brainiak/rtcloudxl:latest
+
     - name: Docker login
       run: |
         echo "${{secrets.DOCKER_PASSWORD}}" | docker login -u ${{secrets.DOCKER_USER}} --password-stdin
-        
 
-    - name: Build the Docker image
-      # --tag my-image-name:$(date +%s)
-      run: docker build . --file docker/Dockerfile.rtcloud --tag brainiak/rtcloud:latest
-  
     - name: Docker Push
-      run: docker push brainiak/rtcloud:latest
+      run: |
+        docker push brainiak/rtcloud:latest
+        docker push brainiak/rtcloudxl:latest
+
+    - name: Docker logout
+      # Removes credentials stored in $HOME/.docker/config.json
+      run: docker logout
