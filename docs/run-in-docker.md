@@ -22,7 +22,7 @@ https://aws.amazon.com/getting-started/tutorials/launch-a-virtual-machine/
 
     sudo yum install -y yum-utils device-mapper-persistent-data lvm2
     sudo yum-config-manager -y --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    sudo yum install -y docker-ce docker-ce-cli containerd.io
+    sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose
 
 **Add your username to the docker group** (to avoid using sudo for docker commands)
 
@@ -41,37 +41,60 @@ https://aws.amazon.com/getting-started/tutorials/launch-a-virtual-machine/
 ## Install rtcloud for Docker
 **Pull rtcloud image**
 
-    docker pull brainiak/rtcloud:1.0
+    docker pull brainiak/rtcloud:latest
 
 **Add the rtgroup**<br>
-Add a new group with GID 5454 which matches the user and group ID used in the rtcloud Docker container. Add you username to be a member of the rtgroup.
+Add a new group with GID 5454 to you local system which matches the user and group ID used in the rtcloud Docker container. Add your username to be a member of the rtgroup.
 
     sudo groupadd -g 5454 rtgroup
-    sudo usermod -a -G rtgroup <username>
+    sudo usermod -a -G rtgroup <your-username>
     sudo chgrp -R rtgroup <projects-dir>
 
 **Create the rtcloud ssl certificate**<br>
 This will create a self-signed SSL certificate called **rtcloud.crt** to allow encrypted communication with the projectInterface. You will need to install the rtcloud.crt certificate in your browser for trusted communication. The certificate will be created in location:<br> /var/lib/docker/volumes/certs/\_data/rtcloud.crt
 
     IP=`curl https://ifconfig.co/`
-    docker run --rm -it -v certs:/rt-cloud/certs brainiak/rtcloud:1.0 scripts/make-sslcert.sh -ip $IP
+    docker run -it --rm -v certs:/rt-cloud/certs brainiak/rtcloud:latest scripts/make-sslcert.sh -ip $IP
 
-**Add user for web interface**<br>
-The web connection to projectInterface requires a user/password to authenticate. You can create a username and password with this command.
+**Add a user for web interface**<br>
+The web connection to the projectInterface requires a user/password to authenticate. You can create a username and password with this command.
 
-    docker run -it --rm -it -v certs:/rt-cloud/certs brainiak/rtcloud:1.0 scripts/add-user.sh -u <username>
+    docker run -it --rm -v certs:/rt-cloud/certs brainiak/rtcloud:latest scripts/add-user.sh -u <username>
 
 ## Run rtcloud projectInterface
-Once the above installation only needs to be run once, then the projectInterface can be started whenever needed with these commands.
+The above installation only needs to be run once, then the projectInterface can be started whenever needed with these commands.
 
     IP=`curl https://ifconfig.co/`
-    PROJS_DIR=<full_path_to_projects_dir>
+    PROJ_DIR=<full_path_to_project_dir>
+    PROJ_NAME=<name>
 
-    docker run -it --rm -v certs:/rt-cloud/certs -v $PROJS_DIR:/rt-cloud/projects -p 8888:8888  brainiak/rtcloud:1.0 scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip $IP
+    docker run -it --rm -v certs:/rt-cloud/certs -v $PROJ_DIR:/rt-cloud/projects/$PROJ_NAME -p 8888:8888  brainiak/rtcloud:latest scripts/run-projectInterface.sh -p $PROJ_NAME -c projects/$PROJ_NAME/config.toml -ip $IP
+
 
 ## Alternate simpler calls using the run-docker.sh script
-The rt-cloud githup repo has a run-docker.sh script that encapsulates the docker specific call parameters in the above calls. This can make it simpler to call the functions you want within the docker image. The following show the previous commands using the run-docker.sh helper script.
+The rt-cloud githup repo has a run-docker.sh script that encapsulates the docker specific call parameters in the above calls. This can make it simpler to call the functions you want within the docker image. The following shows the previous commands using the run-docker.sh helper script. Set the $PROJ_DIR env variable before calling run-docker.sh so it can map the project directory into the docker container.
 
     scripts/run-docker.sh scripts/make-sslcert.sh -ip $IP
     scripts/run-docker.sh scripts/add-user.sh -u <username>
     scripts/run-docker.sh scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip $IP
+
+## Alternate methods using docker-compose
+Docker compose can be used to start a container running with all the appropriate directories and ports mapped, making it easier to issue calls (i.e. run commands) in a continuously running container.
+
+The docker compose file is located at: `rt-cloud/docker/docker-compose.yml`. Edit the docker-compose.yml file and replace `/tmp/myproject` with the path to your project, and update the internal container mount point by replacing 'myproject' in `/rt-cloud/projects/myproject` with your project directory name.
+
+Then start the docker compose container running `docker-compose up`.
+
+    docker-compose -f docker/docker-compose.yml up &
+
+Stop the docker compose container by running `docker-compose down`
+
+    docker-compose -f docker/docker-compose.yml down
+
+The running container will be named `rtserver`. You can then issue commands to the running container such as:
+
+    docker exec -it rtserver ls /rt-cloud/projects
+
+    docker exec -it rtserver scripts/run-projectInterface.sh -p myproject -c /rt-cloud/projects/myproject/config.toml --test
+
+This makes it easier to run commands without specifying volumes and ports to map each time, and is more efficient as it uses a running container rather than starting a new container for each command.

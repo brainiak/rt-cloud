@@ -1,6 +1,10 @@
 name: Make and Push Docker Images to Dockerhub
 
-on: [workflow_dispatch]
+# on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
 
 jobs:
   build:
