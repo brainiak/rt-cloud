@@ -13,7 +13,9 @@ jobs:
       # --tag my-image-name:$(date +%s)
       run: |
         docker build . --file docker/Dockerfile.rtcloud --tag brainiak/rtcloud:latest
-        docker build . --file docker/Dockerfile.rtcloudXL --tag brainiak/rtcloudxl:latest
+      # Github runners are currently limited to 14 GB of storage so we can't build the XL
+      #  instance here (which inlcudes FSL, ANTS, C3D tools) which requires 30+ GB
+      # docker build . --file docker/Dockerfile.rtcloudXL --tag brainiak/rtcloudxl:latest
 
     - name: Docker login
       run: |
@@ -22,7 +24,7 @@ jobs:
     - name: Docker Push
       run: |
         docker push brainiak/rtcloud:latest
-        docker push brainiak/rtcloudxl:latest
+      # docker push brainiak/rtcloudxl:latest
 
     - name: Docker logout
       # Removes credentials stored in $HOME/.docker/config.json
