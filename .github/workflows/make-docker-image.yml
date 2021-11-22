@@ -1,17 +1,35 @@
 name: Make and Push Docker Images to Dockerhub
 
-on: [workflow_dispatch]
+# on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      #- uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
-    - name: docker login
-      env:
-        DOCKER_USER: ${{secrets.DOCKER_USER}}
-        DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+    - name: Build the Docker image
+      # --tag my-image-name:$(date +%s)
       run: |
-        echo $DOCKER_USER $DOCKER_PASSWORD
+        docker build . --file docker/Dockerfile.rtcloud --tag brainiak/rtcloud:latest
+      # Github runners are currently limited to 14 GB of storage so we can't build the XL
+      #  instance here (which inlcudes FSL, ANTS, C3D tools) which requires 30+ GB
+      # docker build . --file docker/Dockerfile.rtcloudXL --tag brainiak/rtcloudxl:latest
+
+    - name: Docker login
+      run: |
+        echo "${{secrets.DOCKER_PASSWORD}}" | docker login -u ${{secrets.DOCKER_USER}} --password-stdin
+
+    - name: Docker Push
+      run: |
+        docker push brainiak/rtcloud:latest
+      # docker push brainiak/rtcloudxl:latest
+
+    - name: Docker logout
+      # Removes credentials stored in $HOME/.docker/config.json
+      run: docker logout

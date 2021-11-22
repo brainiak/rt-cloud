@@ -1,0 +1,27 @@
+name: Tag the latest Docker image when a release is created
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Pull the latest Docker image
+      run: docker pull brainiak/rtcloud:latest
+
+    - name: Tag the Docker image
+      run: docker tag brainiak/rtcloud:latest brainiak/rtcloud:${{github.ref_name}}
+
+    - name: Docker login
+      run: |
+        echo "${{secrets.DOCKER_PASSWORD}}" | docker login -u ${{secrets.DOCKER_USER}} --password-stdin
+
+    - name: Push the tagged Docker image
+      run: docker push brainiak/rtcloud:${{github.ref_name}}
+
+    - name: Docker logout
+      # Removes credentials stored in $HOME/.docker/config.json
+      run: docker logout
