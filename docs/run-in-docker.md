@@ -98,3 +98,7 @@ The running container will be named `rtserver`. You can then issue commands to t
     docker exec -it rtserver scripts/run-projectInterface.sh -p myproject -c /rt-cloud/projects/myproject/config.toml --test
 
 This makes it easier to run commands without specifying volumes and ports to map each time, and is more efficient as it uses a running container rather than starting a new container for each command.
+
+## Docker Image with ANTs, FSL and C3D (brainiak/rtcloudxl)
+Thers is a version of the rtcloud docker image that also has ANTs, FSL and C3D installed in the image along with the RT-Cloud framework. It is available as brainiak/rtcloudxl:[release-tag], such as brainiak/rtcloudxl:1.3. This container is significantly larger (about 30 GB uncompressed) than the basic rtcloud image, and so is not listed as the default release of the image.
+
