@@ -1,4 +1,4 @@
-FROM grantwallace/rtconda:1.1
+FROM brainiak/rtconda:1.1
 
 SHELL ["/bin/bash", "-c"]
 
