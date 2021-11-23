@@ -72,11 +72,17 @@ The above installation only needs to be run once, then the projectInterface can 
 
 
 ## Alternate simpler calls using the run-docker.sh script
-The rt-cloud githup repo has a run-docker.sh script that encapsulates the docker specific call parameters in the above calls. This can make it simpler to call the functions you want within the docker image. The following shows the previous commands using the run-docker.sh helper script. Set the $PROJ_DIR env variable before calling run-docker.sh so it can map the project directory into the docker container.
+The rt-cloud githup repo has a run-docker.sh script that encapsulates the docker specific call parameters in the above calls. This can make it simpler to call the functions you want within the docker image. The following shows the previous commands using the run-docker.sh helper script.
+Set the $PROJ_DIR env variable before calling run-docker.sh so it can map the project directory into the docker container.
 
+    export $PROJ_DIR=[path-to-your-local-project]
     scripts/run-docker.sh scripts/make-sslcert.sh -ip $IP
     scripts/run-docker.sh scripts/add-user.sh -u <username>
     scripts/run-docker.sh scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip $IP
+
+Or use the --projDir parameter to specify the project directory to map.
+
+    scripts/run-docker.sh --projDir [path-to-project] scripts/run-projectInterface.sh -p sample -c projects/sample/conf/sample.toml -ip $IP
 
 ## Alternate methods using docker-compose
 Docker compose can be used to start a container running with all the appropriate directories and ports mapped, making it easier to issue calls (i.e. run commands) in a continuously running container.
@@ -101,4 +107,14 @@ This makes it easier to run commands without specifying volumes and ports to map
 
 ## Docker Image with ANTs, FSL and C3D (brainiak/rtcloudxl)
 Thers is a version of the rtcloud docker image that also has ANTs, FSL and C3D installed in the image along with the RT-Cloud framework. It is available as brainiak/rtcloudxl:[release-tag], such as brainiak/rtcloudxl:1.3. This container is significantly larger (about 30 GB uncompressed) than the basic rtcloud image, and so is not listed as the default release of the image.
+
+## Building Docker Images
+The dockerfiles needed to build the images are in the rt-cloud/docker directory. The commands to build the images are as follows:
+
+    docker build -t brainiak/rtcloud:latest -f docker/Dockerfile.rtcloud .
+    docker build -t brainiak/rtcloudxl:latest -f docker/Dockerfile.rtcloudXL .
+
+And to re-tag them, such as for a release:
+
+    docker tag brainiak/rtcloud:latest brainiak/rtcloud:1.3
 
