@@ -29,7 +29,15 @@ import nilearn
 from nilearn.masking import apply_mask
 from scipy.stats import zscore
 from sklearn.preprocessing import StandardScaler
-import brainiak.utils.fmrisim_real_time_generator as sim
+try:
+    import brainiak.utils.fmrisim_real_time_generator as sim
+except ModuleNotFoundError as err:
+    print("Installing brainiak conda module on first use.")
+    import conda.cli
+    cmd = "conda install -y -c brainiak -c defaults -c conda-forge brainiak"
+    cmdList = cmd.split()
+    conda.cli.main(cmdList)
+    import brainiak.utils.fmrisim_real_time_generator as sim
 import warnings # ignore warnings when importing dicomreaders below
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)

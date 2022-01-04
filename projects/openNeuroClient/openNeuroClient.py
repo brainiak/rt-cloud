@@ -34,7 +34,7 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
     subject = cfg.subjectName
     run = cfg.runNum[0]
     entities = {'subject': subject, 'run': run, 'suffix': 'bold', 'datatype': 'func'}
-    webInterface.clearRunPlot(run)
+    webInterface.clearRunPlot(int(run))
     if cfg.writeBidsArchive is True:
         # Create a new bids archive from the incrementals
         bidsArchivePath = os.path.join(tmpDir, 'bids_archive_' + uuid.uuid4().hex)
@@ -54,7 +54,7 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
         imageData = bidsIncremental.getImageData()
         avg_niftiData = numpy.mean(imageData)
         print("| average activation value for TR %d is %f" %(idx, avg_niftiData))
-        webInterface.plotDataPoint(run, idx, float(avg_niftiData))
+        webInterface.plotDataPoint(int(run), idx, float(avg_niftiData))
     if cfg.writeBidsArchive is True:
         newArchive.appendBidsRun(newRun)
 

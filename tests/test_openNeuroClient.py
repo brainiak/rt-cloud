@@ -68,3 +68,51 @@ class TestOpenNeuroClient:
         argv = ['-y', '--archive']
         ret = openNeuroClient.main(argv)
         assert ret == 0
+
+    def test_ds000005(self):
+        # Tests subject name starts with a zero, so must be kept as a string not int
+        print("\nOpenNeuroClient::test_ds000005")
+        cfg = StructDict({'sessionId': "openNeuroTest",
+                          'dsAccessionNumber': 'ds000005',
+                          'subjectName': "07",
+                          'subjectDay': 1,
+                          'runNum': ['01'],
+                          'scanNum': [1]})
+        args = StructDict({'config': cfg,
+                           'mainScript': openNeuroClientPath,
+                           'port': testPort,
+                           'test': True})
+        TestOpenNeuroClient.serversForTests.stopServers()
+        TestOpenNeuroClient.serversForTests.startServers(allowedDirs=allowedDirs,
+                                                         allowedFileTypes=allowedFileTypes,
+                                                         dataRemote=False,
+                                                         projectArgs=args)
+        client = ClientInterface()
+        assert client.isDataRemote() == False
+        argv = ['--archive']
+        ret = openNeuroClient.main(argv)
+        assert ret == 0
+
+    def test_ds003772(self):
+        # Tests run name has no leading zero
+        print("\nOpenNeuroClient::test_ds003772")
+        cfg = StructDict({'sessionId': "openNeuroTest",
+                          'dsAccessionNumber': 'ds003772',
+                          'subjectName': "bb914",
+                          'subjectDay': 1,
+                          'runNum': [1],
+                          'scanNum': [1]})
+        args = StructDict({'config': cfg,
+                           'mainScript': openNeuroClientPath,
+                           'port': testPort,
+                           'test': True})
+        TestOpenNeuroClient.serversForTests.stopServers()
+        TestOpenNeuroClient.serversForTests.startServers(allowedDirs=allowedDirs,
+                                                         allowedFileTypes=allowedFileTypes,
+                                                         dataRemote=False,
+                                                         projectArgs=args)
+        client = ClientInterface()
+        assert client.isDataRemote() == False
+        argv = ['--archive']
+        ret = openNeuroClient.main(argv)
+        assert ret == 0

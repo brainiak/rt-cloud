@@ -140,23 +140,17 @@ class OpenNeuroCache():
         includePattern = ''
         if 'subject' in entities:
             subject = entities['subject']
-            if type(subject) is int:
-                subject = f'{subject:02d}'
             includePattern += f'sub-{subject}/'
         if 'session' in entities:
             session = entities['session']
             if includePattern == '':
                 includePattern = '*'
-            if type(session) is int:
-                session = f'{session:02d}'
             includePattern += f'ses-{session}/'
         if 'task' in entities:
             task = entities['task']
             includePattern += f'*task-{task}'
         if 'run' in entities:
             run = entities['run']
-            if type(run) is int:
-                run = f'{run:02d}'
             includePattern += f'*run-{run}'
         if 'suffix' in entities:
             suffix = entities['suffix']

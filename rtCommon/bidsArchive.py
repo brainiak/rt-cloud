@@ -424,6 +424,8 @@ class BidsArchive:
         entities['suffix'] = 'events'
 
         results = self.data.get(**entities)
+        # filter to only include BIDSDataFile results
+        results = [r for r in results if type(r) is BIDSDataFile]
 
         if len(results) == 0:
             logger.debug(f"No event files have all provided entities: "
