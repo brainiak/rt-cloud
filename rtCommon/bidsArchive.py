@@ -13,6 +13,10 @@ import os
 import re
 
 from bids.config import set_option as bc_set_option
+
+# Silence future warning
+bc_set_option('extension_initial_dot', True)
+
 from bids.exceptions import (
     NoMatchError,
 )
@@ -46,8 +50,6 @@ from rtCommon.errors import (
     StateError,
 )
 
-# Silence future warning
-bc_set_option('extension_initial_dot', True)
 
 logger = logging.getLogger(__name__)
 

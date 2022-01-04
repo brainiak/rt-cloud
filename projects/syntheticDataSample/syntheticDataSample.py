@@ -22,11 +22,10 @@ import threading
 import numpy as np
 import nibabel as nib
 import scipy.io as sio
-from nilearn.input_data import NiftiMasker
+# import nilearn
+# from nilearn.input_data import NiftiMasker
 from sklearn import preprocessing
 from sklearn import svm
-import nilearn
-from nilearn.masking import apply_mask
 from scipy.stats import zscore
 from sklearn.preprocessing import StandardScaler
 try:
@@ -41,7 +40,9 @@ except ModuleNotFoundError as err:
 import warnings # ignore warnings when importing dicomreaders below
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     from nibabel.nicom import dicomreaders
+    from nilearn.masking import apply_mask
 # obtain full path for current directory: '.../rt-cloud/projects/sample'
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(os.path.dirname(currPath))
@@ -50,6 +51,7 @@ sys.path.append(rootPath)
 from rtCommon.utils import loadConfigFile
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.imageHandling import readRetryDicomFromDataInterface, getDicomFileName, convertDicomImgToNifti, convertDicomFileToNifti, readNifti, convertDicomFileToNifti
+
 
 def doRuns(cfg, dataInterface, subjInterface, webInterface):
     """
@@ -129,6 +131,10 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         #    [1] dicomData (with class 'pydicom.dataset.FileDataset')
         dicomData = readRetryDicomFromDataInterface(dataInterface, fileName,
             timeout_file)
+
+        if dicomData is None:
+            print(f"Error: Synthetic datafile {fileName} not found")
+            sys.exit(-1)
 
         # We can use the 'convertDicomFileToNifti' function with dicomData as
         #   input to get the data in NifTi format
