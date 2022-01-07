@@ -140,21 +140,25 @@ class OpenNeuroCache():
         includePattern = ''
         if 'subject' in entities:
             subject = entities['subject']
-            includePattern += f'sub-{subject}/'
+            if subject != '':
+                includePattern += f'sub-{subject}/'
         if 'session' in entities:
             session = entities['session']
-            if includePattern == '':
-                includePattern = '*'
-            includePattern += f'ses-{session}/'
+            if session != '':
+                if includePattern == '':
+                    includePattern = '*'
+                includePattern += f'ses-{session}/'
         if 'task' in entities:
             task = entities['task']
-            includePattern += f'*task-{task}'
+            if task != '':
+                includePattern += f'*task-{task}'
         if 'run' in entities:
             run = entities['run']
             includePattern += f'*run-{run}'
         if 'suffix' in entities:
             suffix = entities['suffix']
-            includePattern += f'*{suffix}'
+            if suffix != '':
+                includePattern += f'*{suffix}'
         if includePattern != '' or downloadWholeDataset is True:
             includePattern += '*'
 

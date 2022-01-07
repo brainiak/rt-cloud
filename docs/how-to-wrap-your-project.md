@@ -109,11 +109,17 @@ Optional parameters used for plotting:
 Additionally, create any of your own unique parameters that you may need for your experiment.
 
 ### **Timeout Settings**
-RT-Cloud uses RPC (Remote Procedure Calls) to send command requests from the researcher's experiment script to the dataInterface, subjectInterface and webInterface. There are two RPC hops to handle a request. The first if using rpyc (a native Python RPC library) to make a call from the script to the projectServer. The second is using a WebSocket RPC implemented in rtCommon/remoteable.py and invoked from rtCommon/projectServerRPC.py to make the call from the projectServer to the remote service (such as DataService). Each hop has an adjustable timeout.
+RT-Cloud uses RPC (Remote Procedure Calls) to send command requests from the researcher's experiment script to the dataInterface, subjectInterface and webInterface. There are two RPC hops to handle a request. The first uses RPyC (a native Python RPC library) to make a call from the script to the projectServer. The second is using a WebSocket RPC implemented in rtCommon/remoteable.py and invoked from rtCommon/projectServerRPC.py to make the call from the projectServer to the remote service (such as DataService). For each hop a global timeout can be set, and a per-call timeout can also be set.
 
-The rpyc timeout can be set when the ClientInterface is created in the experiment script, such as in the sample.py project. Simply include the rpyc_timeout= parameter (e.g. ClientInterface(rpyc_timeout=60)), the default is 60 seconds. Rpyc also has a timed() function which can be used to adjust the timeout of individual rpc calls.
+#### Setting Global Timeouts:
 
-The websocket timeout can be set in 1 of 2 ways. Method 1 is to set a larger timeout for all calls using the setRPCTimeout() of remoteable objects. For example to increase the timeout of the dataInterface in the experiment script, call dataInterface.setRPCTimeout(5). The default websocket timeout is 5 seconds. Method 2 is to set a larger timeout for on specific call by including a "rpc_timeout" kwarg in that call. For example dataInterface.getFile("BigFile", rpc_timeout=60). Note that before setting an RCP timeout you should check that the interface you are using is actually running over RPC because sometimes interfaces will run locally. To check that use the isRunningRemote() command, such as dataInterface.isRunningRemote(), see the openNeuroClient project for an example of this usage.
+- The RPyC global timeout can be set when the ClientInterface is created in the experiment script, such as in the sample.py project. Simply include the rpyc_timeout= parameter (e.g. ClientInterface(rpyc_timeout=120) for a 120 second timeout). The default is 60 seconds.
+
+- The Websocket RPC global timeout can be set using the setRPCTimeout() of interface objects (i.e. remoteable objects). For example to increase the timeout of the dataInterface in the experiment script, call dataInterface.setRPCTimeout(10) for a 10 second timeout. The default websocket timeout is 5 seconds.
+
+#### Setting Per-Call Timeouts:
+
+- Per-call timeouts for both RPyC and Websocket RPC are set together using the same parameter. To set a larger timeout for a specific call, include a "rpc_timeout" kwarg in that calls parameters. For example, use dataInterface.getFile("bigfile.bin", rpc_timeout=60) to set a 60 second timeout for a large file transfer. Note that before setting an RCP timeout you should check that the interface is connected to the ProjectServer, because sometimes interfaces will run locally. To check that, use an interface's .isUsingProjectServer() command, such as dataInterface.isUsingProjectServer(), see the openNeuroClient project for an example of this usage.
 
 ## **Some Alternate Configurations For Your Experiment**
 ### **Running everything on the same computer**

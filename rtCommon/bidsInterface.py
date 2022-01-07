@@ -112,6 +112,7 @@ class BidsInterface(RemoteableExtensible):
         """
         if 'subject' not in entities or 'run' not in entities:
             raise RequestError("initOpenNeuroStream: Must specify subject and run number")
+        print(f'Caching data for dataset {dsAccessionNumber}')
         archivePath = self.openNeuroCache.downloadData(dsAccessionNumber, **entities)
         # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1

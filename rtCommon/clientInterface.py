@@ -36,6 +36,7 @@ class ClientInterface:
         Establishes an RPC connection to a localhost projectServer on a predefined port.
         The projectServer must be running on the same computer as the script using this interface.
         """
+        self.rpcConn = None
         try:
             safe_attrs = rpyc.core.protocol.DEFAULT_CONFIG.get('safe_attrs')
             safe_attrs.add('__format__')
@@ -98,21 +99,39 @@ class ClientInterface:
         else:
             return False
 
+    def isUsingProjectServer(self):
+        if self.rpcConn is None:
+            return False
+        return True
+
+
 class WrapRpycObject(object):
     """
     Rpyc commands return a rpyc.core.netref object to as a reference to the remote object.
     This class wraps all calls to the remote in order to dereference the rpyc.core.netref
     and return the actual object using rpyc.classic.obtain(ref)
     """
-    def __init__(self, remoteInterface):
-        self.remote = remoteInterface
+    def __init__(self, rpycObject):
+        self.rpycObject = rpycObject
 
     def __getattribute__(self, name):
-        remote = object.__getattribute__(self, 'remote')
-        attr = getattr(remote, name)
+        rpycObject = object.__getattribute__(self, 'rpycObject')
+        attr = getattr(rpycObject, name)
         if hasattr(attr, '__call__'):
             def newfunc(*args, **kwargs):
-                ref = attr(*args, **kwargs)
+                if 'rpc_timeout' in kwargs:
+                    if rpycObject.isRunningRemote() is True:
+                        # The rpycObject is itself remote from the projectServer via wsRPC
+                        # Keep the rpc_timeout kwarg so wsRPC can also adjust its timeout
+                        timeout = kwargs.get('rpc_timeout')
+                    else:
+                        # The rpycObject is local to the projectServer so remove the timeout param
+                        timeout = kwargs.pop('rpc_timeout')
+                    timed_call = rpyc.timed(attr, timeout)
+                    timed_res = timed_call(*args, **kwargs)
+                    ref = timed_res.value
+                else:
+                    ref = attr(*args, **kwargs)
                 result = rpyc.classic.obtain(ref)
                 return result
             return newfunc
