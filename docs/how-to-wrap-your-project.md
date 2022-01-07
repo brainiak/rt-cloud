@@ -51,7 +51,7 @@ Or use the streaming interface to receive image data:
     streamId = dataInterface.initScannerStream('/tmp/dicoms', 'samp*.dcm', minFileSize)
     dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout=10)
 
-Set the minFileSize parameter to the minimum size expected for DICOM files. This can be determined by listing the sizes of a set of previously collected DICOM files and selecting slightly less than the smallest as the minimumFileSize. The FileWatcher will not return a file until its minimum size has been reached, this helps ensure that a file is completely written before being made available. However, if this parameter is set too high (higher than the file size) the file will never be returned.
+Set the minFileSize parameter to the minimum size expected for DICOM files (in bytes). This can be determined by listing the sizes of a set of previously collected DICOM files and selecting slightly less than the smallest as the minimumFileSize. The FileWatcher will not return a file until its minimum size has been reached, this helps ensure that a file is completely written before being made available. However, if this parameter is set too high (higher than the file size) the file will never be returned.
 
 ### **Send Classification Results for Subject Feedback**
 
