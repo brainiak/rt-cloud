@@ -24,17 +24,17 @@ Real-time fMRI feedback enables novel experimental paradigms and clinical treatm
     - Enable analysis on both incoming images and full dataset so far
 - Support BIDS app format
     - Modify behavior with standardized BIDS app CLI arguments
-    - Develop & maintain tutorials/FAQs for users
+- Develop & maintain tutorials/FAQs for users
 - Create sample set of pre-packaged experiments for immediate use
     - Create experiments to validate the framework and provide a starting point for other researchers
     - Experiments are immediately deployable
 - SaaS (web enabled) - application is accessible from a web browser
     - Including both experimenter view and subject feedback view
-- Run projectInterface locally or remotely
+- Run projectServer locally or remotely
 - Retrieve files locally or remotely
 - Provide subject feedback
-    - Via web server 
-    - Via numeric response used by another tool such as psychopy or psychtoolbox
+    - Via web server
+    - Via numeric response used by another tool such as PsychoPy or PsychToolbox
 - Collect subject button box responses and return to experiment script or store
 - Replay previously collected data
     - Connect to OpenNeuro BIDS app to replay data
@@ -53,18 +53,18 @@ A researcher replays previously collected data through original or new processin
 A clinician uses a pre-created experiment to provide treatment to a patient. They access the experiment, which is running in the cloud, via a web browser. They enter configuration data and start/stop the runs and collect the results.
 
 ### Functional Description:
-The projectInterface is the central control point within the system. It serves as a communication hub linking components. For example, it is the intermediary that receives brain scan volumes, forwards those to the model processing script, returns classification feedback results, and provides user controls through a web interface.
+The projectServer is the central control point within the system. It serves as a communication hub linking components. For example, it is the intermediary that receives brain scan volumes, forwards those to the model processing script, returns classification feedback results, and provides user controls through a web interface.
 Considerations: What communication protocols to use, i.e. WSS, HTTPS, TCP, Pipes, etc.
 
-The webServer is part of the projectInterface that provides user control and feedback, but it also is a communication hub accepting secure web socket (WSS) connections for data transfer. This is convenient because the same web port and ssl certificate can be used for all forms of network communication.
+The webServer is part of the projectServer that provides user control and feedback, but it also is a communication hub accepting secure web socket (WSS) connections for data transfer. This is convenient because the same web port and ssl certificate can be used for all forms of network communication.
 
 The fileWatcher is a component that watches for the creation of MRI scan files on a filesystem, then reads and forwards those volumes to the projectServer for processing. Other related components are a bidsInterface for returning volumes in BIDS format. And an OpenNeuro interface for retrieving and replaying OpenNeuro data.
 
-The feedbackReceiver receives classification results from the projectServer to provide feedback to the subject in the MRI scanner. This is also incorporated into tools such as jsPsych or psychoPy.
+The subjectInterface receives classification results from the projectServer to provide feedback to the subject in the MRI scanner. This is also incorporated into tools such as jsPsych or psychoPy.
 TODO: How are the subject responses collected and returned
 
 The experimenter’s script. The path to the script is provided to the projectServer so it can start the script as a separate process and forward data and communications to it.
-TODO: how to easily upload script from laptop to projectInterface
+TODO: how to easily upload script from laptop to projectServer
 
 Configuration file. This needs to be easily edited and provided to the projectServer along with the experimenter’s script. Ideally editing it from their laptop or the web interface and then having those settings take effect when the projectServer runs the experiment script.
 
@@ -89,9 +89,9 @@ There are 3 remote configuration options:
 ### Design Considerations
 ### Communication Design Considerations:
 Two communication design options are presented below, option 1 was chosen for implementation as the simpler to set up, use and debug.
-### Option 1: The projectInterface serves as a communication hub between components. (Implemented)
+### Option 1: The projectServer serves as a communication hub between components. (Implemented)
 ![](component-overview.jpg)<br>
-Uses secure web sockets (WSS) for communication between fileWatcher and projectInterface. Uses HTTPS for communication to web interfaces.
+Uses secure web sockets (WSS) for communication between fileWatcher and projectServer. Uses HTTPS for communication to web interfaces.
 #### Advantages:
 - Only need to open one port through firewall (web server port)
 - Fewer components that need to be started or kept running
@@ -109,7 +109,7 @@ The message queue is the intermediate for all communication between components
 - More difficult to debug for user if something goes wrong
 
 ### Communication Protocols:
-#### Pros and Cons of WebSockets vs. TCP
+#### Pros and Cons of TCP, WebSockets, RPC
 - Pros and Cons of TCP:
     - Can initialize a connection in either direction (Yale connects from cluster to control room)
     - Requires another port be opened (besides the web port)
@@ -123,11 +123,11 @@ The message queue is the intermediate for all communication between components
     - Potentially easier to set up and reason about, keeps code cleaner
 
 ### Implementation Thoughts
-- RPC (rpyc) between experimenter script and projectServer
-- Some sort of RPC between the projectServer and both ControlRoomInterface and SubjectInterface.
+- RPC (rpyc) between experimenter script and projectServer - restrict to local connections only for security and because the researcher script will always run on the same computer as the projectServer.
+- Some sort of RPC between the projectServer and both scannerDataService and SubjectInterface.
     - However must be able to use from javascript also (i.e. web page or jsPsych)
     - Perhaps a custom RPC. Gather the function name and args in a message, the receiver converts func name into a callable and calls it with the args, returning the results.
-    - Perhaps FileInterface class can be used at the RPC control room end with modifications to check for allowed filetypes and directories under certain conditions. Maybe those checks are done by the RPC handler before the FileInterface is called.
+    - Perhaps FileInterface class can be used at the RPC controlroom end with modifications to check for allowed filetypes and directories under certain conditions. Maybe those checks are done by the RPC handler before the FileInterface is called.
     - However we need a revised class, see ControlRoomInterface above, that handles the RPC requests.
     - Should it be multi-threaded to handle multiple clients, or async requests?
     - Same sort of idea for SubjectInterface

@@ -65,7 +65,6 @@ def runExampleService(args, isStartedEvent):
 defaultCfg = StructDict({'sessionId': "test",
                          'subjectName': "test_sample",
                          'subjectNum': 1,
-                         'subjectDay': 1,
                          'sessionNum': 1})
 
 defaultProjectArgs = StructDict({'config': defaultCfg,

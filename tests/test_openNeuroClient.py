@@ -16,7 +16,6 @@ allowedFileTypes = ['.dcm', '.txt']
 openNeuroCfg = StructDict({'sessionId': "openNeuroTest",
                            'dsAccessionNumber': 'ds002338',
                            'subjectName': "xp201",
-                           'subjectDay': 1,
                            'runNum': [1],
                            'scanNum': [1]})
 
@@ -75,7 +74,6 @@ class TestOpenNeuroClient:
         cfg = StructDict({'sessionId': "openNeuroTest",
                           'dsAccessionNumber': 'ds000005',
                           'subjectName': "07",
-                          'subjectDay': 1,
                           'runNum': ['01'],
                           'scanNum': [1]})
         args = StructDict({'config': cfg,
@@ -99,7 +97,6 @@ class TestOpenNeuroClient:
         cfg = StructDict({'sessionId': "openNeuroTest",
                           'dsAccessionNumber': 'ds003772',
                           'subjectName': "bb914",
-                          'subjectDay': 1,
                           'runNum': [1],
                           'scanNum': [1]})
         args = StructDict({'config': cfg,

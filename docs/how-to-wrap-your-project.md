@@ -88,13 +88,12 @@ Use the loadConfigFile function from your experiment script to load your configu
 
 Access configurations within your experiment script using the config structure
 
-    print(cfg.subjectName, cfg.subjectDay)
+    print(cfg.subjectName, cfg.run)
 
 The following fields must be present in the config toml file for the projectInterface to work:
   - runNum = [1]    # an array with one or more run numbers e.g. [1, 2, 3]
   - scanNum = [11]  # an array with one or more scan numbers e.g.  [11, 13, 15]
   - subjectName = 'subject01'
-  - subjectDay = 1
 
 Optional parameters used for plotting:
   - title = 'Project Title'
@@ -113,7 +112,7 @@ RT-Cloud uses RPC (Remote Procedure Calls) to send command requests from the res
 
 #### Setting Global Timeouts:
 
-- The RPyC global timeout can be set when the ClientInterface is created in the experiment script, such as in the sample.py project. Simply include the rpyc_timeout= parameter (e.g. ClientInterface(rpyc_timeout=120) for a 120 second timeout). The default is 60 seconds.
+- The RPyC global timeout can be set when the ClientInterface is created in the experiment script, as demonstrated in the sample.py project. Simply include the rpyc_timeout= parameter (e.g. ClientInterface(rpyc_timeout=120) for a 120 second timeout). The default is 60 seconds.
 
 - The Websocket RPC global timeout can be set using the setRPCTimeout() of interface objects (i.e. remoteable objects). For example to increase the timeout of the dataInterface in the experiment script, call dataInterface.setRPCTimeout(10) for a 10 second timeout. The default websocket timeout is 5 seconds.
 
