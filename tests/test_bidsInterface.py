@@ -122,8 +122,8 @@ def dicomStreamTest(bidsInterface):
 def openNeuroStreamTest(bidsInterface):
     dsAccessionNumber = 'ds002338'
     dsSubject = 'xp201'
-    localEntities = {'subject': dsSubject, 'run': 1, 'suffix': 'bold', 'datatype': 'func'}
-    remoteEntities = {'subject': dsSubject, 'run': 1, 'suffix': 'bold'}
+    localEntities = {'subject': dsSubject, 'run': '01', 'suffix': 'bold', 'datatype': 'func'}
+    remoteEntities = {'subject': dsSubject, 'run': '01', 'suffix': 'bold'}
     extraKwargs = {}
     if bidsInterface.isRunningRemote():
         # Set longer timeout for potentially downloading data

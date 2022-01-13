@@ -289,11 +289,11 @@ class WsBrowserRequestHandler:
         """
         # write out config file for use by pyScript
         if logType == 'run':
-            configFileName = os.path.join(self.confDir, 'cfg_sub{}_day{}_run{}.toml'.
-                                        format(cfg.subjectName, cfg.subjectDay, cfg.runNum[0]))
+            configFileName = os.path.join(self.confDir, 'cfg_sub{}_run{}.toml'.
+                                        format(cfg.subjectName, cfg.runNum[0]))
         else:
-            configFileName = os.path.join(self.confDir, 'cfg_sub{}_day{}_{}.toml'.
-                                        format(cfg.subjectName, cfg.subjectDay, tag))
+            configFileName = os.path.join(self.confDir, 'cfg_sub{}_{}.toml'.
+                                        format(cfg.subjectName, tag))
         with open(configFileName, 'w+') as fd:
             toml.dump(cfg, fd)
 

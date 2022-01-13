@@ -21,7 +21,7 @@ defaultConfig = os.path.join(currPath, 'conf', 'openNeuroClient.toml')
 tmpDir = tempfile.gettempdir()
 
 
-def doRuns(cfg, bidsInterface, subjInterface, webInterface):
+def doRuns(cfg, clientInterfaces):
     """
     Process a run of a bids dataset. The subject and run configuration
     values will be supplied by the cfg parameter.
@@ -31,10 +31,14 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
         webInterface: client interface to user web page
     Returns: no return value
     """
+    bidsInterface = clientInterfaces.bidsInterface
+    subjInterface = clientInterfaces.subjInterface
+    webInterface  = clientInterfaces.webInterface
+
     subject = cfg.subjectName
     run = cfg.runNum[0]
     entities = {'subject': subject, 'run': run, 'suffix': 'bold', 'datatype': 'func'}
-    webInterface.clearRunPlot(run)
+    webInterface.clearRunPlot(int(run))
     if cfg.writeBidsArchive is True:
         # Create a new bids archive from the incrementals
         bidsArchivePath = os.path.join(tmpDir, 'bids_archive_' + uuid.uuid4().hex)
@@ -42,9 +46,11 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
         newArchive = BidsArchive(bidsArchivePath)
         newRun = BidsRun(**entities)
     extraKwargs = {}
-    if bidsInterface.isRunningRemote():
-        extraKwargs = {"rpc_timeout": 60}
+    if clientInterfaces.isUsingProjectServer():
+        # Set long timeout to download and cache openneuro dataset
+        extraKwargs = {"rpc_timeout": 300}
     # Initialize the bids stream
+    print(f'Preparing dataset {cfg.dsAccessionNumber} for replay ...')
     streamId = bidsInterface.initOpenNeuroStream(cfg.dsAccessionNumber, **entities, **extraKwargs)
     numVols = bidsInterface.getNumVolumes(streamId)
     for idx in range(numVols):
@@ -54,7 +60,7 @@ def doRuns(cfg, bidsInterface, subjInterface, webInterface):
         imageData = bidsIncremental.getImageData()
         avg_niftiData = numpy.mean(imageData)
         print("| average activation value for TR %d is %f" %(idx, avg_niftiData))
-        webInterface.plotDataPoint(run, idx, float(avg_niftiData))
+        webInterface.plotDataPoint(int(run), idx, float(avg_niftiData))
     if cfg.writeBidsArchive is True:
         newArchive.appendBidsRun(newRun)
 
@@ -85,12 +91,12 @@ def main(argv=None):
     # Initialize the RPC connection to the projectInterface
     # This will give us a dataInterface for retrieving files and
     # a subjectInterface for giving feedback
-    clientInterfaces = ClientInterface(yesToPrompts=args.yesToPrompts)
+    clientInterfaces = ClientInterface(yesToPrompts=args.yesToPrompts, rpyc_timeout=5)
     bidsInterface = clientInterfaces.bidsInterface
     subjInterface = clientInterfaces.subjInterface
     webInterface  = clientInterfaces.webInterface
 
-    doRuns(cfg, bidsInterface, subjInterface, webInterface)
+    doRuns(cfg, clientInterfaces)
     return 0
 
 

@@ -420,6 +420,12 @@ class TopPane extends React.Component {
 
 function formatConfigValues(cfg) {
   // After user changes on the web page we need to convert some values from strings
+  // Only consider as Int if no leading 0s, otherwise consider it a string
+  var regexInt = /^[1-9]\d*$/;
+  // Float must have a dot in it
+  var regexFloat = /^[+-]?\d*\.\d+$/;
+  var regexIP = /\d+\.\d+.\d+\.\d+/;
+
   // First format runNum and scanNum to be numbers not strings
   var runs = cfg['runNum']
   var scans = cfg['scanNum']
@@ -427,30 +433,38 @@ function formatConfigValues(cfg) {
   // Handle runs values
   if (Array.isArray(runs)) {
     if (typeof runs[0] === 'string') {
-      if (runs.length > 1) {
+      if (runs.length == 1) {
+        runs = runs[0].split(',')
+      }
+      if (regexInt.test(runs[0]) == true) {
         runs = runs.map(Number);
-      } else {
-        runs = runs[0].split(',').map(Number);
       }
     }
   }
   if (typeof(runs) === 'string') {
-    runs = runs.split(',').map(Number);
+    runs = runs.split(',')
+    if (regexInt.test(runs[0]) == true) {
+      runs = runs.map(Number);
+    }
   }
   cfg['runNum'] = runs
 
   // Handle scan value
   if (Array.isArray(scans)) {
     if (typeof scans[0] === 'string') {
-      if (scans.length > 1) {
+      if (scans.length == 1) {
+        scans = scans[0].split(',')
+      }
+      if (regexInt.test(scans[0]) == true) {
         scans = scans.map(Number);
-      } else {
-        scans = scans[0].split(',').map(Number);
       }
     }
   }
   if (typeof(scans) === 'string') {
-    scans = scans.split(',').map(Number);
+    scans = scans.split(',')
+    if (regexInt.test(scans[0]) == true) {
+      scans = scans.map(Number);
+    }
   }
   cfg['scanNum'] = scans
 
@@ -474,9 +488,6 @@ function formatConfigValues(cfg) {
             cfg[key] = true
             break;
         }
-        var regexInt = /^\d+$/;
-        var regexFloat = /^[\d\.]+$/;
-        var regexIP = /\d+\.\d+.\d+\.\d+/;
         if (regexInt.test(value) == true) {
           // string should be an integer
           cfg[key] = parseInt(value, 10)

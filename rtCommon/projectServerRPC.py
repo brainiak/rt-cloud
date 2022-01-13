@@ -172,7 +172,7 @@ class RPCHandlers:
     def dataRequest(self, cmd, timeout=60):
         """Function to initiate an outgoing data request from the RPC server to a remote service"""
         try:
-            return self.handleRPCRequest('wsData', cmd, timeout)
+            return self.handleRPCRequest('wsData', cmd, timeout=timeout)
         except Exception as err:
             self.setError('DataRequest: ' + format(err))
             raise err;
@@ -180,7 +180,7 @@ class RPCHandlers:
     def subjectRequest(self, cmd, timeout=60):
         """Function to initiate an outgoing subject request from the RPC server to a remote service"""
         try:
-            return self.handleRPCRequest('wsSubject', cmd, timeout)
+            return self.handleRPCRequest('wsSubject', cmd, timeout=timeout)
         except Exception as err:
             self.setError('SubjectRequest: ' + format(err))
             raise err;
@@ -218,7 +218,7 @@ class RPCHandlers:
             cmd['args'] = npToPy(cmd.get('args', ()))
             cmd['kwargs'] = npToPy(cmd.get('kwargs', {}))
         while incomplete:
-            response = handler.doRequest(cmd, timeout)
+            response = handler.doRequest(cmd, timeout=timeout)
             if response.get('status') != 200:
                 errStr = 'handleDataRequest: status {}, err {}'.format(
                             response.get('status'), response.get('error'))

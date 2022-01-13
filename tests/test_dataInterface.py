@@ -19,7 +19,9 @@ sampleProjectDicomDir = os.path.join(rtCloudPath, 'projects', 'sample',
     'dicomDir', '20190219.0219191_faceMatching.0219191_faceMatching')
 
 allowedDirs = [tmpDir, testPath, sampleProjectDicomDir, '/tmp']
+# Test without dot in one case
 allowedFileTypes = ['.bin', 'txt', '.dcm']
+expectedReponseFileTypes = ['.bin', '.txt', '.dcm']
 
 @pytest.fixture(scope="module")
 def dicomTestFilename():  # type: ignore
@@ -34,6 +36,14 @@ def bigTestFile():  # type: ignore
                 fout.write(os.urandom(1024*1024))
     return filename
 
+@pytest.fixture(scope="module")
+def mediumTestFile():  # type: ignore
+    filename = os.path.join(testPath, 'test_input', 'mediumfile.bin')
+    if not os.path.exists(filename):
+        with open(filename, 'wb') as fout:
+            for _ in range(12):
+                fout.write(os.urandom(1024*1024))
+    return filename
 
 class TestDataInterface:
     serversForTests = None
@@ -53,11 +63,11 @@ class TestDataInterface:
                                       allowedFileTypes=allowedFileTypes)
         runDataInterfaceMethodTests(dataInterface, dicomTestFilename)
         runLocalFileValidationTests(dataInterface)
-        runReadWriteFileTest(dataInterface, bigTestFile)
+        runReadWriteFileTest(dataInterface, bigTestFile, isUsingProjectServer=False)
         return
 
     # Remote dataInterface test
-    def test_rpyclocalDataInterface(self, dicomTestFilename, bigTestFile):
+    def test_rpyclocalDataInterface(self, dicomTestFilename, bigTestFile, mediumTestFile):
         # Use a remote (RPC) client to the dataInterface
         TestDataInterface.serversForTests.stopServers()
         TestDataInterface.serversForTests.startServers(allowedDirs=allowedDirs,
@@ -69,11 +79,14 @@ class TestDataInterface:
         assert clientInterface.isDataRemote() == False
         assert dataInterface.isRemote == False
         runDataInterfaceMethodTests(dataInterface, dicomTestFilename)
-        runReadWriteFileTest(dataInterface, bigTestFile)
+        runReadWriteFileTest(dataInterface, bigTestFile, isUsingProjectServer=True)
+        with pytest.raises(TimeoutError):
+            runRpcTimeoutTest(dataInterface, mediumTestFile, timeout=0.1)
+        runRpcTimeoutTest(dataInterface, mediumTestFile, timeout=60)
         return
 
     # Remote dataInterface test
-    def test_remoteDataInterface(self, dicomTestFilename, bigTestFile):
+    def test_remoteDataInterface(self, dicomTestFilename, bigTestFile, mediumTestFile):
         # Use a remote (RPC) client to the dataInterface
         TestDataInterface.serversForTests.stopServers()
         TestDataInterface.serversForTests.startServers(allowedDirs=allowedDirs,
@@ -87,11 +100,31 @@ class TestDataInterface:
         runDataInterfaceMethodTests(dataInterface, dicomTestFilename)
         runRemoteFileValidationTests(dataInterface)
         runUploadDownloadTest(dataInterface)
-        runReadWriteFileTest(dataInterface, bigTestFile)
+        runReadWriteFileTest(dataInterface, bigTestFile, isUsingProjectServer=True)
+        with pytest.raises(TimeoutError):
+            runRpcTimeoutTest(dataInterface, mediumTestFile, timeout=0.1)
+        runRpcTimeoutTest(dataInterface, mediumTestFile, timeout=60)
         return
 
 
-def runReadWriteFileTest(dataInterface, testFileName):
+def runRpcTimeoutTest(dataInterface, testFileName, timeout=0):
+    extraArgs = {'rpc_timeout': timeout}
+    responseData = dataInterface.getFile(testFileName, **extraArgs)
+    assert responseData is not None
+    data = bytes(responseData)
+    outfileName = os.path.join(tmpDir, testFileName)
+    dataInterface.putFile(outfileName, data, **extraArgs)
+    # Note:
+    # Is there a way to test the wsRPC timeout separately for testing?
+    # Because if both timeouts are set the same the rpyc timeout will
+    #  trigger first. Only way I've been able to is manually by
+    #  temporary changing rpyc.timed() in clientInterface.py:WrapRpycObject()
+    # timed_call = rpyc.timed(attr, timeout) -->
+    # timed_call = rpyc.timed(attr, timeout + 10)
+    pass
+
+
+def runReadWriteFileTest(dataInterface, testFileName, isUsingProjectServer=False):
     with open(testFileName, 'rb') as fp:
         data = fp.read()
 
@@ -105,7 +138,7 @@ def runReadWriteFileTest(dataInterface, testFileName):
     # Test put file
     outfileName = os.path.join(tmpDir, testFileName)
     extraArgs = {}
-    if dataInterface.isRunningRemote():
+    if isUsingProjectServer:
         extraArgs = {'rpc_timeout': 60}
     startTime = time.time()
     dataInterface.putFile(outfileName, data, **extraArgs)
@@ -222,7 +255,7 @@ def runRemoteFileValidationTests(dataInterface):
     # in the remote case the returned value is an rpyc netref
     #   so we need to make a local copy to do the comparison
     _allowedTypes = copy.copy(_allowedTypes)
-    assert _allowedTypes == allowedFileTypes
+    assert _allowedTypes == expectedReponseFileTypes
 
 
 def runLocalFileValidationTests(dataInterface):

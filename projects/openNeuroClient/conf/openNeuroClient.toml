@@ -1,7 +1,8 @@
 title = 'OpenNeuro Client'
 dsAccessionNumber = 'ds002338'
 subjectName = "xp201"
-subjectDay = 1
+session=""
+task=""
 runNum = [1]
 scanNum = [1]
 
