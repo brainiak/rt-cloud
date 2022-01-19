@@ -5,6 +5,7 @@ const path = require('path');
 const SettingsPane = require('./settingsPane.js')
 const StatusPane = require('./statusPane.js')
 const XYPlotPane = require('./xyplotPane.js')
+const VNCViewerPane = require('./vncViewerPane.js')
 const UploadFilesPane = require('./uploadFilesPane.js')
 const SessionPane = require('./sessionPane.js')
 const LogPane = require('./logPane.js')
@@ -65,7 +66,22 @@ class TopPane extends React.Component {
     this.createWebSocket = this.createWebSocket.bind(this)
     this.clearRunStatus = this.clearRunStatus.bind(this)
     this.clearPlots = this.clearPlots.bind(this)
+    this.vncTabIndex = 4
+    this.onTabSelected = this.onTabSelected.bind(this);
     this.createWebSocket()
+  }
+
+  onTabSelected(index, lastIndex, event) {
+    if (index == this.vncTabIndex) {
+      // show the screen div
+      var screenDiv = document.getElementById('screen')
+      screenDiv.style.display = "initial";
+      // this.createRegConfig()
+    } else if (lastIndex == this.vncTabIndex && index != lastIndex){
+      // hide the screen div
+      var screenDiv = document.getElementById('screen')
+      screenDiv.style.display = "none";
+    }
   }
 
   setConfigFileName(filename) {
@@ -340,12 +356,13 @@ class TopPane extends React.Component {
 
   render() {
     var tp =
-     elem(Tabs, {},
+     elem(Tabs, {onSelect: this.onTabSelected},
        elem(TabList, {},
          elem(Tab, {}, 'Run'),
          elem(Tab, {}, 'Data Plots'),
          elem(Tab, {}, 'Session'),
          elem(Tab, {}, 'Settings'),
+         elem(Tab, {}, 'VNC Viewer'),
          elem(Tab, {}, 'Log'),
          // elem(Tab, {}, 'Upload Files'),
        ),
@@ -396,6 +413,12 @@ class TopPane extends React.Component {
            }
          ),
        ),
+       elem(TabPanel, {},
+        elem(VNCViewerPane,
+          {error: this.state.error,
+          }
+        ),
+      ),
        elem(TabPanel, {},
         elem(LogPane,
           {logLines: this.state.logLines,
