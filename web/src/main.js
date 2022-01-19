@@ -76,7 +76,6 @@ class TopPane extends React.Component {
       // show the screen div
       var screenDiv = document.getElementById('screen')
       screenDiv.style.display = "initial";
-      // this.createRegConfig()
     } else if (lastIndex == this.vncTabIndex && index != lastIndex){
       // hide the screen div
       var screenDiv = document.getElementById('screen')

@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@novnc/novnc": "github:danielsuo/noVNC",
+    "@novnc/novnc": "github:brainiak/noVNC",
     "autoscroll-react": "^3.2.0",
     "dateformat": "^3.0.3",
     "path": "^0.12.7",
