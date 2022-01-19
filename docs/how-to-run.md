@@ -87,6 +87,36 @@ There are several security mechanisms
 - **Restricted file types** - The fileserver restricts which file types (denoted by the file extension, e.g. .dcm) it will return.
 - **Direction of connection** - The fileserver doesn't allow connections to it. The fileserver always initiates the connection going to the projectInterface.
 
+## Using VNC Server to view an application's display on the server
+Sometimes it is necessary to see the GUI (graphical window) output of a program running on the projectServer computer. For example, during session initialization a researcher may want to run FSLview to see if the image registration looks correct. This can be done by running a VNC Server on the computer where the projectServer is running. The VNC Server starts a second virtual display (:1) and any application can then render to that display. The web interface has a tab called 'VNC Viewer' which can view and interact with the content on that display. Note: the VNC Server uses a program called websockify which can wrap any TCP/IP program so that it can be accessed from a websocket client, websockify wraps VNC Server for this purpose.
+
+### Install VNC Server on the projectServer Computer
+1. Install the websockify conda environment:
+
+        conda env create -f websockify.yml
+
+2. Install VNC on the server:
+
+        sudo yum -y install tigervnc-server
+        sudo yum -y install xclock
+        sudo yum -y install xdotool
+
+        cat <<EOT >> ~/.vnc/xstartup
+        unset SESSION_MANAGER
+        unset DBUS_SESSION_BUS_ADDRESS
+        #exec /etc/X11/xinit/xinitrc
+        xsetroot -solid grey -cursor_name left_ptr
+        xeyes
+        EOT
+
+3. Start the VNC Server running with websockify to serve connection requests:
+
+        bash scripts/run-vnc.sh
+
+4. Applications started on the projectServer, such as from the session initialization script, can redirect their output to the VNC display by prepending "DISPLAY=:1" to the command. For example: <code> DISPLAY=:1 xclock </code>
+
+5. The VNC display can be viewed from the VNC Viewer tab of the web interface. Click 'reconnect' if needed to re-initialize the VNC connection.
+
 ## Definitions
 - **[allowed_dirs]** - This allows restricting which directories the fileServer is allowed to return files from. Specify as a comma separated list with no spaces, e.g. '-d /tmp,/data,/home/username'
 - **[allowed_file_extensions]** - This allows restricting which file types the fileServer is allowed to return. Specify as a comma separated list with no spaces, e.g. '-f .dcm,.txt,.mat'
@@ -98,5 +128,5 @@ There are several security mechanisms
 - **[username] [password]** - The username and password to login to the projectInterface. This was created with the adduser.sh script during installation of the projectInterface.
 - **[projectInterface_addr:port]** - The network address and port number that the projectInterface is listening on. The default port is 8888. E.g. '-s 125.130.21.34:8888'
 - **[your_project_name]** - The name of the subdirectory under the *rtcloud/projects/* directory which contains your project specific code. Your script should use the same name as the directory, i.e. sample.py, so that the projectInterface can find it.
-- **[run]** - An fMRI scanner aquisition block of images. For example running the scanner to collect a block of 200 scans with a TR image repetition time of 2 seconds; this run will take 400 seconds and generate 200 DICOM images.
+- **[run]** - An fMRI scanner acquisition block of images. For example running the scanner to collect a block of 200 scans with a TR image repetition time of 2 seconds; this run will take 400 seconds and generate 200 DICOM images.
 - **[scan]** - The file sequence number corresponding to a run. For example, in the image name '001_000014_000005.dcm', the scan number is 14 and the image volume number (TR id) is 5.
