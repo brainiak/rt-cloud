@@ -3,7 +3,7 @@ const ReactDOM = require('react-dom')
 const dateformat = require('dateformat');
 const path = require('path');
 const SettingsPane = require('./settingsPane.js')
-const StatusPane = require('./statusPane.js')
+const RunPane = require('./RunPane.js')
 const XYPlotPane = require('./xyplotPane.js')
 const VNCViewerPane = require('./vncViewerPane.js')
 const UploadFilesPane = require('./uploadFilesPane.js')
@@ -359,15 +359,15 @@ class TopPane extends React.Component {
      elem(Tabs, {onSelect: this.onTabSelected},
        elem(TabList, {},
          elem(Tab, {}, 'Run'),
-         elem(Tab, {}, 'Data Plots'),
          elem(Tab, {}, 'Session'),
          elem(Tab, {}, 'Settings'),
+         elem(Tab, {}, 'Data Plots'),
          elem(Tab, {}, 'VNC Viewer'),
          elem(Tab, {}, 'Log'),
          // elem(Tab, {}, 'Upload Files'),
        ),
        elem(TabPanel, {},
-         elem(StatusPane,
+         elem(RunPane,
            {userLog: this.state.userLog,
             config: this.state.config,
             connected: this.state.connected,
@@ -379,14 +379,6 @@ class TopPane extends React.Component {
             getConfigItem: this.getConfigItem,
             setConfigItem: this.setConfigItem,
             clearRunStatus: this.clearRunStatus,
-           }
-         ),
-       ),
-       elem(TabPanel, {},
-         elem(XYPlotPane,
-           {config: this.state.config,
-            plotVals: this.state.plotVals,
-            clearPlots: this.clearPlots,
            }
          ),
        ),
@@ -413,6 +405,14 @@ class TopPane extends React.Component {
            }
          ),
        ),
+       elem(TabPanel, {},
+        elem(XYPlotPane,
+          {config: this.state.config,
+           plotVals: this.state.plotVals,
+           clearPlots: this.clearPlots,
+          }
+        ),
+      ),
        elem(TabPanel, {},
         elem(VNCViewerPane,
           {error: this.state.error,

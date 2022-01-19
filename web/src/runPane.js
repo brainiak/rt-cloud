@@ -4,7 +4,7 @@ import AutoscrolledList from "./AutoscrolledList";
 const elem = React.createElement;
 
 
-class StatusPane extends React.Component {
+class RunPane extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
@@ -74,4 +74,4 @@ class StatusPane extends React.Component {
   }
 }
 
-module.exports = StatusPane;
+module.exports = RunPane;
