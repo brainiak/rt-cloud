@@ -370,3 +370,20 @@ class InotifyFileWatcher():
                         self.fileNotifyQ.put((fullpath, time.time()))
                 else:
                     self.fileNotifyQ.put(('', time.time()))
+
+
+if __name__ == "__main__":
+    # Run the filewatcher as the main process to test file notification times
+    watchPath = '/tmp/watch'
+    checkForFileIncrement = 0.25
+    filewatcher = FileWatcher()
+    filewatcher.initFileNotifier(watchPath, '*.txt', 0)
+    print(f'Watching for text files in {watchPath}')
+    for i in range(10):
+        filename = os.path.join(watchPath, f'file_{i}.txt')
+        print(f'Waiting for file {filename} ...')
+        result = filewatcher.waitForFile(filename, timeCheckIncrement=checkForFileIncrement)
+        findTime = time.time()
+        fileTime = os.path.getmtime(filename)
+        findLag = (findTime - fileTime) * 1000
+        print(f'Find lag: {findLag:0.2f} ms, gotEvent: {filewatcher.foundWithFileEvent}')
