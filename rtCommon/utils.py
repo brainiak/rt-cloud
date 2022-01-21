@@ -228,16 +228,15 @@ class DebugLevels:
 
 def installLoggers(consoleLevel, fileLevel, filename=None):
     logging.basicConfig()
-    logging.getLogger().setLevel(logging.DEBUG)
     logger = logging.getLogger()
-    hasFileHandler = False
-    hasConsoleHandler = False
+    logger.setLevel(logging.DEBUG)
     if filename is not None:
         dir = os.path.dirname(filename)
         if dir not in (None, ''):
             if not os.path.exists(dir):
                 os.makedirs(dir)
-
+    hasFileHandler = False
+    hasConsoleHandler = False
     for handler in list(logger.handlers):
         if isinstance(handler, logging.FileHandler):
             # print("Has FileHandler")
@@ -256,7 +255,7 @@ def installLoggers(consoleLevel, fileLevel, filename=None):
         # print("Create FileHandler")
         fileLogger = logging.FileHandler(filename)
         fileLogger.setLevel(fileLevel)
-        fileLogger.setFormatter(logging.Formatter('%(asctime)s %(levelname)-8s %(message)s'))
+        fileLogger.setFormatter(logging.Formatter("%(asctime)s\t%(levelname)-8s '%(message)s'\t::%(name)s"))
         logger.addHandler(fileLogger)
 
 

@@ -32,6 +32,8 @@ CommonOutputDir = '/rtfmriData/'
 moduleDir = os.path.dirname(os.path.realpath(__file__))
 rootDir = os.path.dirname(moduleDir)
 
+logger = logging.getLogger(__name__)
+
 # Note: User refers to the clinician running the experiment, so userWindow is the main
 #  browser window for running the experiment.
 

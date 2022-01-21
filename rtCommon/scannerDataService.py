@@ -6,9 +6,13 @@ Once a connection is established it waits for requets and invokes the DataInterf
 BidsInterface functions to handle them.
 """
 import os
+import sys
 import argparse
 import logging
 import threading
+currPath = os.path.dirname(os.path.realpath(__file__))
+rootPath = os.path.dirname(currPath)
+sys.path.append(rootPath)
 from rtCommon.dataInterface import DataInterface
 from rtCommon.bidsInterface import BidsInterface
 from rtCommon.wsRemoteService import WsRemoteService, parseConnectionArgs
@@ -50,7 +54,7 @@ class ScannerDataService:
 
 
 if __name__ == "__main__":
-    installLoggers(logging.INFO, logging.INFO, filename='logs/CRDataServer.log')
+    installLoggers(logging.INFO, logging.INFO, filename=os.path.join(rootPath, 'logs/ScannerDataService.log'))
 
     # parse connection args
     # These include: "-s <server>", "-u <username>", "-p <password>", "--test",

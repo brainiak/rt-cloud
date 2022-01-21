@@ -135,7 +135,7 @@ if __name__ == "__main__":
         args.dataRemote = True
         args.subjectRemote = True
 
-    installLoggers(logging.INFO, logging.INFO, filename=os.path.join(currPath, f'logs/{args.projectName}.log'))
+    installLoggers(logging.INFO, logging.INFO, filename=os.path.join(rootPath, f'logs/projectServer.{args.projectName}.log'))
 
     # start the projectServer
     projectServer = ProjectServer(args)

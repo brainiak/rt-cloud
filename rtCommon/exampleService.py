@@ -45,7 +45,7 @@ class ExampleService:
 
 
 if __name__ == "__main__":
-    installLoggers(logging.INFO, logging.INFO, filename='logs/ExampleService.log')
+    installLoggers(logging.INFO, logging.INFO, filename=os.path.join(rootPath, 'logs/ExampleService.log'))
 
     # parse connection args
     # These include: "-s <server>", "-u <username>", "-p <password>", "--test",

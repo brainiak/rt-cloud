@@ -48,7 +48,7 @@ class SubjectService:
 
 
 if __name__ == "__main__":
-    installLoggers(logging.INFO, logging.INFO, filename='logs/SubjectService.log')
+    installLoggers(logging.INFO, logging.INFO, filename=os.path.join(rootPath, 'logs/SubjectService.log'))
 
     # parse connection args
     # These include: "-s <server>", "-u <username>", "-p <password>", "--test",
