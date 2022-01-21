@@ -32,6 +32,8 @@ CommonOutputDir = '/rtfmriData/'
 moduleDir = os.path.dirname(os.path.realpath(__file__))
 rootDir = os.path.dirname(moduleDir)
 
+logger = logging.getLogger(__name__)
+
 # Note: User refers to the clinician running the experiment, so userWindow is the main
 #  browser window for running the experiment.
 
@@ -103,17 +105,15 @@ class Web():
         # See projectServer.py where theses handlers are added.
         Web.app = tornado.web.Application([
             (r'/', HttpHandler, dict(htmlDir=Web.htmlDir, page='index.html')),
-            (r'/feedback', HttpHandler, dict(htmlDir=Web.htmlDir, page='biofeedback.html')),  # shows image
-            (r'/jspsych', HttpHandler, dict(htmlDir=Web.htmlDir, page='jsPsychFeedback.html')),
             (r'/login', LoginHandler, dict(htmlDir=Web.htmlDir, page='login.html', testMode=Web.testMode)),
             (r'/logout', LogoutHandler),
-            (r'/wsUser', BaseWebSocketHandler, dict(name='wsUser', callback=Web.browserRequestHandler._wsBrowserCallback)),
-            (r'/wsEvents', BaseWebSocketHandler, dict(name='wsEvent', callback=params.eventCallback)),  # gets signal to change image
+            (r'/jspsych', HttpHandler, dict(htmlDir=Web.htmlDir, page='jsPsychFeedback.html')),
             (r'/src/(.*)', tornado.web.StaticFileHandler, {'path': src_root}),
             (r'/css/(.*)', tornado.web.StaticFileHandler, {'path': css_root}),
             (r'/img/(.*)', tornado.web.StaticFileHandler, {'path': img_root}),
             (r'/build/(.*)', tornado.web.StaticFileHandler, {'path': build_root}),
             (r'/jspsych/(.*)', tornado.web.StaticFileHandler, {'path': jsPsych_root}),
+            (r'/wsUser', BaseWebSocketHandler, dict(name='wsUser', callback=Web.browserRequestHandler._wsBrowserCallback)),
             # /wsSubject gets added in projectServer.py when remoteSubject is True
             # /wsData gets added in projectServer.py when remoteData is True
             # (r'/wsSubject', BaseWebSocketHandler, dict(name='wsSubject', callback=defaultWebsocketCallback)),

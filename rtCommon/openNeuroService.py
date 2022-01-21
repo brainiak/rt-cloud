@@ -6,8 +6,12 @@ Once a connection is established it waits for requets and invokes the BidsInterf
 functions to handle them.
 """
 import os
+import sys
 import logging
 import threading
+currPath = os.path.dirname(os.path.realpath(__file__))
+rootPath = os.path.dirname(currPath)
+sys.path.append(rootPath)
 from rtCommon.bidsInterface import BidsInterface
 from rtCommon.wsRemoteService import WsRemoteService, parseConnectionArgs
 from rtCommon.utils import installLoggers
@@ -45,7 +49,7 @@ class OpenNeuroService:
 
 
 if __name__ == "__main__":
-    installLoggers(logging.INFO, logging.INFO, filename='logs/OpenNeuroService.log')
+    installLoggers(logging.INFO, logging.INFO, filename=os.path.join(rootPath, 'logs/OpenNeuroService.log'))
     # parse connection args
     connectionArgs = parseConnectionArgs()
 

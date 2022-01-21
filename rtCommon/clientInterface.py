@@ -31,7 +31,7 @@ class ClientInterface:
     project server. It provides both a DataInterface for reading or writing files, and a
     SubjectInterface for sending/receiving feedback and response to the subject in the MRI scanner.
     """
-    def __init__(self, rpyc_timeout=60, yesToPrompts=False):
+    def __init__(self, rpyc_timeout=120, yesToPrompts=False):
         """
         Establishes an RPC connection to a localhost projectServer on a predefined port.
         The projectServer must be running on the same computer as the script using this interface.
