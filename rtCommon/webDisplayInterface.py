@@ -5,6 +5,7 @@ internally within projectServer for setting log and error messages within the we
 """
 import json
 import numbers
+import logging
 from rtCommon.projectUtils import npToPy
 from rtCommon.webSocketHandlers import sendWebSocketMessage
 from rtCommon.errors import RequestError
@@ -18,6 +19,8 @@ class WebDisplayInterface:
         self.ioLoopInst = ioLoopInst
         # dataPoints is a list of lists, each inner list is the points for a runId of that index
         self.dataPoints = [[{'x': 0, 'y': 0}]]
+        self.dataConns = 0
+        self.subjectConns = 0
 
     def userLog(self, logStr):
         """Set a log message in the user log area of the web page"""
@@ -116,6 +119,35 @@ class WebDisplayInterface:
     def getPreviousDataPoints(self):
         """Local command to retrieve previously plotted points (doesn't send to web page)"""
         return self.dataPoints
+
+    def sendConnStatus(self):
+        """Send the number of data and subject connections to the web page"""
+        self.sendRunStatus({'name': 'dataConn', 'val': self.dataConns})
+        self.sendRunStatus({'name': 'subjectConn', 'val': self.subjectConns})
+
+    def wsConnCallback(self, endpoint, cmd):
+        """
+        Callback function for whenever a new websocket connection is established.
+        Will track the number of connections in order to provide the connection
+        status on the web page interface.
+        """
+        if endpoint == 'wsData':
+            if cmd == 'open':
+                self.dataConns += 1
+            if cmd == 'close':
+                if self.dataConns > 0:
+                    self.dataConns -= 1
+                else:
+                    logging.error('WebDisplayInterface: Error: dataConns negative')
+        elif endpoint == 'wsSubject':
+            if cmd == 'open':
+                self.subjectConns += 1
+            if cmd == 'close':
+                if self.subjectConns > 0:
+                    self.subjectConns -= 1
+                else:
+                    logging.error('WebDisplayInterface: Error: subjectConns negative')
+        self.sendConnStatus()
 
     def _addResultValue(self, runId, trId, value):
         """Track classification result values, used to plot the results in the web browser."""

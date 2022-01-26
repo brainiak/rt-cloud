@@ -166,6 +166,7 @@ class WsBrowserRequestHandler:
         self._addScript('mainScript', params.mainScript, 'run')
         self._addScript('initScript', params.initScript, 'init')
         self._addScript('finalizeScript', params.finalizeScript, 'finalize')
+        self.runStatus = "waiting ..."
 
     def _addScript(self, name, path, type):
         """Add the experiment script to be connected to the various run button of the
@@ -187,6 +188,11 @@ class WsBrowserRequestHandler:
     def on_getDataPoints(self):
         """Return data points that have been plotted"""
         self.webUI.sendPreviousDataPoints()
+
+    def on_getRunStatus(self):
+        """Return run status from the project server"""
+        self.webUI.sendRunStatus(self.runStatus)
+        self.webUI.sendConnStatus()
 
     def on_clearDataPoints(self):
         """Clear all plot datapoints"""
@@ -309,7 +315,8 @@ class WsBrowserRequestHandler:
         proc = subprocess.Popen(cmd, cwd=rootDir, env=env, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, stdin=subprocess.PIPE, shell=False)
         # send running status to user web page
-        self.webUI.sendRunStatus(tag + ' running')
+        self.runStatus = tag + ' running'
+        self.webUI.sendRunStatus(self.runStatus)
         # start a separate thread to read the process output
         lineQueue = queue.Queue()
         outputThread = threading.Thread(target=procOutputReader, args=(proc, lineQueue))
@@ -340,7 +347,8 @@ class WsBrowserRequestHandler:
             endStatus = 'stopped'
         else:
             endStatus = tag + ' complete \u2714'
-        self.webUI.sendRunStatus(endStatus)
+        self.runStatus = endStatus
+        self.webUI.sendRunStatus(self.runStatus)
         outputThread.join(timeout=1)
         if outputThread.is_alive():
             print("OutputThread failed to exit")

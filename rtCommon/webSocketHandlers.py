@@ -23,9 +23,19 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
     Generic web socket handler. Estabilishes and maintains a ws connection. Intitialized with 
         a callback function that gets called when messages are received on this socket instance.
     """
-    def initialize(self, name, callback=None):
-        """initialize method is called by Tornado with args provided to the addHandler call"""
+    def initialize(self, name, callback=None, connNotify=None):
+        """
+        initialize method is called by Tornado with args provided to the addHandler call
+
+        Args:
+            name: the websocket endpoint name, such as wsData
+            callback: the handler function to call whenever a client message
+                is received over the connection.
+            connNotify: the function to call when a connection is opened
+                or closed.
+        """
         self.name = name
+        self.connNotify = connNotify
         if websocketState.wsConnectionLists.get(name) is None:
             websocketState.wsConnectionLists[name] = []
         if callback is not None:
@@ -51,6 +61,8 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             wsConnections.append(self)
         finally:
             websocketState.wsConnLock.release()
+        if self.connNotify is not None:
+            self.connNotify(self.name, 'open')
         print(f'{self.name} WebSocket: connected {self.request.remote_ip}')
 
     def on_close(self):
@@ -66,6 +78,8 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
                 logging.log(DebugLevels.L1, f"on_close: {self.name}: connection not in list")
         finally:
             websocketState.wsConnLock.release()
+        if self.connNotify is not None:
+            self.connNotify(self.name, 'close')
 
     def on_message(self, message):
         """Called when a message is received from a client connection"""

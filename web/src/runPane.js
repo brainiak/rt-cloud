@@ -4,6 +4,13 @@ import AutoscrolledList from "./AutoscrolledList";
 const elem = React.createElement;
 
 
+const connStatusTextStyle = {
+  font: 'bold 12px Helvetica',
+  // backgroundColor: '#6e84a3',
+  textAlign: 'right',
+  float: 'right',
+}
+
 class RunPane extends React.Component {
   constructor(props) {
     super(props)
@@ -49,6 +56,13 @@ class RunPane extends React.Component {
     }
     return (
       <div>
+        <span style={connStatusTextStyle}>
+          browser: {(this.props.connected) ? 'connected' : 'disconnected'}
+          <br />
+          dataConn: {(this.props.dataConn > 0) ? 'connected' : 'disconnected'}
+          <br />
+          subjConn: {(this.props.subjectConn > 0) ? 'connected' : 'disconnected'}
+        </span>
         <div className="table">
           <p className="row">
             <label className="cell10p">Run #:</label>
@@ -63,7 +77,9 @@ class RunPane extends React.Component {
               onChange={this.scanNumOnChange} />
           </p>
         </div>
-        <p>Status: {(this.props.connected) ? this.props.runStatus : 'disconnected'}</p>
+        <p>
+        Run Status: {this.props.runStatus}
+        </p>
         <button onClick={this.runBttnOnClick}>Run</button>
         <button onClick={this.stopBttnOnClick}>Stop</button>
         <p>{errorStr}</p>
