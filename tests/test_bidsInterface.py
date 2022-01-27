@@ -114,6 +114,9 @@ def dicomStreamTest(bidsInterface):
     now = time.time()
     skew = bidsInterface.getClockSkew(now, rtt)
     if bidsInterface.isRunningRemote():
+        # Check that skew equals 1.23 seconds because the scannerDataService
+        #   clockSkew is set to 1.23 seconds when it is started in
+        #   backgroundTestServers.py if dataRemote is True
         assert math.isclose(skew, 1.23, abs_tol=0.05) is True
     else:
         assert math.isclose(skew, 0, abs_tol=0.05) is True

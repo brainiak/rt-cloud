@@ -14,8 +14,8 @@ from rtCommon.subjectInterface import SubjectInterface
 from rtCommon.bidsInterface import BidsInterface
 from rtCommon.exampleInterface import ExampleInterface
 from rtCommon.errors import StateError, RequestError
-from rtCommon.projectUtils import unpackDataMessage, npToPy
-from rtCommon.wsRemoteService import encodeByteTypeArgs
+from rtCommon.projectUtils import npToPy
+from rtCommon.serialization import encodeByteTypeArgs, unpackDataMessage
 from rtCommon.webSocketHandlers import RequestHandler
 
 
@@ -217,6 +217,7 @@ class RPCHandlers:
             # Convert numpy arguments to native python types
             cmd['args'] = npToPy(cmd.get('args', ()))
             cmd['kwargs'] = npToPy(cmd.get('kwargs', {}))
+        data = None
         while incomplete:
             response = handler.doRequest(cmd, timeout=timeout)
             if response.get('status') != 200:
@@ -237,13 +238,22 @@ class RPCHandlers:
         if savedError:
             self.setError(savedError)
             raise RequestError(savedError)
-        serializationType = response.get('dataSerialization')
-        if serializationType == 'json':
-            if type(data) is bytes:
-                data = data.decode()
-            data = json.loads(data)
-        elif serializationType == 'pickle':
-            data = pickle.loads(data)
+        if data is not None:
+            serializationType = response.get('dataSerialization')
+            if serializationType == 'json':
+                if type(data) is bytes:
+                    data = data.decode()
+                data = json.loads(data)
+            elif serializationType == 'pickle':
+                data = pickle.loads(data)
+            elif serializationType == 'bytes':
+                # nothing to do
+                pass
+            else:
+                # Unknown encoding type
+                raise StateError(f"RPCHandler received unknown serialization " \
+                                 f"type {serializationType}")
+
         return data
 
 # # Generic start RPC Thread routine

@@ -1,5 +1,5 @@
 import pytest
-from rtCommon.wsRemoteService import encodeByteTypeArgs, decodeByteTypeArgs
+from rtCommon.serialization import encodeByteTypeArgs, decodeByteTypeArgs
 
 
 class TestRemoteable:

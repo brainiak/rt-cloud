@@ -13,11 +13,10 @@ import logging
 import argparse
 import threading
 import websocket
-from base64 import b64encode, b64decode
 from rtCommon.remoteable import RemoteHandler
-from rtCommon.projectUtils import generateDataParts
 from rtCommon.utils import DebugLevels, trimDictBytes
-from rtCommon.errors import RequestError
+from rtCommon.errors import StateError
+from rtCommon.serialization import decodeByteTypeArgs, generateDataParts
 from rtCommon.projectUtils import login, certFile, checkSSLCertAltName, makeSSLCertFile
 
 class WsRemoteService:
@@ -105,29 +104,32 @@ class WsRemoteService:
             request = decodeByteTypeArgs(request)
             # print(f'on_message: message {request} type: {type(request)}')
             # create the response message but without data objects
-            response = request.copy()
-            response.pop('data', None)
-            response.pop('args', None)
-            response.pop('kwargs', None)
+            response = {k: v for k, v in request.items() if k not in {'data', 'args', 'kwargs'}}
             trimDictBytes(response)
             cmd = request.get('cmd')
             # decode any encoded byte args
             # TODO - spin off a thread for each request passing in client so the thread call client.send
             callResult = WsRemoteService.remoteHandler.runRemoteCall(request)
-            # serialize the callResult
+            # serialize and return the callResult data
             # print(f'callresult type: {type(callResult)}')
+            # TODO - move all this encoding code to a function such as
+            #   encodeResultMessage() or similar
+
             if isNativeType(callResult):
                 if type(callResult) == bytes:
                     data = callResult
                     response['dataSerialization'] = 'bytes'
                 else:
-                    # encode to json and then as a byte string
+                    # encode to json and then as a byte array
                     data = json.dumps(callResult).encode()
                     response['dataSerialization'] = 'json'
             else:
+                # note pickle produces a byte array also
                 data = pickle.dumps(callResult)
                 response['dataSerialization'] = 'pickle'
-            # return callResult
+            if type(data) != bytes:
+                raise StateError(f"WsRemoteService: on_message: expecting callResult type " \
+                                 f"bytes: got {type(data)}")
             response['status'] = 200
             compress = False
             if len(data) > 1024 * 1024:
@@ -163,74 +165,6 @@ def isNativeType(var):
     if type(var) in nativeTypes:
         return True
     return False
-
-
-def encodeByteTypeArgs(cmd) -> dict:
-    """
-    Check if any args are of type 'bytes' and if so base64 encode them.
-    The original arg will be replaced with a tag that will reference
-    the encoded bytes within the cmd dict.
-    Args:
-        cmd: a dictionary of the command to check
-    Returns:
-        A cmd dictionary with the byte args encoded
-    """
-    args = cmd.get('args', ())
-    byteArgIndices = []
-    for i, arg in enumerate(args):
-        if type(arg) is bytes:
-            byteArgIndices.append(i)
-
-    if len(byteArgIndices) != 0:
-        # convert args from tuple to list so we can modify it
-        args = list(args)
-        for i in byteArgIndices:
-            # encode as base64 and put a tag holder in place
-            encdata = b64encode(args[i]).decode('utf-8')
-            tag = 'encodedBytes_' + str(i)
-            args[i] = tag
-            cmd[tag] = encdata
-        cmd['args'] = tuple(args)
-        cmd['encodedByteArgs'] = byteArgIndices
-
-    # Check and encode keyword args also
-    kwargs = cmd.get('kwargs', {})
-    byteKwargKeys = []
-    for key, arg in kwargs.items():
-        if type(arg) is bytes:
-            byteKwargKeys.append(key)
-            encdata = b64encode(arg).decode('utf-8')
-            kwargs[key] = encdata
-    if len(byteKwargKeys) != 0:
-        cmd['encodedByteKwargs'] = byteKwargKeys
-        cmd['kwargs'] = kwargs
-
-    return cmd
-
-
-def decodeByteTypeArgs(cmd) -> dict:
-    """
-    Decodes rpc args that were previously encoded with encodeByteTypeArgs.
-    Args:
-        cmd: a dictionary with encoded args
-    Returns:
-        cmd: a dictionary with decoded args
-    """
-    byteArgIndices = cmd.get('encodedByteArgs')
-    if byteArgIndices is not None:
-        args = cmd.get('args', ())
-        args = list(args)
-        for i in byteArgIndices:
-            tag = 'encodedBytes_' + str(i)
-            encdata = cmd.get(tag)
-            if encdata is None or args[i] != tag:
-                raise RequestError(f'Byte encoded data error: index {i} tag {tag}')
-            decodedData = b64decode(encdata)
-            args[i] = decodedData
-            cmd.pop(tag, None)
-        cmd.pop('encodedByteArgs')
-        cmd['args'] = tuple(args)
-    return cmd
 
 
 def parseConnectionArgs():
