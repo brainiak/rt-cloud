@@ -9,7 +9,8 @@ const VNCViewerPane = require('./vncViewerPane.js')
 const UploadFilesPane = require('./uploadFilesPane.js')
 const SessionPane = require('./sessionPane.js')
 const LogPane = require('./logPane.js')
-const { Tab, Tabs, TabList, TabPanel } = require('react-tabs')
+const { Tab, Tabs, TabList, TabPanel } = require('react-tabs');
+const { type } = require('os');
 
 const elem = React.createElement;
 
@@ -50,6 +51,8 @@ class TopPane extends React.Component {
       userLog: [],
       uploadedFileLog: [],
       sessionLog: [],
+      dataConn: 0,
+      subjectConn: 0,
     }
     this.resultVals = [[], []] // mutable version of plotVals to accumulate changes
     this.webSocket = null
@@ -59,6 +62,7 @@ class TopPane extends React.Component {
     this.setConfigItem = this.setConfigItem.bind(this);
     this.requestDefaultConfig = this.requestDefaultConfig.bind(this)
     this.requestDataPoints = this.requestDataPoints.bind(this)
+    this.requestRunStatus = this.requestRunStatus.bind(this)
     this.startRun = this.startRun.bind(this);
     this.stopRun = this.stopRun.bind(this);
     this.uploadFiles = this.uploadFiles.bind(this);
@@ -129,6 +133,12 @@ class TopPane extends React.Component {
 
   requestDataPoints() {
     var cmd = {cmd: 'getDataPoints'}
+    var cmdStr = JSON.stringify(cmd)
+    this.webSocket.send(cmdStr)
+  }
+
+  requestRunStatus() {
+    var cmd = {cmd: 'getRunStatus'}
     var cmdStr = JSON.stringify(cmd)
     this.webSocket.send(cmdStr)
   }
@@ -244,7 +254,18 @@ class TopPane extends React.Component {
     if (status == undefined || status.length == 0) {
       status = ''
     }
-    this.setState({runStatus: status})
+    if (typeof(status) === 'string') {
+      this.setState({runStatus: status})
+    } else {
+      var name = status['name']
+      var val = status['val']
+      if (name == 'dataConn') {
+        this.setState({dataConn: val})
+      }
+      if (name == 'subjectConn') {
+        this.setState({subjectConn: val})
+      }
+    }
   }
 
   on_uploadStatus(request) {
@@ -324,9 +345,12 @@ class TopPane extends React.Component {
       console.log("WebSocket OPEN: ");
       this.requestDefaultConfig();
       this.requestDataPoints();
+      this.requestRunStatus();
     };
     webSocket.onclose = (closeEvent) => {
       this.setState({connected: false})
+      this.setState({dataConn: 0})
+      this.setState({subjectConn: 0})
       console.log("WebSocket CLOSE: ");
     };
     webSocket.onerror = (errorEvent) => {
@@ -371,6 +395,8 @@ class TopPane extends React.Component {
             config: this.state.config,
             connected: this.state.connected,
             runStatus: this.state.runStatus,
+            dataConn: this.state.dataConn,
+            subjectConn: this.state.subjectConn,
             error: this.state.error,
             startRun: this.startRun,
             stopRun: this.stopRun,

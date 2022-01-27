@@ -65,17 +65,21 @@ class ProjectServer:
         # Add webSocket handlers for 'wsData' and 'wsSubject' urls, e.g. wss://server:port/wsData
         if self.args.dataRemote is True:
             Web.addHandlers([(r'/wsData', DataWebSocketHandler,
-                                dict(name='wsData', callback=rpcHandlers.dataWsCallback))])
+                            dict(name='wsData', callback=rpcHandlers.dataWsCallback,
+                                 connNotify=Web.webDisplayInterface.wsConnCallback))])
         else:
             msg = 'ProjectServer in local data mode: /wsData connections not allowed (use --dataRemote)'
             Web.addHandlers([(r'/wsData', RejectWebSocketHandler, dict(rejectMsg=msg))])
+            Web.webDisplayInterface.dataConns = 1
 
         if self.args.subjectRemote is True:
             Web.addHandlers([(r'/wsSubject', DataWebSocketHandler,
-                            dict(name='wsSubject', callback=rpcHandlers.subjectWsCallback))])
+                            dict(name='wsSubject', callback=rpcHandlers.subjectWsCallback,
+                                 connNotify=Web.webDisplayInterface.wsConnCallback))])
         else:
             msg = 'ProjectServer in local subject mode: /wsSubject connections not allowed (use --subjectRemote)'
             Web.addHandlers([(r'/wsData', RejectWebSocketHandler, dict(rejectMsg=msg))])
+            Web.webDisplayInterface.subjectConns = 1
 
         # Start the rpyc RPC server that the client script connects to
         rpcService = ProjectRPCService(dataRemote=self.args.dataRemote,
