@@ -2,14 +2,16 @@ import os
 import time
 import math
 import pytest
+import rtCommon.utils as utils
 from rtCommon.bidsArchive import BidsArchive
 from rtCommon.bidsIncremental import BidsIncremental
 from rtCommon.imageHandling import convertDicomImgToNifti, readDicomFromFile
+from rtCommon.imageHandling import anonymizeDicom, attributesToAnonymize
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.bidsInterface import BidsInterface
-from rtCommon.bidsCommon import getDicomMetadata
+from rtCommon.bidsCommon import getDicomMetadata, BidsAttributesToAnonymize
 from rtCommon.openNeuro import OpenNeuroCache
-import rtCommon.utils as utils
+from rtCommon.errors import MissingMetadataError
 from tests.backgroundTestServers import BackgroundTestServers
 from tests.common import rtCloudPath, tmpDir
 
@@ -54,13 +56,30 @@ class TestBidsInterface:
         # Allowed dirs for local case set to the same as in the backgroundTestServers
         bidsInterface = BidsInterface(dataRemote=False, allowedDirs=allowedDirs)
         dicomStreamTest(bidsInterface)
+        # run again without dicom anonymization
+        dicomStreamTest(bidsInterface, anonymize=False)
         openNeuroStreamTest(bidsInterface)
 
 
-def readLocalDicomIncremental(volIdx, entities):
+def isAnonymized(metadata):
+    sensitiveAttrCount = 0
+    for attr in BidsAttributesToAnonymize:
+        val = metadata.get(attr, None)
+        if val is not None and val != "":
+            sensitiveAttrCount += 1
+    if sensitiveAttrCount == 0:
+        return True
+    elif sensitiveAttrCount == len(BidsAttributesToAnonymize):
+        return False
+    else:
+        raise MissingMetadataError('isAnonymized: Some fields missing')
+
+def readLocalDicomIncremental(volIdx, anonymize=True, **entities):
     # read the incremental locally for test comparison
     dicomPath = os.path.join(test_sampleProjectDicomPath, "001_000013_{TR:06d}.dcm".format(TR=volIdx))
     dicomImg = readDicomFromFile(dicomPath)
+    if anonymize is True:
+        dicomImg = anonymizeDicom(dicomImg)
     dicomMetadata = getDicomMetadata(dicomImg)
     dicomMetadata.update(entities)
     niftiImg = convertDicomImgToNifti(dicomImg)
@@ -68,7 +87,7 @@ def readLocalDicomIncremental(volIdx, entities):
     return localIncremental
 
 
-def dicomStreamTest(bidsInterface):
+def dicomStreamTest(bidsInterface, anonymize=True):
     # initialize the stream
     entities = {'subject': '01', 'task': 'test', 'run': 1, 'suffix': 'bold', 'datatype': 'func'}
 
@@ -77,27 +96,30 @@ def dicomStreamTest(bidsInterface):
         with pytest.raises(Exception) as err:
             streamId = bidsInterface.initDicomBidsStream('/path/not/allowed',
                                                         "001_000013_{TR:06d}.dcm",
-                                                        300*1024, **entities)
+                                                        300*1024, anonymize=anonymize,
+                                                        **entities)
         assert "not within list of allowed directories" in str(err.value)
 
     # Now init the real stream to an allowed path
     print(f'### {test_sampleProjectDicomPath}')
     streamId = bidsInterface.initDicomBidsStream(test_sampleProjectDicomPath,
                                                  "001_000013_{TR:06d}.dcm",
-                                                 300*1024, **entities)
+                                                 300*1024, anonymize=anonymize,
+                                                 **entities)
 
     # Test that not specifying volIdx to getIncremental starts from the beginning in order
     for idx in [*range(3)]:
         # get the incremental from the stream
         streamIncremental = bidsInterface.getIncremental(streamId)
-        localIncremental = readLocalDicomIncremental(idx, entities)
+        assert isAnonymized(streamIncremental.getImageMetadata()) == anonymize
+        localIncremental = readLocalDicomIncremental(idx, anonymize=anonymize, **entities)
         print(f"Dicom stream check: image {idx}")
         assert streamIncremental == localIncremental
 
     # Next provide a specific volume
     volIdx = 7
     streamIncremental = bidsInterface.getIncremental(streamId, volIdx=volIdx)
-    localIncremental = readLocalDicomIncremental(volIdx, entities)
+    localIncremental = readLocalDicomIncremental(volIdx, anonymize=anonymize, **entities)
     print(f"Dicom stream check: image {idx}")
     assert streamIncremental == localIncremental
 
@@ -105,7 +127,7 @@ def dicomStreamTest(bidsInterface):
     for idx in [*range(8, 10)]:
         # get the incremental from the stream
         streamIncremental = bidsInterface.getIncremental(streamId)
-        localIncremental = readLocalDicomIncremental(idx, entities)
+        localIncremental = readLocalDicomIncremental(idx, anonymize=anonymize, **entities)
         print(f"Dicom stream check: image {idx}")
         assert streamIncremental == localIncremental
 

@@ -3,7 +3,7 @@ dsAccessionNumber = 'ds002338'
 subjectName = "xp201"
 session=""
 task=""
-runNum = [1]
+runNum = ["01"]
 scanNum = [1]
 
 plotTitle = 'Realtime Plot'

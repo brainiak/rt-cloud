@@ -36,6 +36,11 @@ class BidsRun:
         self._readme = None
         self._datasetDescription = None
         self._events = None
+        # For image.__class__ (BIDSImageFile) the run is stored as an int even
+        #   if the entity originally was a string such as '01' in filename run-01
+        runNum = self._entities.get('run')
+        if runNum is not None and type(runNum) == str:
+            self._entities['run'] = int(runNum)
 
     def __eq__(self, other):
         if self.numIncrementals() != other.numIncrementals():

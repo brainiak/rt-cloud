@@ -1,14 +1,18 @@
 import pytest
 import os
 import time
+import json
+import toml
 from rtCommon.structDict import StructDict
 from rtCommon.clientInterface import ClientInterface
 from projects.openNeuroClient import openNeuroClient
 from tests.backgroundTestServers import BackgroundTestServers
-from tests.common import rtCloudPath, testPort, tmpDir
+from tests.common import rtCloudPath, testPort, tmpDir, connectWebClient
 
 openNeuroProjectPath = os.path.join(rtCloudPath, 'projects', 'openNeuroClient')
 openNeuroClientPath = os.path.join(openNeuroProjectPath, 'openNeuroClient.py')
+confDir = os.path.join(tmpDir, 'conf')
+confFile = os.path.join(confDir, 'config.toml')
 
 allowedDirs =  [tmpDir, openNeuroProjectPath]
 allowedFileTypes = ['.dcm', '.txt']
@@ -30,6 +34,8 @@ class TestOpenNeuroClient:
     pingCount = 0
 
     def setup_class(cls):
+        if not os.path.exists(confDir):
+            os.makedirs(confDir, exist_ok=True)
         cls.serversForTests = BackgroundTestServers()
 
     def teardown_class(cls):
@@ -87,7 +93,10 @@ class TestOpenNeuroClient:
                                                          projectArgs=args)
         client = ClientInterface()
         assert client.isDataRemote() == False
-        argv = ['--archive']
+
+        with open(confFile, 'w') as fd:
+            toml.dump(cfg, fd)
+        argv = ['--archive', '-c', confFile]
         ret = openNeuroClient.main(argv)
         assert ret == 0
 
@@ -110,6 +119,8 @@ class TestOpenNeuroClient:
                                                          projectArgs=args)
         client = ClientInterface()
         assert client.isDataRemote() == False
-        argv = ['--archive']
+        with open(confFile, 'w') as fd:
+            toml.dump(cfg, fd)
+        argv = ['--archive', '-c', confFile]
         ret = openNeuroClient.main(argv)
         assert ret == 0

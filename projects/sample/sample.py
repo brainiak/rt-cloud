@@ -20,7 +20,7 @@ started from the script 'run-projectInterface.sh'.
 -----------------------------------------------------------------------------"""
 
 verbose = False
-useInitWatch = True
+useInitWatch = False
 
 if verbose:
     # print a short introduction on the internet window
@@ -93,6 +93,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     OUTPUT:
         None.
     """
+    global verbose, useInitWatch
     subjInterface.setMessage("Preparing Run ...")
 
     # Time delay to add between retrieving pre-collected dicoms (for re-runs)
@@ -182,6 +183,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         streamId = dataInterface.initScannerStream(cfg.dicomDir,
                                                 dicomScanNamePattern,
                                                 cfg.minExpectedDicomSize,
+                                                anonymize=True,
                                                 demoStep=demoTimeDelay)
 
 

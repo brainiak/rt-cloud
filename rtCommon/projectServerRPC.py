@@ -14,8 +14,7 @@ from rtCommon.subjectInterface import SubjectInterface
 from rtCommon.bidsInterface import BidsInterface
 from rtCommon.exampleInterface import ExampleInterface
 from rtCommon.errors import StateError, RequestError
-from rtCommon.projectUtils import npToPy
-from rtCommon.serialization import encodeByteTypeArgs, unpackDataMessage
+from rtCommon.serialization import encodeByteTypeArgs, npToPy, unpackDataMessage
 from rtCommon.webSocketHandlers import RequestHandler
 
 

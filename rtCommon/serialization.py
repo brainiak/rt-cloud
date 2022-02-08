@@ -1,7 +1,8 @@
 import os
-import zlib
 import hashlib
 import logging
+import numpy
+import zlib
 from base64 import b64encode, b64decode
 from rtCommon.structDict import StructDict
 from rtCommon.errors import RequestError, StateError, ValidationError
@@ -77,6 +78,35 @@ def decodeByteTypeArgs(cmd) -> dict:
         cmd.pop('encodedByteArgs')
         cmd['args'] = tuple(args)
     return cmd
+
+
+def npToPy(data):
+    """
+    Converts components in data that are numpy types to regular python types.
+    Uses recursive calls to convert nested data structures
+    Returns:
+        The data structure with numpy elements converted to python types
+    """
+    if isinstance(data, numpy.generic):
+        return data.item()
+    elif isinstance(data, dict):
+        data2 = {key: npToPy(val) for key, val in data.items()}
+        return data2
+    elif isinstance(data, list):
+        data2 = [npToPy(val) for val in data]
+        return data2
+    elif isinstance(data, tuple):
+        data2 = [npToPy(val) for val in data]
+        return tuple(data2)
+    elif isinstance(data, set):
+        data2 = [npToPy(val) for val in data]
+        return set(data2)
+    else:
+        return data
+    # Previous comprehensions, but they weren't recursive
+    # args_list = [a.item() if isinstance(a, numpy.generic) else a for a in args]
+    # args = tuple(args_list)
+    # kwargs = {key: val.item() if isinstance(val, numpy.generic) else val for key, val in kwargs.items()}
 
 
 def encodeMessageData(message, data, compress):

@@ -6,7 +6,7 @@ internally within projectServer for setting log and error messages within the we
 import json
 import numbers
 import logging
-from rtCommon.projectUtils import npToPy
+from rtCommon.serialization import npToPy
 from rtCommon.webSocketHandlers import sendWebSocketMessage
 from rtCommon.errors import RequestError
 

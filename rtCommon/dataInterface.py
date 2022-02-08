@@ -23,7 +23,7 @@ from rtCommon.remoteable import RemoteableExtensible
 from rtCommon.fileWatcher import FileWatcher
 from rtCommon.errors import StateError, RequestError, InvocationError, ValidationError
 from rtCommon.structDict import StructDict
-from rtCommon.imageHandling import readDicomFromBuffer
+from rtCommon.imageHandling import readDicomFromBuffer, anonymizeDicom
 
 
 class DataInterface(RemoteableExtensible):
@@ -81,8 +81,8 @@ class DataInterface(RemoteableExtensible):
                 self.fileWatcher.__del__()
                 self.fileWatcher = None
 
-    def initScannerStream(self, imgDir: str, filePattern: str,
-                          minFileSize: int, demoStep: int=0) -> int:
+    def initScannerStream(self, imgDir: str, filePattern: str, minFileSize: int,
+                          anonymize: bool=True, demoStep: int=0) -> int:
         """
         Initialize a data stream context with image directory and filepattern.
         Once the stream is initialized call getImageData() to retrieve image data.
@@ -93,6 +93,8 @@ class DataInterface(RemoteableExtensible):
             filePattern: a pattern of the image file names that has a TR tag which will be used
                 to index the images, for example 'scan01_{TR:03d}.dcm'. In this example a call to
                 getImageData(imgIndex=6) would look for dicom file 'scan01_006.dcm'.
+            minFileSize: Minimum size of the file to return (continue waiting if below this size)
+            anonymize: Whether to remove participant specific fields from the Dicom header
 
         Returns:
             streamId: An identifier used when calling getImageData()
@@ -110,6 +112,7 @@ class DataInterface(RemoteableExtensible):
             'imgDir': imgDir,
             'filePattern': filePattern,
             'minFileSize': minFileSize,
+            'anonymize': anonymize,
             'demoStep': demoStep,
             'imgIndex': 0,
         })
@@ -125,7 +128,7 @@ class DataInterface(RemoteableExtensible):
         Args:
             streamId: Id of a previously opened stream.
             imageIndex: Which image from the stream to retrieve. If left blank it will
-                retrieve the next image in the stream (next after either the last request or 
+                retrieve the next image in the stream (next after either the last request or
                 starting from 0 if no previous requests)
         Returns:
             The bytes array representing the image data
@@ -148,6 +151,8 @@ class DataInterface(RemoteableExtensible):
                 # Note: the conversion cause error in pickle encoding
                 # dicomImg.convert_pixel_data()
                 self.streamInfo.imgIndex = imageIndex + 1
+                if self.streamInfo.anonymize is True:
+                    dicomImg = anonymizeDicom(dicomImg)
                 return dicomImg
             except TimeoutError as err:
                 logging.warning(f"Timeout waiting for {filename}. Retry in 100 ms")
