@@ -63,6 +63,15 @@ BIDS_EVENT_COL_TO_DTYPE = {'onset': 'float64',
                            'value': 'object',  # can be str or num
                            'HED': 'object'}
 
+# Attributes that should be anonymized (with names derived from Dicom fields) 
+BidsAttributesToAnonymize = [
+        'PatientID', 'PatientsAge', 'PatientsBirthDate', 'PatientsName',
+        'PatientsSex', 'PatientsSize', 'PatientsWeight', 'PatientPosition',
+        'StudyDate', 'StudyTime', 'SeriesDate', 'SeriesTime',
+        'AcquisitionDate', 'ContentDate', 'ContentTime',
+        'InstanceCreationDate', 'InstanceCreationTime',
+        'PerformedProcedureStepStartDate', 'PerformedProcedureStepStartTime'
+]
 
 # Valid extensions for various file types in the BIDS format
 class BidsFileExtension(Enum):

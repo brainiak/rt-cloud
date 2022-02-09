@@ -58,7 +58,8 @@ class BidsInterface(RemoteableExtensible):
         self.openNeuroCache = OpenNeuroCache(cachePath="/tmp/openneuro")
 
 
-    def initDicomBidsStream(self, dicomDir, dicomFilePattern, dicomMinSize, **entities) -> int:
+    def initDicomBidsStream(self, dicomDir, dicomFilePattern, dicomMinSize,
+                            anonymize=True, **entities) -> int:
         """
         Intialize a data stream that watches a directory for DICOM files to be written that
         match the given file pattern. When a DICOM is written it will be converted to a BIDS
@@ -70,6 +71,7 @@ class BidsInterface(RemoteableExtensible):
                 to index the images, for example 'scan01_{TR:03d}.dcm'. In this example a call to
                 getImageData(imgIndex=6) would look for dicom file 'scan01_006.dcm'.
             minFileSize: Minimum size of the file to return (continue waiting if below this size)
+            anonymize: Whether to remove participant specific fields from the Dicom header
             entities: BIDS entities (subject, session, task, run, suffix, datatype) that will be
                 required to fill in the BIDS metadata in the BIDS Incremental
         Returns:
@@ -78,7 +80,8 @@ class BidsInterface(RemoteableExtensible):
         # TODO - allow multiple simultaneous streams to be instantiated
         streamId = 1
         dicomBidsStream = DicomToBidsStream(self.allowedDirs)
-        dicomBidsStream.initStream(dicomDir, dicomFilePattern, dicomMinSize, **entities)
+        dicomBidsStream.initStream(dicomDir, dicomFilePattern, dicomMinSize,
+                                   anonymize=anonymize, **entities)
         self.streamMap[streamId] = dicomBidsStream
         return streamId
 
@@ -192,7 +195,8 @@ class DicomToBidsStream():
     def __init__(self, allowedDirs=[]):
         self.allowedDirs = allowedDirs
 
-    def initStream(self, dicomDir, dicomFilePattern, dicomMinSize, **entities):
+    def initStream(self, dicomDir, dicomFilePattern, dicomMinSize,
+                   anonymize=True, **entities):
         """
         Intialize a new DicomToBids stream, watches for Dicoms and streams as BIDS
 
@@ -205,6 +209,7 @@ class DicomToBidsStream():
                 will be filled in by a 6 digit leading zeros value.
             dicomMinSize: Minimum size of the file to return (will continue waiting
                 if below this size)
+            anonymize: Whether to remove participant specific fields from the Dicom header
             entities: BIDS entities (subject, session, task, run, suffix, datatype) that
                 define the particular subject/run of the data to stream
         """
@@ -226,7 +231,8 @@ class DicomToBidsStream():
                                            allowedFileTypes=['.dcm'])
         self.dicomStreamId = self.dataInterface.initScannerStream(dicomDir,
                                                                   dicomFilePattern,
-                                                                  dicomMinSize)
+                                                                  dicomMinSize,
+                                                                  anonymize=anonymize)
         self.nextVol = 0
 
     def getNumVolumes(self) -> int:

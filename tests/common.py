@@ -6,6 +6,9 @@ import logging
 import os
 import subprocess
 import tempfile
+import websocket
+from rtCommon.projectUtils import login
+from rtCommon.imageHandling import attributesToAnonymize
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +37,24 @@ test_4DNifti2Path = os.path.join(test_inputDirPath, test_nifti2_4DFile)
 # test constants
 testPort = 8921
 tmpDir = tempfile.gettempdir()
+
+
+# connect as if from the web browser to the project server
+def connectWebClient():
+    sessionCookie = login(f'localhost:{testPort}', 'test', 'test', testMode=True)
+    ws = websocket.WebSocket()
+    ws.connect(f'ws://localhost:{testPort}/wsUser', cookie="login="+sessionCookie)
+    return ws
+
+
+# Test anonymization of sensitive patient fields
+def countUnanonymizedSensitiveAttrs(dicomImg):
+    sensitiveAttrs = 0
+    for attr in attributesToAnonymize:
+        if hasattr(dicomImg, attr) and getattr(dicomImg, attr) != "":
+            sensitiveAttrs += 1
+        return sensitiveAttrs
+
 
 def isValidBidsArchive(archivePath: str, logFullOutput: bool = False) -> bool:
     result = subprocess.run(['which', 'bids-validator'], stdout=subprocess.PIPE,

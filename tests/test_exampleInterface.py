@@ -3,7 +3,7 @@ import pytest
 import numpy
 from tests.backgroundTestServers import BackgroundTestServers
 from rtCommon.clientInterface import ClientInterface
-from rtCommon.projectUtils import npToPy
+from rtCommon.serialization import npToPy
 
 
 class TestExampleInterface:

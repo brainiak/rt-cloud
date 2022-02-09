@@ -1,15 +1,15 @@
 import os
 import math
 import tempfile
-
-from nibabel.nicom import dicomreaders
 import numpy as np
 import pytest
 from datetime import time as dtime
+from nibabel.nicom import dicomreaders
 
 from rtCommon.dataInterface import DataInterface
 from rtCommon.errors import ValidationError
 from tests.common import test_dicomPath, test_dicomTruncPath, test_inputDirPath
+from tests.common import countUnanonymizedSensitiveAttrs
 import rtCommon.imageHandling as imgHandler
 
 
@@ -53,13 +53,6 @@ def test_readDicom():
     dataInterface.fileWatcher = None
 
     # Test anonymization of sensitive patient fields
-    def countUnanonymizedSensitiveAttrs(dicomImg):
-        sensitiveAttrs = 0
-        for attr in imgHandler.attributesToAnonymize:
-            if hasattr(dicomImg, attr) and getattr(dicomImg, attr) != "":
-                sensitiveAttrs += 1
-        return sensitiveAttrs
-
     dicomImg5 = imgHandler.readDicomFromFile(test_dicomPath)
     assert countUnanonymizedSensitiveAttrs(dicomImg5) >= 1
 

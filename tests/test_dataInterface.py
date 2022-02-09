@@ -7,11 +7,12 @@ import shutil
 import rtCommon.utils as utils
 from rtCommon.clientInterface import ClientInterface
 from rtCommon.dataInterface import DataInterface, uploadFilesToCloud, downloadFilesFromCloud
-from rtCommon.imageHandling import readDicomFromBuffer
+from rtCommon.imageHandling import readDicomFromBuffer, readDicomFromFile
 from rtCommon.errors import ValidationError, RequestError
 import rtCommon.utils as utils
 from tests.backgroundTestServers import BackgroundTestServers
 from tests.common import rtCloudPath, test_dicomPath, testPath, tmpDir
+from tests.common import countUnanonymizedSensitiveAttrs
 
 # Note these tests will test the local version of DataInterface (not remote)
 
@@ -27,23 +28,6 @@ expectedReponseFileTypes = ['.bin', '.txt', '.dcm']
 def dicomTestFilename():  # type: ignore
     return test_dicomPath
 
-@pytest.fixture(scope="module")
-def bigTestFile():  # type: ignore
-    filename = os.path.join(testPath, 'test_input', 'bigfile.bin')
-    if not os.path.exists(filename):
-        with open(filename, 'wb') as fout:
-            for _ in range(101):
-                fout.write(os.urandom(1024*1024))
-    return filename
-
-@pytest.fixture(scope="module")
-def mediumTestFile():  # type: ignore
-    filename = os.path.join(testPath, 'test_input', 'mediumfile.bin')
-    if not os.path.exists(filename):
-        with open(filename, 'wb') as fout:
-            for _ in range(12):
-                fout.write(os.urandom(1024*1024))
-    return filename
 
 class TestDataInterface:
     serversForTests = None
@@ -198,7 +182,7 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
     # Test initScannerStream and getImageData
     streamId = dataInterface.initScannerStream(sampleProjectDicomDir,
                                                "001_000013_{TR:06d}.dcm",
-                                               300*1024)
+                                               300*1024, anonymize=False)
     for i in range(10):
         streamImage = dataInterface.getImageData(streamId)
         directPath = os.path.join(sampleProjectDicomDir, "001_000013_{TR:06d}.dcm".format(TR=i))
@@ -214,6 +198,19 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
         directImage = readDicomFromBuffer(directImageData)
         print(f"Stream seek check: image {i}")
         assert streamImage == directImage
+
+    regImage = dataInterface.getImageData(streamId, 2)  # anonymize == False
+    directPath = os.path.join(sampleProjectDicomDir, "001_000013_{TR:06d}.dcm".format(TR=2))
+    reg2Image = readDicomFromFile(directPath)
+    # Test anonymization
+    streamId = dataInterface.initScannerStream(sampleProjectDicomDir,
+                                            "001_000013_{TR:06d}.dcm",
+                                            300*1024, anonymize=True)
+    anonImage = dataInterface.getImageData(streamId, 2)  # anonymize == True
+    assert regImage == reg2Image
+    assert regImage != anonImage
+    assert countUnanonymizedSensitiveAttrs(regImage) >= 1
+    assert countUnanonymizedSensitiveAttrs(anonImage) == 0
 
     # check clock skew function
     rtt = utils.calcAvgRoundTripTime(dataInterface.ping)

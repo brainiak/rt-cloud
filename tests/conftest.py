@@ -18,6 +18,7 @@ from tests.common import (
     test_4DNifti1Path,
     test_4DNifti2Path,
     test_dicomPath,
+    testPath,
 )
 from rtCommon.bidsArchive import BidsArchive
 from rtCommon.bidsCommon import (
@@ -62,8 +63,29 @@ def pytest_configure(config) -> None:
         createNiftiTestFiles()
 
 
-""" BEGIN DICOM RELATED FIXTURES """
+""" BEGIN RANDOM DATA FIXTURES """
 
+@pytest.fixture
+def bigTestFile():
+    filename = os.path.join(testPath, 'test_input', 'bigfile.bin')
+    if not os.path.exists(filename):
+        with open(filename, 'wb') as fout:
+            for _ in range(101):
+                fout.write(os.urandom(1024*1024))
+    return filename
+
+@pytest.fixture
+def mediumTestFile():
+    filename = os.path.join(testPath, 'test_input', 'mediumfile.bin')
+    if not os.path.exists(filename):
+        with open(filename, 'wb') as fout:
+            for _ in range(12):
+                fout.write(os.urandom(1024*1024))
+    return filename
+
+""" END RANDOM DATA FIXTURES """
+
+""" BEGIN DICOM RELATED FIXTURES """
 
 # Dictionary of some fields of the read-in DICOM image
 @pytest.fixture
