@@ -225,8 +225,11 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     all_avg_activations = np.zeros((num_total_TRs, 1))
     for this_TR in np.arange(num_total_TRs):
         # declare variables that are needed to use in get data requests
-        timeout_file = 5 # small number because of demo, can increase for real-time
         dicomFilename = dicomScanNamePattern.format(TR=this_TR)
+        dcmTimeout = cfg.trInterval
+        if this_TR == 0:
+            # for first TR set a longer wait time for the Dicom to arrive
+            dcmTimeout =  30
 
         if useInitWatch is True:
             """
@@ -246,7 +249,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
                 print("• use 'readRetryDicomFromDataInterface' to read dicom file for",
                     "TR %d, %s" %(this_TR, dicomFilename))
             dicomData = readRetryDicomFromDataInterface(dataInterface, dicomFilename,
-                timeout_file)
+                                                        timeout=dcmTimeout)
 
         else:  # use Stream functions
             """
@@ -266,7 +269,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
             if verbose:
                 print("• use dataInterface.getImageData() to read dicom file for"
                     "TR %d, %s" %(this_TR, dicomFilename))
-            dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout_file)
+            dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout=dcmTimeout)
 
         if dicomData is None:
             print('Error: getImageData returned None')

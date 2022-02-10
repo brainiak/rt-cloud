@@ -13,6 +13,7 @@ to connect this instance to the remote projectServer where the classification is
 import os
 import sys
 import logging
+import argparse
 import threading
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(currPath)
@@ -55,13 +56,26 @@ if __name__ == "__main__":
     #   "-i <retry-connection-interval>"
     connectionArgs = parseConnectionArgs()
 
+    # parse remaining args
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outputDir', '-o', default=None, type=str,
+                        help='Directory to write classification result text files')
+    args, _ = parser.parse_known_args(namespace=connectionArgs)
+
     subjectService = SubjectService(connectionArgs)
     subjectService.runDetached()
 
     while True:
         feedbackMsg = subjectService.subjectInterface.msgQueue.get(block=True, timeout=None)
-        print("Dequeue run: {}, tr: {}, value: {}, timestamp: {}".
-                format(feedbackMsg.get('runId'),
-                        feedbackMsg.get('trId'),
-                        feedbackMsg.get('value'),
-                        feedbackMsg.get('timestamp')))
+        runId = feedbackMsg.get('runId', None)
+        trId = feedbackMsg.get('trId', None)
+        value = feedbackMsg.get('value', None)
+        timestamp = feedbackMsg.get('timestamp', None)
+        if None in [runId, trId, value]:
+            print(f"Missing key in feedback result: run {runId}, tr {trId}, value {value}")
+            continue
+        print(f"feedback: runid {runId}, tr {trId}, value {value}, timestamp {timestamp}")
+        if args.outputDir is not None:
+            filename = os.path.join(args.outputDir, f'res-{runId}-{trId}.txt')
+            with open(filename, 'w') as fp:
+                fp.write(str(value))

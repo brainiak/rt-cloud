@@ -24,8 +24,8 @@ if [ -z $URL ]; then
   URL='localhost'
 fi
 
-START_DATE='20190101120000Z'
-END_DATE='20240101120000Z'
+START_DATE='20220101120000Z'
+END_DATE='20320101120000Z'
 
 if [ ! -d "certs" ]; then
   mkdir certs

@@ -204,13 +204,26 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
     reg2Image = readDicomFromFile(directPath)
     # Test anonymization
     streamId = dataInterface.initScannerStream(sampleProjectDicomDir,
-                                            "001_000013_{TR:06d}.dcm",
-                                            300*1024, anonymize=True)
+                                               "001_000013_{TR:06d}.dcm",
+                                               300*1024, anonymize=True)
     anonImage = dataInterface.getImageData(streamId, 2)  # anonymize == True
     assert regImage == reg2Image
     assert regImage != anonImage
     assert countUnanonymizedSensitiveAttrs(regImage) >= 1
     assert countUnanonymizedSensitiveAttrs(anonImage) == 0
+
+    # Test timeouts of getImageData
+    # set a directory and image pattern that won't exist so will timeout
+    streamId = dataInterface.initScannerStream(tmpDir,
+                                               "006_000020_{TR:06d}.dcm",
+                                               300*1024, anonymize=True)
+    testTimeouts = [7, 3]
+    for tmout in testTimeouts:
+        print(f"Test getImageData timeout: {tmout}")
+        startTime = time.time()
+        streamImage = dataInterface.getImageData(streamId, 0, timeout=tmout)
+        endTime = time.time()
+        assert round(endTime - startTime) == tmout
 
     # check clock skew function
     rtt = utils.calcAvgRoundTripTime(dataInterface.ping)
