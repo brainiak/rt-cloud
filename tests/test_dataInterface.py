@@ -221,7 +221,8 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
     for tmout in testTimeouts:
         print(f"Test getImageData timeout: {tmout}")
         startTime = time.time()
-        streamImage = dataInterface.getImageData(streamId, 0, timeout=tmout)
+        with pytest.raises((RequestError, Exception)):
+            streamImage = dataInterface.getImageData(streamId, 0, timeout=tmout)
         endTime = time.time()
         assert round(endTime - startTime) == tmout
 

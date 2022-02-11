@@ -141,6 +141,12 @@ def readRetryDicomFromDataInterface(dataInterface, filename, timeout=5):
     'dataInterface.py'
 
     Used externally (and internally).
+    Args:
+        dataInterface: A dataInterface to make calls on
+        filename: Dicom filename to watch for and read when available
+        timeout: Max number of seconds to wait for file to be available
+    Returns:
+        The dicom image
     """
     if timeout <= 0:
         # Don't allow infinite timeout
@@ -222,9 +228,22 @@ def getDicomRepetitionTime(dicomImg) -> float:
     return tr_sec
 
 def dicomTimeToNextTr(dicomImg, clockSkew, now=None):
-    """Based on Dicom header returns seconds to next TR start"""
+    """Based on Dicom header. Returns seconds to next TR start"""
     acquisitionTime = getDicomAcquisitionTime(dicomImg)
     repetitionTime = getDicomRepetitionTime(dicomImg)
+    if now is None:  # now variable may be passed in for testing purposes
+        now = datetime.now().time()
+    secToNextTr = getTimeToNextTR(acquisitionTime, repetitionTime, now, clockSkew)
+    return secToNextTr
+
+def bidsIncrementalTimeToNextTr(bidsIncremental, clockSkew, now=None):
+    """Based on BidsIncremental header. Returns seconds to next TR start"""
+    acqTimestamp = bidsIncremental.getMetadataField('AcquisitionTime')
+    acquisitionTime = None
+    if acqTimestamp is not None:
+        dtm = datetime.strptime(acqTimestamp, '%H%M%S.%f')
+        acquisitionTime = dtm.time()
+    repetitionTime = bidsIncremental.getMetadataField('RepetitionTime')
     if now is None:  # now variable may be passed in for testing purposes
         now = datetime.now().time()
     secToNextTr = getTimeToNextTR(acquisitionTime, repetitionTime, now, clockSkew)

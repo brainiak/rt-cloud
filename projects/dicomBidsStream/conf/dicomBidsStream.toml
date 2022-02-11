@@ -1,0 +1,33 @@
+# Config file for dicomBidsStream.py project
+title = 'DicomBidsStream Project'
+
+## Subject Settings
+sessionId = "20180310T123000"
+subjectName = "0219191_faceMatching"
+# subjectName = "0301181_sample"
+datestr = "20190219"
+subjectNum = 101
+subjectDay = 1
+sessionNum = 1
+runNum = [1]
+scanNum = [13]
+
+## Experiment settings
+trInterval = 2  # 2 sec TR
+#imgDir = "/path/on/remote/dataservice/"  # uncomment when using dataRemote
+
+## important variables about the dicom files
+dicomNamePattern = "001_{SCAN:06d}_{TR:06d}.dcm"
+minExpectedDicomSize = 300000
+
+##  Web data plot settings
+plotTitle = 'Realtime Plot'
+plotXLabel = 'Sample #'
+plotYLabel = 'Value'
+plotXRangeLow = 0
+plotXRangeHigh = 20
+plotYRangeLow = -1
+plotYRangeHigh = 1
+plotAutoRangeX = false
+plotAutoRangeY = true
+

@@ -323,6 +323,7 @@ class WsBrowserRequestHandler:
         outputThread.setDaemon(True)
         outputThread.start()
         line = 'start'
+        lastLine = None
         while(proc.poll() is None or line != ''):
             # subprocess poll returns None while subprocess is running
             if self.runInfo.stopRun is True:
@@ -332,6 +333,7 @@ class WsBrowserRequestHandler:
                 # proc.kill()
             try:
                 line = lineQueue.get(block=True, timeout=1)
+                line = line.rstrip()
             except queue.Empty:
                 line = ''
             if line != '':
@@ -340,9 +342,10 @@ class WsBrowserRequestHandler:
                 else:
                     self.webUI.sessionLog(line)
                 logging.info(line.rstrip())
+                lastLine = line
         # processing complete, set status
         if proc.returncode != 0:
-            endStatus = tag + ': An Error in the experiment script occured'
+            endStatus = tag + f': Error in script: {lastLine}'
         elif self.runInfo.stopRun is True:
             endStatus = 'stopped'
         else:

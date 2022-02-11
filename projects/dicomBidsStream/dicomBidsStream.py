@@ -2,10 +2,12 @@
 
 sample.py (Last Updated: 01/26/2021)
 
-The purpose of this script is to actually to run the sample project.
-Specifically, it will initiate a call to file watcher that searches for incoming
-dicom files, do some sort of analysis based on the dicom file that's been received,
-and then output the answer.
+The purpose of this script is to actually to run a sample project using a 
+bidsIncremental stream which originates as DICOMS (collect from a scanner).
+
+Specifically, it will initiate a call to bidsInterface that retrieves dicom
+files formatted as bidsIncrementals, do some sort of analysis based on the
+Nifti data received, and then output the answer.
 
 The purpose of this *particular* script is to demonstrated how you can use the
 various scripts, functions, etc. we have developed for your use! The functions
@@ -20,7 +22,6 @@ started from the script 'run-projectInterface.sh'.
 -----------------------------------------------------------------------------"""
 
 verbose = False
-useInitWatch = False
 
 if verbose:
     # print a short introduction on the internet window
@@ -29,27 +30,20 @@ if verbose:
         "The purpose of this sample project is to demonstrate different ways you can\n"
         "implement functions, structures, etc. that we have developed for your use.\n"
         "You will find some comments printed on this html browser. However, if you want\n"
-        "more information about how things work please take a look at ‘sample.py’.\n"
+        "more information about how things work please take a look at dicomBidsStream.py’.\n"
         "Good luck!\n"
         "-----------------------------------------------------------------------------")
 
 # import important modules
+from html import entities
 import os
 import sys
 import time
 import argparse
 import warnings
 import numpy as np
-import nibabel as nib
 import scipy.io as sio
 
-if verbose:
-    print(''
-        '|||||||||||||||||||||||||||| IGNORE THIS WARNING ||||||||||||||||||||||||||||')
-with warnings.catch_warnings():
-    if not verbose:
-        warnings.filterwarnings("ignore", category=UserWarning)
-    from nibabel.nicom import dicomreaders
 
 if verbose:
     print(''
@@ -66,38 +60,32 @@ sys.path.append(rootPath)
 # import project modules from rt-cloud
 from rtCommon.utils import loadConfigFile, stringPartialFormat, calcAvgRoundTripTime
 from rtCommon.clientInterface import ClientInterface
-from rtCommon.imageHandling import readRetryDicomFromDataInterface, convertDicomImgToNifti
-from rtCommon.imageHandling import dicomTimeToNextTr
+from rtCommon.imageHandling import bidsIncrementalTimeToNextTr
 
 # obtain the full path for the configuration toml file
-defaultConfig = os.path.join(currPath, 'conf/sample.toml')
+defaultConfig = os.path.join(currPath, 'conf/dicomBidsStream.toml')
 
 
-def doRuns(cfg, dataInterface, subjInterface, webInterface):
+def doRuns(cfg, clientInterfaces):
     """
-    This function is called by 'main()' below. Here, we use the 'dataInterface'
-    to read in dicoms (presumably from the scanner, but here it's from a folder
-    with previously collected dicom files), doing some sort of analysis in the
-    cloud, and then sending the info to the web browser.
+    This function is called by 'main()' below. Here, we use the 'bidsInterface'
+    to read in dicoms formatted as bidsIncrementals (presumably from the scanner,
+    but here it's from a folder with previously collected dicom files), doing some
+    sort of analysis in the cloud, and then sending the info to the web browser.
 
     INPUT:
         [1] cfg - configuration file with important variables)
-        [2] dataInterface - this will allow this script runnin in the cloud to access
-                files from the stimulus computer, which receives dicom files directly
-                from the MRI Scanner console
-        [3] subjInterface - this allows sending feedback (e.g. classification results)
-                to a subjectService running on the presentation computer to provide
-                feedback to the subject (and optionally get their response).
-        [4] webInterface - this allows updating information on the experimenter webpage.
-                For example to plot data points, or update status messages.
+        [2] clientInterfaces - this contains the other communication interfaces needed
     OUTPUT:
         None.
     """
-    global verbose, useInitWatch
-    subjInterface.setMessage("Preparing Run ...")
+    global verbose
+    dataInterface = clientInterfaces.dataInterface
+    bidsInterface = clientInterfaces.bidsInterface
+    subjInterface = clientInterfaces.subjInterface
+    webInterface  = clientInterfaces.webInterface
 
-    # Time delay to add between retrieving pre-collected dicoms (for re-runs)
-    demoTimeDelay = 1
+    subjInterface.setMessage("Preparing Run ...")
 
     # get round trip time to dataInterface computer
     rttSec = calcAvgRoundTripTime(dataInterface.ping)
@@ -132,11 +120,8 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         "Allowed file types: %s" %allowedFileTypes)
 
     # obtain the path for the directory where the subject's dicoms live
-    if cfg.isSynthetic:
-        cfg.dicomDir = cfg.imgDir
-    else:
-        subj_imgDir = "{}.{}.{}".format(cfg.datestr, cfg.subjectName, cfg.subjectName)
-        cfg.dicomDir = os.path.join(cfg.imgDir, subj_imgDir)
+    subj_imgDir = "{}.{}.{}".format(cfg.datestr, cfg.subjectName, cfg.subjectName)
+    cfg.dicomDir = os.path.join(cfg.imgDir, subj_imgDir)
     if verbose:
         print("Location of the subject's dicoms: \n" + cfg.dicomDir + "\n"
         "-----------------------------------------------------------------------------")
@@ -147,45 +132,19 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     dicomScanNamePattern = stringPartialFormat(cfg.dicomNamePattern, 'SCAN', scanNum)
 
     """
-    There are several ways to receive Dicom data from the control room computer:
-    1. Using `initWatch()` and 'watchFile()` commands of dataInterface or the
-        helper function `readRetryDicomFromDataInterface()` which calls watchFile()
-        internally.
-    2. Using the streaming functions with `initScannerStream()` and `getImageData(stream)`
-        which are also part of the dataInterface.
+    Initialize a watch for the entire dicom folder using the function 'initDicomBidsStream'
+    of the bidsInterface.
+    INPUT:
+        [1] cfg.dicomDir (where the subject's dicom files live)
+        [2] cfg.dicomNamePattern (the naming pattern of dicom files)
+        [3] cfg.minExpectedDicomSize (a check on size to make sure we don't
+                accidentally grab a dicom before it's fully acquired)
     """
-    if useInitWatch is True:
-        """
-        Initialize a watch for the entire dicom folder using the function 'initWatch'
-        of the dataInterface. (Later we will use watchFile() to look for a specific dicom)
-        INPUT:
-            [1] cfg.dicomDir (where the subject's dicom files live)
-            [2] cfg.dicomNamePattern (the naming pattern of dicom files)
-            [3] cfg.minExpectedDicomSize (a check on size to make sure we don't
-                    accidentally grab a dicom before it's fully acquired)
-        """
-        if verbose:
-            print("• initalize a watch for the dicoms using 'initWatch'")
-        dataInterface.initWatch(cfg.dicomDir, dicomScanNamePattern, 
-                                cfg.minExpectedDicomSize, demoStep=demoTimeDelay)
-
-    else:  # use Stream functions
-        """
-        Initialize a Dicom stream by indicating the directory and dicom file pattern that
-        will be streamed.
-
-        INPUTs to initScannerStream():
-            [1] cfg.dicomDir (where the subject's dicom files live)
-            [2] dicomScanNamePattern (the naming pattern of dicom files)
-            [3] cfg.minExpectedDicomSize (a check on size to make sure we don't
-                    accidentally grab a dicom before it's fully acquired)
-        """
-        streamId = dataInterface.initScannerStream(cfg.dicomDir,
-                                                dicomScanNamePattern,
-                                                cfg.minExpectedDicomSize,
-                                                anonymize=True,
-                                                demoStep=demoTimeDelay)
-
+    if verbose:
+        print("• initalize a watch for the dicoms using 'initWatch'")
+    entities = {'subject': cfg.subjectName, 'task': 'test', 'run': runNum}
+    streamId = bidsInterface.initDicomBidsStream(cfg.dicomDir, dicomScanNamePattern, 
+                                                 cfg.minExpectedDicomSize, **entities)
 
     """
     We will use the function plotDataPoint in webInterface whenever we
@@ -201,112 +160,35 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     if verbose:
         print(""
         "-----------------------------------------------------------------------------\n"
-        "In this sample project, we will retrieve the dicom file for a given TR and\n"
-        "then convert the dicom file to a nifti object. **IMPORTANT: In this sample\n"
-        "we won't care about the exact location of voxel data (we're only going to\n"
-        "indiscriminately get the average activation value for all voxels). This\n"
-        "actually isn't something you want to actually do but we'll go through the\n"
-        "to get the data in the appropriate nifti format in the advanced sample\n"
-        "project (amygActivation).** We are doing things in this way because it is the simplest way\n"
-        "we can highlight the functionality of rt-cloud, which is the purpose of\n"
-        "this sample project.\n"
-        ".............................................................................\n"
-        "NOTE: We will use the function readRetryDicomFromDataInterface() to retrieve\n"
-        "specific dicom files from the subject's dicom folder. This function calls\n"
-        "'dataInterface.watchFile' to look for the next dicom from the scanner.\n"
-        "Since we're using previously collected dicom data, this functionality is\n"
-        "not particularly relevant for this sample project but it is very important\n"
-        "when running real-time experiments.\n"
+        "In this sample project, we will retrieve the dicom file for a given TR as\n"
+        "a bidsIncremental which is already in Nifti format.\n"
         "-----------------------------------------------------------------------------\n")
 
     num_total_TRs = 10  # number of TRs to use for example 1
-    if cfg.isSynthetic:
-        num_total_TRs = cfg.numSynthetic
     all_avg_activations = np.zeros((num_total_TRs, 1))
     for this_TR in np.arange(num_total_TRs):
         # declare variables that are needed to use in get data requests
-        dicomFilename = dicomScanNamePattern.format(TR=this_TR)
-        dcmTimeout = cfg.trInterval
+        dcmTimeout = cfg.trInterval  # usually the image timeout equals the TR interval
         if this_TR == 0:
             # for first TR set a longer wait time for the Dicom to arrive
             dcmTimeout =  30
 
-        if useInitWatch is True:
-            """
-            Use 'readRetryDicomFromDataInterface' in 'imageHandling.py' to wait for dicom
-                files to be written by the scanner (uses 'watchFile' internally) and then
-                reading the dicom file once it is available.
-            INPUT:
-                [1] dataInterface (allows a cloud script to access files from the
-                    control room computer)
-                [2] filename (the dicom file we're watching for and want to load)
-                [3] timeout (time spent waiting for a file before timing out)
-            OUTPUT:
-                [1] dicomData (with class 'pydicom.dataset.FileDataset')
-            """
-            print(f'Processing TR {this_TR}')
-            if verbose:
-                print("• use 'readRetryDicomFromDataInterface' to read dicom file for",
-                    "TR %d, %s" %(this_TR, dicomFilename))
-            dicomData = readRetryDicomFromDataInterface(dataInterface, dicomFilename,
-                                                        timeout=dcmTimeout)
+        # Get the next bidsIncremental. This is a Nifti format of the Dicom data
+        #  with other metadata related to BIDs format.
+        bidsIncremental = bidsInterface.getIncremental(streamId, timeout=dcmTimeout)
+        # getIncremental will raise an exception if the data isn't found
+        # so at this point in the script the bidsIncremental is not None
 
-        else:  # use Stream functions
-            """
-            Use dataInterface.getImageData(streamId) to query a stream, waiting for a
-                dicom file to be written by the scanner and then reading the dicom file
-                once it is available.
-            INPUT:
-                [1] dataInterface (allows a cloud script to access files from the
-                    control room computer)
-                [2] streamId - from initScannerStream() called above
-                [3] TR number - the image volume number to retrieve
-                [3] timeout (time spent waiting for a file before timing out)
-            OUTPUT:
-                [1] dicomData (with class 'pydicom.dataset.FileDataset')
-            """
-            print(f'Processing TR {this_TR}')
-            if verbose:
-                print("• use dataInterface.getImageData() to read dicom file for"
-                    "TR %d, %s" %(this_TR, dicomFilename))
-            dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout=dcmTimeout)
-
-        if dicomData is None:
-            print('Error: getImageData returned None')
-            return
-
-        dicomData.convert_pixel_data()
-
-        if cfg.isSynthetic:
-            niftiObject = convertDicomImgToNifti(dicomData)
-        else:
-            # use 'dicomreaders.mosaic_to_nii' to convert the dicom data into a nifti
-            #   object. additional steps need to be taken to get the nifti object in
-            #   the correct orientation, but we will ignore those steps here. refer to
-            #   the advanced sample project (amygActivation) for more info about that
-            if verbose:
-                print("| convert dicom data into a nifti object")
-            niftiObject = dicomreaders.mosaic_to_nii(dicomData)
+        niftiData = bidsIncremental.getImageData()
 
         # take the average of all the activation values
-        avg_niftiData = np.mean(niftiObject.get_fdata())
+        avg_niftiData = np.mean(niftiData)
         # avg_niftiData = np.round(avg_niftiData,decimals=2)
         print("| average activation value for TR %d is %f" %(this_TR, avg_niftiData))
 
-        max_niftiData = np.amax(niftiObject.get_fdata())
+        max_niftiData = np.amax(niftiData)
         if verbose:
             print("| max activation value for TR %d is %d" %(this_TR, max_niftiData))
-
-        """
-        INPUT:
-            [1] projectComm (the communication pipe)
-            [2] runNum (not to be confused with the scan number)
-            [3] this_TR (timepoint of interest)
-            [4] value (value you want to send over to the web browser)
-            ** the inputs MUST be python integers; it won't work if it's a numpy int
-
-        here, we are clearing an already existing plot
-        """
 
         # Now we will send the result to be used to provide feedback for the subject.
         # Using subjInterface.setResult() will send the classification result to a
@@ -321,15 +203,17 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         # Get the seconds remaining before next TR starts, this can be passed to
         #  the setResult function to delay stimulus until that time
         try:
-            secUntilNextTr = dicomTimeToNextTr(dicomData, clockSkew)
+            secUntilNextTr = bidsIncrementalTimeToNextTr(bidsIncremental, clockSkew)
             print(f"## Secs to next TR {secUntilNextTr}")
         except Exception as err:
             # Since we are running pre-collected data and we only compare time of
             #  day not date, an error can occur if the runTime is earlier in the
             #  day than the collection time.
-            # print(f'dicomTimeToNextTr error: {err}')
+            # print(f'bidsIncrementalTimeToNextTr error: {err}')
             pass
 
+        # We will set a static delay since the images where pre-collected.
+        # In an actual run we could use the secUntilNextTr as the delay field.
         setFeedbackDelay = 500 # milliseconds
         subjInterface.setResult(runNum, int(this_TR), float(feedback), setFeedbackDelay)
 
@@ -383,13 +267,13 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
 
 
 def main(argv=None):
-    global verbose, useInitWatch
+    global verbose
     """
-    This is the main function that is called when you run 'sample.py'.
+    This is the main function that is called when you run 'dicomBidsStream.py'.
 
     Here, you will load the configuration settings specified in the toml configuration
     file, initiate the clientInterface for communication with the projectServer (via
-    its sub-interfaces: dataInterface, subjInterface, and webInterface). Ant then call
+    its sub-interfaces: dataInterface, subjInterface, and webInterface). And then call
     the function 'doRuns' to actually start doing the experiment.
     """
 
@@ -405,14 +289,11 @@ def main(argv=None):
                            help='automatically answer tyes to any prompts')
 
     # Some additional parameters only used for this sample project
-    argParser.add_argument('--useInitWatch', '-w', default=False, action='store_true',
-                           help='use initWatch() functions instead of stream functions')
     argParser.add_argument('--noVerbose', '-nv', default=False, action='store_true',
                            help='print verbose output')
 
     args = argParser.parse_args(argv)
 
-    useInitWatch = args.useInitWatch
     verbose = not args.noVerbose
 
     # load the experiment configuration file
@@ -431,14 +312,12 @@ def main(argv=None):
     # a subjectInterface for giving feedback, and a webInterface
     # for updating what is displayed on the experimenter's webpage.
     clientInterfaces = ClientInterface(yesToPrompts=args.yesToPrompts)
-    dataInterface = clientInterfaces.dataInterface
-    bidsInterface = clientInterfaces.bidsInterface
-    subjInterface = clientInterfaces.subjInterface
-    webInterface  = clientInterfaces.webInterface
+
 
     # obtain paths for important directories (e.g. location of dicom files)
     if cfg.imgDir is None:
-        cfg.imgDir = os.path.join(currPath, 'dicomDir')
+        # Use the sample dicom files from the sample project
+        cfg.imgDir = os.path.join(rootPath, 'projects', 'sample', 'dicomDir')
     cfg.codeDir = currPath
 
     # now that we have the necessary variables, call the function 'doRuns' in order
@@ -453,7 +332,7 @@ def main(argv=None):
     #            feedback to the subject (and optionally get their response).
     #       [4] webInterface - this allows updating information on the experimenter webpage.
     #            For example to plot data points, or update status messages.
-    doRuns(cfg, dataInterface, subjInterface, webInterface)
+    doRuns(cfg, clientInterfaces)
     return 0
 
 
