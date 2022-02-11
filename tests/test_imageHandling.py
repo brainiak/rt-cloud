@@ -1,8 +1,9 @@
 import os
 import math
+import time
+import pytest
 import tempfile
 import numpy as np
-import pytest
 from datetime import time as dtime
 from nibabel.nicom import dicomreaders
 
@@ -44,6 +45,16 @@ def test_readDicom():
     dicomImg4 = imgHandler.readRetryDicomFromDataInterface(dataInterface,
                                                            test_dicomTruncPath)
     assert dicomImg4 is None
+
+    # Test timeouts for readRetryDicom
+    testTimeouts = [7, 3]
+    for tmout in testTimeouts:
+        print(f"Test readRetryDicom timeout: {tmout}")
+        startTime = time.time()
+        dcm = imgHandler.readRetryDicomFromDataInterface(dataInterface, 
+                                                         "no_dicom", timeout=tmout)
+        endTime = time.time()
+        assert round(endTime - startTime) == tmout
 
     # Test convert to nifti
     niftiObject = dicomreaders.mosaic_to_nii(dicomImg3)

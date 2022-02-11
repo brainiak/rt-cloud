@@ -123,7 +123,7 @@ class BidsInterface(RemoteableExtensible):
         self.streamMap[streamId] = bidsStream
         return streamId
 
-    def getIncremental(self, streamId, volIdx=-1) -> BidsIncremental:
+    def getIncremental(self, streamId, volIdx=-1, timeout=5) -> BidsIncremental:
         """
         Get a BIDS Incremental from a stream
 
@@ -131,11 +131,13 @@ class BidsInterface(RemoteableExtensible):
             streamId: The stream handle returned by the initXXStream call
             volIdx: The brain volume index of the image to return. If -1 is
                 entered it will return the next volume
+            timeout: Max number of seconds to wait for incremental when
+                     running real-time
         Returns:
             A BidsIncremental containing the image volume
         """
         stream = self.streamMap[streamId]
-        bidsIncremental = stream.getIncremental(volIdx)
+        bidsIncremental = stream.getIncremental(volIdx, timeout=timeout)
         return bidsIncremental
 
     def getNumVolumes(self, streamId) -> int:
@@ -242,7 +244,7 @@ class DicomToBidsStream():
         """
         raise NotImplementedError('getNumVolumes not implemented for DicomBidsStream')
 
-    def getIncremental(self, volIdx=-1) -> BidsIncremental:
+    def getIncremental(self, volIdx=-1, timeout=5) -> BidsIncremental:
         """
         Get the BIDS incremental for the corresponding DICOM image indicated
         by the volIdx, where volIdx is equivalent to TR id.
@@ -254,6 +256,7 @@ class DicomToBidsStream():
 
         Args:
             volIdx: The volume index (or TR) within the run to retrieve.
+            timeout: Max number of seconds to wait for incremental
         Returns:
             BidsIncremental for the matched DICOM for the run/volume
         """
@@ -264,7 +267,7 @@ class DicomToBidsStream():
             # use the default next volume
             pass
         # wait for the dicom and create a bidsIncremental
-        dcmImg = self.dataInterface.getImageData(self.dicomStreamId, self.nextVol)
+        dcmImg = self.dataInterface.getImageData(self.dicomStreamId, self.nextVol, timeout=timeout)
         dicomMetadata = getDicomMetadata(dcmImg)
         dicomMetadata.update(self.entities)
         niftiImage = convertDicomImgToNifti(dcmImg)
@@ -294,7 +297,7 @@ class BidsStream:
         """Return the number of brain volumes in the run"""
         return self.numVolumes
 
-    def getIncremental(self, volIdx=-1) -> BidsIncremental:
+    def getIncremental(self, volIdx=-1, timeout=5) -> BidsIncremental:
         """
         Get a BIDS incremental for the indicated index in the current subject/run
         VolIdx acts similar to a file_seek pointer. If a volIdx >= 0 is supplied
@@ -304,6 +307,8 @@ class BidsStream:
 
         Args:
             volIdx: The volume index (or TR) within the run to retrieve.
+            timeout: Not used but present to support calling convention of
+                     other stream types
         Returns:
             BidsIncremental of that volume index within this subject/run
         """

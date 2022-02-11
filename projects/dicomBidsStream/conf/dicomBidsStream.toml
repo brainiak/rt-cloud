@@ -1,5 +1,5 @@
-# Config file for sample.py project
-title = 'Sample Project'
+# Config file for dicomBidsStream.py project
+title = 'DicomBidsStream Project'
 
 ## Subject Settings
 sessionId = "20180310T123000"

@@ -130,6 +130,7 @@ class DataInterface(RemoteableExtensible):
             imageIndex: Which image from the stream to retrieve. If left blank it will
                 retrieve the next image in the stream (next after either the last request or
                 starting from 0 if no previous requests)
+            timeout: Max number of seconds to wait for image data to be available
         Returns:
             The bytes array representing the image data
             returns pydicom.dataset.FileDataset
@@ -141,11 +142,17 @@ class DataInterface(RemoteableExtensible):
             imageIndex = self.streamInfo.imgIndex
         filename = self.streamInfo.filePattern.format(TR=imageIndex)
 
-        retries = 0
-        while retries < 5:
-            retries += 1
+        if timeout <= 0:
+            # Don't allow infinite timeout
+            raise RequestError("getImageData: timeout parameter must be > 0 secs")
+
+        loop_timeout = 5  # 5 seconds per loop
+        time_remaining = timeout
+        while time_remaining > 0:
+            if time_remaining < loop_timeout:
+                loop_timeout = time_remaining
             try:
-                data = self.watchFile(filename, timeout)
+                data = self.watchFile(filename, loop_timeout)
                 dicomImg = readDicomFromBuffer(data)
                 # Convert pixel data to a numpy.ndarray internally.
                 # Note: the conversion cause error in pickle encoding
@@ -155,12 +162,13 @@ class DataInterface(RemoteableExtensible):
                     dicomImg = anonymizeDicom(dicomImg)
                 return dicomImg
             except TimeoutError as err:
-                logging.warning(f"Timeout waiting for {filename}. Retry in 100 ms")
-                time.sleep(0.1)
+                logging.info(f"Waiting for {filename} ...")
             except Exception as err:
-                logging.error(f"getImageData Error, filename {filename} err: {err}")
-                return None
-        return None
+                errMsg = f"getImageData Error, filename {filename} err: {err}"
+                logging.error(errMsg)
+                raise RequestError(errMsg)
+            time_remaining -= loop_timeout
+        raise RequestError(f"getImageData: Dicom file {filename} not found")
 
     def getFile(self, filename: str) -> bytes:
         """Returns a file's data immediately or fails if the file doesn't exist."""
@@ -228,6 +236,12 @@ class DataInterface(RemoteableExtensible):
 
         InitWatch() must be called first, before watching for specific files.
         If filename includes the full path, the path must match that used in initWatch().
+
+        Args:
+            filename: Filename to watch for
+            timeout: Max number of seconds to wait for file to be available
+        Returns:
+            The file data
         """
         data = None
         if not self.initWatchSet:
@@ -244,7 +258,7 @@ class DataInterface(RemoteableExtensible):
 
         self.fileWatchLock.acquire()
         try:
-            foundFilename = self.fileWatcher.waitForFile(filename, timeout=timeout, timeCheckIncrement=0.5)
+            foundFilename = self.fileWatcher.waitForFile(filename, timeout=timeout, timeCheckIncrement=0.25)
         finally:
             self.fileWatchLock.release()
         if foundFilename is None:

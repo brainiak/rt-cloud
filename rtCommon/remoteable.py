@@ -11,6 +11,8 @@ import inspect
 import rpyc
 from rtCommon.errors import RequestError, StateError
 
+defaultRpcTimeout = 60   # 60 sec default timeout
+
 
 # Possibility A - the "has a" model, returns a 'remote' instance, nothing to do with the original class
 class Remoteable(object):
@@ -43,7 +45,7 @@ class RemoteStub(object):
         self.classType = classType
         self.classname = classType.__name__
         self.commFunction = None
-        self.timeout = 5
+        self.timeout = defaultRpcTimeout
 
     def setRPCTimeout(self, timeout):
         self.timeout = timeout
@@ -91,7 +93,7 @@ class RemoteableExtensible(object):
     def __init__(self, isRemote=False):
         self.isRemote = isRemote
         self.commFunction = None
-        self.timeout = 5
+        self.timeout = defaultRpcTimeout
         self.localAttributes = [
             'localAttributes', 'commFunction', 'timeout',
             'addLocalAttributes', 'registerCommFunction',

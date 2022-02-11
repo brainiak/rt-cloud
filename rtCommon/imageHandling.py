@@ -15,7 +15,8 @@ import nibabel as nib
 import pydicom
 from datetime import datetime
 from rtCommon.utils import getTimeToNextTR
-from rtCommon.errors import StateError, ValidationError, InvocationError
+from rtCommon.errors import StateError, ValidationError
+from rtCommon.errors import InvocationError, RequestError
 from nilearn.image import new_img_like
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -140,23 +141,36 @@ def readRetryDicomFromDataInterface(dataInterface, filename, timeout=5):
     'dataInterface.py'
 
     Used externally (and internally).
+    Args:
+        dataInterface: A dataInterface to make calls on
+        filename: Dicom filename to watch for and read when available
+        timeout: Max number of seconds to wait for file to be available
+    Returns:
+        The dicom image
     """
-    retries = 0
-    while retries < 5:
-        retries += 1
+    if timeout <= 0:
+        # Don't allow infinite timeout
+        raise RequestError("readRetryDicomFromDataInterface: "
+                           "timeout parameter must be > 0 secs")
+
+    loop_timeout = 5  # 5 seconds per loop
+    time_remaining = timeout
+    while time_remaining > 0:
+        if time_remaining < loop_timeout:
+            loop_timeout = time_remaining
         try:
-            data = dataInterface.watchFile(filename, timeout)
+            data = dataInterface.watchFile(filename, loop_timeout)
             dicomImg = readDicomFromBuffer(data)
             # check that pixel array is complete
             dicomImg.convert_pixel_data()
             # successful
             return dicomImg
         except TimeoutError as err:
-            logging.warning(f"Timeout waiting for {filename}. Retry in 100 ms")
-            time.sleep(0.1)
+            logging.info(f"Waiting for {filename} ...")
         except Exception as err:
             logging.error(f"ReadRetryDicom Error, filename {filename} err: {err}")
             return None
+        time_remaining -= loop_timeout
     return None
 
 
@@ -214,9 +228,22 @@ def getDicomRepetitionTime(dicomImg) -> float:
     return tr_sec
 
 def dicomTimeToNextTr(dicomImg, clockSkew, now=None):
-    """Based on Dicom header returns seconds to next TR start"""
+    """Based on Dicom header. Returns seconds to next TR start"""
     acquisitionTime = getDicomAcquisitionTime(dicomImg)
     repetitionTime = getDicomRepetitionTime(dicomImg)
+    if now is None:  # now variable may be passed in for testing purposes
+        now = datetime.now().time()
+    secToNextTr = getTimeToNextTR(acquisitionTime, repetitionTime, now, clockSkew)
+    return secToNextTr
+
+def bidsIncrementalTimeToNextTr(bidsIncremental, clockSkew, now=None):
+    """Based on BidsIncremental header. Returns seconds to next TR start"""
+    acqTimestamp = bidsIncremental.getMetadataField('AcquisitionTime')
+    acquisitionTime = None
+    if acqTimestamp is not None:
+        dtm = datetime.strptime(acqTimestamp, '%H%M%S.%f')
+        acquisitionTime = dtm.time()
+    repetitionTime = bidsIncremental.getMetadataField('RepetitionTime')
     if now is None:  # now variable may be passed in for testing purposes
         now = datetime.now().time()
     secToNextTr = getTimeToNextTR(acquisitionTime, repetitionTime, now, clockSkew)
