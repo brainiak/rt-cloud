@@ -151,6 +151,7 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
     # Test setting an init watch we don't use that gets
     #  replaced by a next initWatch
     watchDir = os.path.join(testPath, 'other_input')
+    os.makedirs(watchDir, exist_ok=True)
     dataInterface.initWatch(watchDir, '*.txt', 0)
 
     # Test watch file
