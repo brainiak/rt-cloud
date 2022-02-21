@@ -72,6 +72,27 @@ def recurseCreateStructDict(data):
     return data
 
 
+# Hold StructDict type in a variable
+structDictType = type(StructDict())
+
+def recurseSDtoDict(data):
+    '''
+    Given a recursive StructDict, i.e. that has child StructDicts
+    or lists of StructDict, convert each child StructDict to a Dictionary.
+    '''
+    if isinstance(data, (structDictType, dict)):
+        tmpDict = dict()
+        for key, value in data.items():
+            tmpDict[key] = recurseSDtoDict(value)
+        return tmpDict
+    elif isinstance(data, (list, set, tuple)):
+        tmpList = []
+        for value in data:
+            tmpList.append(recurseSDtoDict(value))
+        return tmpList
+    return data
+
+
 # Class to make it easier to access fields in matlab structs loaded into python
 class MatlabStructDict(StructDict):
     '''Subclass dictionary so that elements can be accessed either as dict['key']

@@ -6,6 +6,7 @@ import scipy.io as sio  # type: ignore
 import rtCommon.utils as utils  # type: ignore
 import rtCommon.validationUtils as vutils  # type: ignore
 from rtCommon.structDict import StructDict, MatlabStructDict  # type: ignore
+from rtCommon.structDict import recurseCreateStructDict, recurseSDtoDict
 
 
 @pytest.fixture(scope="module")
@@ -59,6 +60,22 @@ class TestMatlabStructDict:
         struct3 = utils.loadMatFileFromBuffer(data)
         res = vutils.compareMatStructs(testStruct, struct3)
         assert vutils.isMeanWithinThreshold(res, 0)
+
+    def test_recurse(self):
+        structDictType = type(StructDict())
+        d1 = {'TR': [{'a': 1, 'b': {'c': 2}}]}
+
+        sd1 = recurseCreateStructDict(d1)
+        assert type(sd1) == structDictType
+        assert type(sd1.TR[0]) == structDictType
+        assert type(sd1.TR[0].b) == structDictType
+
+        d2 = recurseSDtoDict(sd1)
+        assert type(d2) == dict
+        assert type(d2['TR'][0]) == dict
+        assert type(d2['TR'][0]['b']) == dict
+        assert d2 == d1
+
 
 
 class TestStructDict:

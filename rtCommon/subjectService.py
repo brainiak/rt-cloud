@@ -76,6 +76,9 @@ if __name__ == "__main__":
             continue
         print(f"feedback: runid {runId}, tr {trId}, value {value}, timestamp {timestamp}")
         if args.outputDir is not None:
-            filename = os.path.join(args.outputDir, f'res-{runId}-{trId}.txt')
+            dir = os.path.join(args.outputDir, f'run{runId}', 'classoutput')
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+            filename = os.path.join(dir, f'vol-{runId}-{trId}.txt')
             with open(filename, 'w') as fp:
                 fp.write(str(value))

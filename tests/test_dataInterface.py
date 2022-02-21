@@ -148,6 +148,11 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
     data3 = dataInterface.getNewestFile(filePattern)
     assert data1 == data3, 'getNewestFile data assertion'
 
+    # Test setting an init watch we don't use that gets
+    #  replaced by a next initWatch
+    watchDir = os.path.join(testPath, 'other_input')
+    dataInterface.initWatch(watchDir, '*.txt', 0)
+
     # Test watch file
     print('test watchFile')
     watchDir = os.path.join(testPath, 'test_input')
