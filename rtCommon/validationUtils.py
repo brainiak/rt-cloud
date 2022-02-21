@@ -130,7 +130,10 @@ def isMeanWithinThreshold(cmpStats: dict, threshold: float) -> bool:
     assert len(means) == len(cmpStats.keys()),\
         "isMeanWithinThreshold: assertion failed, length means mismatch {} {}"\
         .format(len(means), len(cmpStats.keys()))
-    return all(mean <= threshold for mean in means)
+    # for key, value in cmpStats.items():
+    #     if value['mean'] > threshold:
+    #         print(f"{key}: {value['mean']}")
+    return all(mean <= threshold for mean in means if not np.isnan(mean))
 
 
 def compareMatFiles(filename1: str, filename2: str) -> dict:
@@ -159,6 +162,11 @@ def pearsons_mean_corr(A: np.ndarray, B: np.ndarray):
     if len(B.shape) == 1:
         B = B.reshape(B.shape[0], 1)
     assert(A.shape == B.shape)
+    if len(A.shape) > 1:
+        dims = A.shape
+        if dims[1] > dims[0]:
+            A = A.transpose()
+            B = B.transpose()
     num_cols = A.shape[1]
     for col in range(num_cols):
         A_col = A[:, col]

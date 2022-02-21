@@ -305,7 +305,7 @@ def main(argv=None):
         cfg.runNum = [int(x) for x in args.runs.split(',')]
     if args.scans is not None:
         print("scans: ", args.scans)
-        cfg.ScanNum = [int(x) for x in args.scans.split(',')]
+        cfg.scanNum = [int(x) for x in args.scans.split(',')]
 
     # Initialize the RPC connection to the projectInterface.
     # This will give us a dataInterface for retrieving files,

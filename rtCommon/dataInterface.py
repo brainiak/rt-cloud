@@ -168,7 +168,7 @@ class DataInterface(RemoteableExtensible):
                 logging.error(errMsg)
                 raise RequestError(errMsg)
             time_remaining -= loop_timeout
-        raise RequestError(f"getImageData: Dicom file {filename} not found")
+        raise RequestError(f"getImageData: Dicom file {self.streamInfo.imgDir}/{filename} not found")
 
     def getFile(self, filename: str) -> bytes:
         """Returns a file's data immediately or fails if the file doesn't exist."""
@@ -223,12 +223,18 @@ class DataInterface(RemoteableExtensible):
         self._checkAllowedDirs(dir)
         self._checkAllowedFileTypes(filePattern)
         self.fileWatchLock.acquire()
-        self.watchDir = dir
+        if self.initWatchSet is True:
+            # Stop the previous watch to start a new one
+            assert self.fileWatcher is not None
+            self.fileWatcher.__del__()
+            self.fileWatcher = FileWatcher()
+        self.initWatchSet = False
         try:
             self.fileWatcher.initFileNotifier(dir, filePattern, minFileSize, demoStep)
+            self.watchDir = dir
+            self.initWatchSet = True
         finally:
             self.fileWatchLock.release()
-        self.initWatchSet = True
         return
 
     def watchFile(self, filename: str, timeout: int=5) -> bytes:
