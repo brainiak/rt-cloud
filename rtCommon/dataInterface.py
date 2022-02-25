@@ -423,6 +423,7 @@ def uploadFilesFromList(dataInterface, fileList :List[str], outputDir :str, srcD
             raise(err)
         outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
         logging.info('upload: {} --> {}'.format(file, outputFilename))
+        print('upload: {} --> {}'.format(file, outputFilename))
         utils.writeFile(outputFilename, data)
 
 def downloadFilesFromList(dataInterface, fileList :List[str], outputDir :str, srcDirPrefix=None) -> None:
@@ -442,6 +443,7 @@ def downloadFilesFromList(dataInterface, fileList :List[str], outputDir :str, sr
             subDir = ''
         outputFilename = os.path.normpath(outputDir + '/' + subDir + '/' + filename)
         logging.info('download: {} --> {}'.format(file, outputFilename))
+        print('download: {} --> {}'.format(file, outputFilename))
         dataInterface.putFile(outputFilename, data)
     return
 
@@ -450,6 +452,7 @@ def uploadFolderToCloud(dataInterface, srcDir :str, outputDir :str) -> None:
     Copies a folder (directory) from the remote to the system where this call is run
     """
     allowedFileTypes = dataInterface.getAllowedFileTypes()
+    print('Uploading folder {} to cloud'.format(srcDir))
     logging.info('Uploading folder {} to cloud'.format(srcDir))
     logging.info('UploadFolder limited to file types: {}'.format(allowedFileTypes))
     dirPattern = os.path.join(srcDir, '**')  # ** wildcard means include sub-directories
@@ -473,6 +476,7 @@ def downloadFolderFromCloud(dataInterface, srcDir :str, outputDir :str, deleteAf
     Copies a directory from the system where this call is made to the remote system.
     """
     allowedFileTypes = dataInterface.getAllowedFileTypes()
+    print('Downloading folder {} from the cloud'.format(srcDir))
     logging.info('Downloading folder {} from the cloud'.format(srcDir))
     logging.info('DownloadFolder limited to file types: {}'.format(allowedFileTypes))
     dirPattern = os.path.join(srcDir, '**')
