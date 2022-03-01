@@ -72,7 +72,7 @@ class WsRemoteService:
                 logging.log(logging.INFO, "Connected to: %s", wsAddr)
                 print("Connected to: {}".format(wsAddr))
                 self.started = True
-                ws.run_forever(sslopt={"ca_certs": certFile})
+                ws.run_forever(sslopt={"ca_certs": certFile}, ping_interval=5, ping_timeout=1)
             except Exception as err:
                 logging.log(logging.INFO, "WsRemoteService Exception {}: {}".format(type(err).__name__, str(err)))
             print('sleep {}'.format(args.interval))
@@ -91,11 +91,11 @@ class WsRemoteService:
             WsRemoteService.commLock.release()
 
     @staticmethod
-    def on_message(client, message):
+    def handle_request(client, message):
         """
-        Main message dispatcher that will get the request from projectServer
-        and call the registered handler to process the request. It will then
-        return the result of the handler function back to the projectServer.
+        Handle requests from the projectServer. It will call
+        the registered handler to process the request and then
+        return the result back to the projectServer.
         """
         response = {'status': 400, 'error': 'unhandled request'}
         cmd = 'unknown'
@@ -108,7 +108,6 @@ class WsRemoteService:
             trimDictBytes(response)
             cmd = request.get('cmd')
             # decode any encoded byte args
-            # TODO - spin off a thread for each request passing in client so the thread call client.send
             callResult = WsRemoteService.remoteHandler.runRemoteCall(request)
             # serialize and return the callResult data
             # print(f'callresult type: {type(callResult)}')
@@ -144,6 +143,21 @@ class WsRemoteService:
             if cmd == 'error':
                 sys.exit()
             return
+
+    @staticmethod
+    def on_message(client, message):
+        """
+        Main message dispatcher that will get a request from projectServer
+        and start a thread to handle the request.
+        """
+        # Spin off a thread for each request, passing in the client arg so
+        #   the thread can call client.send to reply
+        requestThread = threading.Thread(name='requestThread',
+                                         target=WsRemoteService.handle_request,
+                                         args=(client, message))
+        requestThread.setDaemon(True)
+        requestThread.start()
+        return
 
     @staticmethod
     def on_error(client, error):
