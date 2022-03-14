@@ -331,7 +331,13 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
             pass
 
         setFeedbackDelay = 500 # milliseconds
-        subjInterface.setResult(runNum, int(this_TR), float(feedback), setFeedbackDelay)
+        useSetResultDict = False
+        if useSetResultDict:
+            runInfo = {'subjectNum': cfg.subjectNum, 'subjectDay': cfg.subjectDay,
+                    'runId': runNum, 'trId': int(this_TR), 'value': float(feedback)}
+            subjInterface.setResultDict(runInfo, setFeedbackDelay)
+        else:
+            subjInterface.setResult(runNum, int(this_TR), float(feedback), setFeedbackDelay)
 
         # Finally we will use use webInterface.plotDataPoint() to send the result
         # to the web browser to be plotted in the --Data Plots-- tab.

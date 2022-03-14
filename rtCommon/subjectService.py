@@ -67,16 +67,21 @@ if __name__ == "__main__":
 
     while True:
         feedbackMsg = subjectService.subjectInterface.msgQueue.get(block=True, timeout=None)
+        subjectNum = feedbackMsg.get('subjectNum', None)
+        subjectDay = feedbackMsg.get('subjectDay', None)
         runId = feedbackMsg.get('runId', None)
         trId = feedbackMsg.get('trId', None)
         value = feedbackMsg.get('value', None)
         timestamp = feedbackMsg.get('timestamp', None)
         if None in [runId, trId, value]:
-            print(f"Missing key in feedback result: run {runId}, tr {trId}, value {value}")
+            print(f"Missing a required key in feedback result: run {runId}, tr {trId}, value {value}")
             continue
         print(f"feedback: runid {runId}, tr {trId}, value {value}, timestamp {timestamp}")
         if args.outputDir is not None:
-            dir = os.path.join(args.outputDir, f'run{runId}', 'classoutput')
+            dir = args.outputDir
+            if None not in [subjectNum, subjectDay]:
+                dir = os.path.join(dir, "subject{}/day{}".format(subjectNum, subjectDay))
+            dir = os.path.join(dir, f'run{runId}', 'classoutput')
             if not os.path.exists(dir):
                 os.makedirs(dir)
             filename = os.path.join(dir, f'vol-{runId}-{trId}.txt')

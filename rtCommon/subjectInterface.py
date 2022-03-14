@@ -72,6 +72,23 @@ class SubjectInterface(RemoteableExtensible):
         }
         self.msgQueue.put(feedbackMsg)
 
+    def setResultDict(self, values: dict, onsetTimeDelayMs: int=0) -> None:
+        """
+        Same as setResult except the caller can provide a dictionary with
+        whatever entries are desired to be used at the subjectService.
+        Args:
+            values: a dictionary with the desired values to send for this TR
+            onsetTimeDelayMs: time in milliseconds to wait before presenting the feedback stimulus
+        """
+        print(f'SubjectInterface: setResult2: values {values}')
+        if onsetTimeDelayMs < 0:
+            raise ValidationError(f'onsetTimeDelayMs must be >= 0, {onsetTimeDelayMs}')
+
+        valuesCopy = values.copy()
+        valuesCopy['onsetTimeDelayMs'] = onsetTimeDelayMs
+        valuesCopy['timestamp'] = time.time()
+        self.msgQueue.put(valuesCopy)
+
     def setMessage(self, message: str) -> None:
         """
         Updates the message displayed to the subject
