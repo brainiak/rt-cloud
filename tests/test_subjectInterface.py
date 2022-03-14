@@ -55,3 +55,20 @@ def runSubjectFeedbackTest(isRemote):
     with pytest.raises((ValidationError, Exception)):
         # Try setting a negative onsetTimeDelay
         subjInterface.setResult(1, 2, 3, -1)
+
+    # Try using the new setResult2 interface
+    runInfo = {'subjectNum': 1, 'subjectDay': 2, 'runId': 3}
+    for trId in range(1, 10):
+        runInfo['trId'] = trId
+        runInfo['value'] = 20 + trId
+        onsetTimeDelayMs = trId + 4
+        subjInterface.setResultDict(runInfo, onsetTimeDelayMs)
+
+    for i in range(1, 10):
+        feedbackMsg = subjInterface.dequeueResult(block=False, timeout=1)
+        assert feedbackMsg['subjectNum'] == 1
+        assert feedbackMsg['subjectDay'] == 2
+        assert feedbackMsg['runId'] == 3
+        assert feedbackMsg['trId'] == i
+        assert feedbackMsg['value'] == 20 + i
+        assert feedbackMsg['onsetTimeDelayMs'] == i + 4
