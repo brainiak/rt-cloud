@@ -104,3 +104,15 @@ button {
   pointer-events:none;
   opacity: 0.5;
 }
+.connStatusText {
+  font-size: 0.65em;
+  font-weight: bold;
+  font-family: Helvetica, Arial;
+  text-align: right;
+  float: right;
+}
+.statusText {
+  font-size: 0.75em;
+  font-family: Helvetica, Arial;
+  color:lightgrey;
+}

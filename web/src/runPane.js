@@ -4,13 +4,6 @@ import AutoscrolledList from "./AutoscrolledList";
 const elem = React.createElement;
 
 
-const connStatusTextStyle = {
-  font: 'bold 12px Helvetica',
-  // backgroundColor: '#6e84a3',
-  textAlign: 'right',
-  float: 'right',
-}
-
 class RunPane extends React.Component {
   constructor(props) {
     super(props)
@@ -56,12 +49,17 @@ class RunPane extends React.Component {
     }
     return (
       <div>
-        <span style={connStatusTextStyle}>
+        <span className="connStatusText">
           browser: {(this.props.connected) ? 'connected' : 'disconnected'}
           <br />
           dataConn: {(this.props.dataConn > 0) ? 'connected' : 'disconnected'}
           <br />
           subjConn: {(this.props.subjectConn > 0) ? 'connected' : 'disconnected'}
+        </span>
+        <span className="statusText">
+          subjectNum: {this.props.getConfigItem('subjectNum')}
+          &emsp;
+          subjectDay: {this.props.getConfigItem('subjectDay')}
         </span>
         <div className="table">
           <p className="row">
