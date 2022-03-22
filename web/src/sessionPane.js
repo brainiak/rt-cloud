@@ -33,7 +33,20 @@ class SessionPane extends React.Component {
     }
     return (
       <div>
+        <span className="connStatusText">
+          browser: {(this.props.connected) ? 'connected' : 'disconnected'}
+          <br />
+          dataConn: {(this.props.dataConn > 0) ? 'connected' : 'disconnected'}
+          <br />
+          subjConn: {(this.props.subjectConn > 0) ? 'connected' : 'disconnected'}
+        </span>
         <p>Run scripts that initialize or finalize the session</p>
+        <span className="statusText">
+          subjectNum: {this.props.getConfigItem('subjectNum')}
+          &emsp;
+          subjectDay: {this.props.getConfigItem('subjectDay')}
+        </span>
+        <br />
         <button onClick={this.initBttnOnClick}>Initialize Session</button>
         <button onClick={this.finalizeBttnOnClick}>finalize Session</button>
         <button onClick={this.stopBttnOnClick}>Stop</button>

@@ -88,6 +88,7 @@ class TopPane extends React.Component {
   }
 
   setConfigFileName(filename) {
+    // console.log("## Got setConfigFileName: " + filename)
     this.setState({configFileName: filename})
   }
 
@@ -413,7 +414,10 @@ class TopPane extends React.Component {
             stopRun: this.stopRun,
             sessionLog: this.state.sessionLog,
             connected: this.state.connected,
+            dataConn: this.state.dataConn,
+            subjectConn: this.state.subjectConn,
             runStatus: this.state.runStatus,
+            getConfigItem: this.getConfigItem,
             error: this.state.error,
            }
          ),
