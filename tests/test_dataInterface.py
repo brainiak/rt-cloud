@@ -185,6 +185,19 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
     fileList = dataInterface.listFiles(filePattern)
     assert len(fileList) == 2
 
+    # Test list directories
+    dir1 = os.path.join(tmpDir, 'testDir_11')
+    dir2 = os.path.join(tmpDir, 'testDir_12')
+    dir3 = os.path.join(tmpDir, 'testDir_13')
+    os.makedirs(dir1, exist_ok=True)
+    os.makedirs(dir2, exist_ok=True)
+    os.makedirs(dir3, exist_ok=True)
+    os.makedirs(os.path.join(tmpDir, 'testDir_21'), exist_ok=True)
+    dirPattern = os.path.join(tmpDir, 'testDir_1*')
+    dirList = dataInterface.listDirs(dirPattern)
+    assert set(dirList) == set([dir1, dir2, dir3])
+
+
     # Test initScannerStream and getImageData
     streamId = dataInterface.initScannerStream(sampleProjectDicomDir,
                                                "001_000013_{TR:06d}.dcm",

@@ -185,9 +185,9 @@ def parseConnectionArgs():
     # parse args for client to connect to server
     # argv = sys.argv[1:]
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', action="store", dest="server", default="localhost:8888",
+    parser.add_argument('-s', '--server', action="store", dest="server", default="localhost:8888",
                         help="Server Address with Port [server:port]")
-    parser.add_argument('-i', action="store", dest="interval", type=int, default=5,
+    parser.add_argument('-i', '--interval', action="store", dest="interval", type=int, default=5,
                         help="Retry connection interval (seconds)")
     parser.add_argument('-u', '--username', action="store", dest="username", default=None,
                         help="rtcloud website username")
