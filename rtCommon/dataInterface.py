@@ -315,6 +315,20 @@ class DataInterface(RemoteableExtensible):
         fileList = self._filterFileList(fileList)
         return fileList
 
+    def listDirs(self, dirpattern: str) -> List[str]:
+        """Lists directories matching the regex filePattern"""
+        parentDir, _ = os.path.split(dirpattern)
+        self._checkAllowedDirs(parentDir)
+        if not os.path.isabs(dirpattern):
+            errStr = "listFiles must have an absolute path: {}".format(dirpattern)
+            raise RequestError(errStr)
+        dirList = []
+        for item in glob.iglob(dirpattern, recursive=False):
+            if os.path.isfile(item):
+                continue
+            dirList.append(item)
+        return dirList
+
     def getAllowedFileTypes(self) -> List[str]:
         """Returns the list of file extensions which are allowed for read and write"""
         return self.allowedFileTypes
