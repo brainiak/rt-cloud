@@ -112,18 +112,19 @@ def runReadWriteFileTest(dataInterface, testFileName, isUsingProjectServer=False
     with open(testFileName, 'rb') as fp:
         data = fp.read()
 
+    extraArgs = {}
+    if isUsingProjectServer:
+        extraArgs = {'rpc_timeout': 90}
+
     # Test getFile
     print('test getFile')
     startTime = time.time()
-    responseData = dataInterface.getFile(testFileName)
+    responseData = dataInterface.getFile(testFileName, **extraArgs)
     print('GetFile {} time: {}'.format(testFileName, (time.time() - startTime)))
     assert responseData == data, 'getFile assertion'
 
     # Test put file
     outfileName = os.path.join(tmpDir, testFileName)
-    extraArgs = {}
-    if isUsingProjectServer:
-        extraArgs = {'rpc_timeout': 60}
     startTime = time.time()
     dataInterface.putFile(outfileName, data, **extraArgs)
     print('PutFile {} time: {}'.format(outfileName, (time.time() - startTime)))
