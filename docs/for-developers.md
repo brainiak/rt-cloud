@@ -3,6 +3,7 @@
 ### **Software Tests**
 There is an extensive set of software tests in the ```rt-cloud/tests/``` directory that use the pytest framework. To run the tests from the rt-cloud directory use command:
 
+    conda activate rtcloud
     python -m pytest -s -v tests/
 
 ### **Web Interface**
@@ -10,12 +11,27 @@ The projectServer runs a Tornado web server, launched from within module ```rt-c
 
 The web interface source code is in the ```rt-cloud/web/``` directory. The javascript code that is used to render the main webpage is in the web/src/ directory. There is essentially one javascript file per panel (tab) shown on the main webpage. Before building the javascript bundle for the first time, the npm packages must be installed. The installation and build specifications are provided to npm through the package.json file.
 
+    conda activate rtcloud
     cd web/
     npm install
 
 From then on, the javascript bundle can be built with command:
 
     npm run build
+
+### **Debugging**
+When debugging issues it is often convenient to use the Python Debugger (pdb). You can cause any script to stop and provide a debugger prompt by inserting the following code at any point in a python module:
+
+        import pdb; pdb.set_trace()
+From the debugger prompt you can press:
+
+- (c) - continue execution of script
+- (n) - next, execute the next line of the script
+- (s) - step, step into the function call of the next line
+- (p) - print a variable
+- (b) - breakpoint - set a breakpoint at a line
+
+More details on [python debugger](https://docs.python.org/3/library/pdb.html#debugger-commands)
 
 ### **Software Overview**
 **Functional Description:**
@@ -64,3 +80,40 @@ There are 2 broad types of components, *Interfaces* and *Services*:
 1. Interfaces: These are sets of functions that the experiment script can call. They provide functionality to the script such as getting data, sending classification results, setting information on the web page. These are implemented by a class in a python module where the class functions implement logic (code) for the interface.
 2. Services: These are processes which provide the instantiated *Interface* that the experiment script calls. For example a dataService would instantiate a dataInterface object and receive requests from an experiment script to run a function and return the results.
 -->
+
+### **Questions and Answers**
+**Q:** regarding setResult, what is the use case for this? Is this for direct interface w/ PsychoPy or jsPsych? (is an alternative to just write a text file which gets read by the presentation software?). For using dequeueResult directly in PsychoPy — how does that work? Just import rtCommon subjectInterface.py and using the dequeueResult function?
+- **A:** setResult puts the classification result into a queue that can then be read by the presenter script with dequeueResult (perhaps would be better named as getResult). DequeueResult could be used within PsychoPy scripts directly. The subjectService can also be run with -o (--outputDir) flag in which case it will write out text files with one result per file which can then be watched for and read in by a PsychToolbox script. For using dequeueResult in PsychoPy, import subjectService.py module into your script, then instantiate a SubjectService object (the _init_ function of that will connect to the projectServer and start receiving results). Then put some logic such as in the while loop of the _main_ function of that module that dequeues results and can block until a result is ready.
+
+**Q:** when you refer to “experiment script” that refers to something like sample.py right? Regarding the 3 ways to run the interfaces, how does the experiment script need to change depending on which method is being used (or is that handled automatically based on how the scripts were initiated in terminal?)
+- **A:** Yes, by experiment script I mean like sample.py (or the model/classification script running typically on the cloud computer) - perhaps there is a better term for this, I’ve struggled to figure out what to call it.
+The experiment script doesn’t need to change anything to use the 3 ways of interface. When the experiment script instantiates the clientInterface, that module will try to connect to the projectServer. If it can’t connect they it runs in method 1 (all local). If it can connect then if method 2 or 3 is used depends on how the projectServer was started, i.e. with --dataRemote (--subjectRemote) or not. 
+
+**Q:** I’m not sure i understand the difference between “ProjectServer with local services” and “ProjectServer with remote services”. (Especially because earlier in this document you say that if a module is running remotely then you call it a service — so i thought service means “remote”, but here you refer to local vs remote services) 
+- **A:** The projectServer and the experiment script always run on the same computer, this is baked into the code that the clientInterface is only allowed to make a localhost connection to the projectServer (for security reasons). So whether the dataInterface is running within the experiment script (case 1) or in the projectServer (case 2) it is still local to the computer that the experiment script is running on, so in that sense the data is local to the script.
+
+**Q:** even if I am just testing things out (using --test flag) by running two terminals on my local machine, one as projectServer + dataService, the other as subjectService, I still need to have a valid ssl cert? and I cant test out the exporting of text files with dequeueResult via the outputDir flag unless I am using a “remote” subjectservice right?
+- **A:** You don’t need an ssl cert with --test flag, but you must specify --test for each process you start (the subjectInterface as well as projectServer).
+Yes, you need a remote subjectService to test the writing of text files.
+
+**Q:** what if I want to output a text file at the end of each run (or something like combining results across 2 runs and saving that output) — setResult seems to expect a currentRun and currentTR as input? 
+- **A:** You can use the setResultDict() function and set any results you want within the dictionary. The subjectService.py is just an example of how it could be used. So you could set data at the end of a run or at the end of several runs.
+
+**Q:** what is the point of onsetTimeDelayMs in setResult? is it that if I wanted, in psychopy, to wait half a second before updating the stimulus based on the classification results, i would set 500 ms here? - **A:** The onsetTimeDelayMs is meant for cases you want to synchronize the feedback stimulus with the start of a TR, such as when the projectServer knows the timestamp information when TRs start.
+
+
+**Q:** what’s the difference between initWatch and initScannerStream? - **A:**  initWatch and initScannerStream both accomplish the same thing. We originally had the initWatch/watchFile interface. Then we added a more “streaming” interface with BIDS and the initScannerStream/getImageData is that. So the BIDS interface uses initScannerStream internally, but it can also be used for a Dicom stream. I would say use the initScrannerStream interface and consider the initWatch as deprecated (or for backward compatibility).
+
+**Q:** can I have the experiment script execute different code dependent on a subject’s button press? if so how would i let the experiment script have access to that information of what/if the subject pressed a button?
+- **A:** There is some support for getResponses, and I made an example in the jsPsych feedback. For PsychoPy the subject responses would need to be queued and returned whenever the experiment script calls getResponse or getAllReponses. So the stubs are there, it just needs to be filled out some.
+
+**Q:** how can I can test the VNC Viewer locally? Can I run the DISPLAY=:1 code in the experiment script file?
+- **A:** You can install tigervnc and the websocket conda environment. See instructions [here](https://rt-cloud.readthedocs.io/en/latest/how-to-run.html?highlight=vnc#install-vnc-server-on-the-projectserver-computer).
+The scripts/run-vnc.sh will then start the vnc server and create a websockify wrapper that allows websocket connections to the normally TCP only based vnc server.
+
+Other Notes from discussion:
+- How can I change the experiment script based on button presses? Answer: currently only implemented in javascript version of subjectinterface via getAllResponses(); not implemented in python subjectinterface yet; probably not good idea to go from control room machine to cloud directly.
+- we also talked about some vnc viewer specifics — needs its own installation, new conda environment, etc
+- also talked about how you cant easily view analyzed data on the control room machine (going from cloud back to the control room to bypass using VNC viewer), or you can depending on your MRI Center’s setup but we want rtcloud to be workable regardless of the setup
+you can potentially bypass VNC Viewer by encoding the image you want to look at into a dictionary and sending that through to the presentation laptop, but at that point its probably not worth it compared to the initial setup cost of doing VNC viewer route 
+
