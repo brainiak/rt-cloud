@@ -57,7 +57,7 @@ rm ANTs-2.1.0-rc3-Linux.tar.gz && \
 popd && \
 echo "## ANTs Install Complete ##"
 
-# Install C3D tool (reduced version: only c3d_affine_tool)
+# Install C3D tool (reduced version: only c3d and c3d_affine_tool)
 RUN \
 echo "## Install C3D ##" && \
 pushd ~/Downloads && \
@@ -66,6 +66,7 @@ tar xzvf c3d-nightly-Linux-gcc64.tar.gz && \
 dirname=$(find . -maxdepth 1 -type d -name "c3d*") && \
 mv $dirname /opt/ && \
 c3dpath=$(find /opt -maxdepth 1 -type d -name "c3d*") && \
+rm ${c3dpath}/bin/c2d ${c3dpath}/bin/c4d ${c3dpath}/bin/c3d_gui && \
 echo 'export PATH=${PATH}:'"${c3dpath}/bin" >> ~/.bashrc && \
 rm c3d-nightly-Linux-gcc64.tar.gz && \
 popd && \
