@@ -1,0 +1,53 @@
+FROM brainiak/rtconda:1.1 as CONDA_IMAGE
+
+FROM brainiak/rttools_small:1.1
+
+SHELL ["/bin/bash", "-c"]
+
+RUN \
+mkdir /rt-cloud && \
+chown rtuser:rtuser /rt-cloud
+
+USER rtuser
+
+# Copy miniconda environment from the conda_image
+COPY --from=CONDA_IMAGE /home/rtuser/miniconda3 /home/rtuser/miniconda3
+COPY --from=CONDA_IMAGE /home/rtuser/.bashrc /tmp/conda_bashrc
+
+# Combine bashrc files from the conda_image
+WORKDIR /home/rtuser
+RUN \
+cp .bashrc bashrc.bak && \
+grep -Fvxf .bashrc /tmp/conda_bashrc > /tmp/bashrc_patch && \
+cat bashrc.bak /tmp/bashrc_patch > .bashrc
+
+# Get latests commit tag - to prevent caching old git clone of repo
+ADD https://api.github.com/repos/brainiak/rt-cloud/git/refs/heads/master version.json
+
+RUN \
+echo "## Clone rt-cloud repo ##" && \
+git clone https://github.com/brainiak/rt-cloud.git /rt-cloud && \
+mkdir /rt-cloud/certs
+
+RUN echo "conda activate rtcloud" >> ~/.bashrc
+
+RUN \
+echo "## Install web environment ##" && \
+source ~/.bashrc && \
+cd /rt-cloud/web && \
+npm install && \
+npm run build && \
+echo "## Completed Installing rt-cloud ##"
+
+EXPOSE 8888
+WORKDIR /rt-cloud
+# bash -i for interactive mode which sources ~/.bashrc
+SHELL ["/bin/bash", "-ci"]
+
+# Default command to run if no command is added after docker run.
+# These args will be appended to the Entrypoint args if no command
+#   is provided with 'docker run'
+CMD ["scripts/run-projectInterface.sh", "--test", "-p", "sample"]
+
+# Bash in interactive mode is entrypoint
+ENTRYPOINT ["/bin/bash", "-ci", "$0 $@"]
