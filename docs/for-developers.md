@@ -22,7 +22,7 @@ From then on, the javascript bundle can be built with command:
 ### **Debugging**
 When debugging issues it is often convenient to use the Python Debugger (pdb). You can cause any script to stop and provide a debugger prompt by inserting the following code at any point in a python module:
 
-        import pdb; pdb.set_trace()
+    import pdb; pdb.set_trace()
 From the debugger prompt you can press:
 
 - (c) - continue execution of script
@@ -35,7 +35,7 @@ More details on [python debugger](https://docs.python.org/3/library/pdb.html#deb
 
 ### **Software Overview**
 **Functional Description:**
-The projectServer is the central control point within the system. It serves as a communication hub linking components. For example, it is the intermediary that receives brain scan volumes, forwards those to the model processing script, returns classification feedback results, and provides researcher user controls through a web interface. 
+The projectServer is the central control point within the system. It serves as a communication hub linking components. For example, it is the intermediary that receives brain scan volumes, forwards those to the model processing script, returns classification feedback results, and provides researcher user controls through a web interface.
 
 The webServer is part of the projectServer that provides user control and feedback, but it also is a communication hub accepting secure web socket (WSS) connections for data transfer and subject feedback. This is convenient because the same web port and ssl certificate can be used for all forms of network communication.
 
@@ -87,22 +87,24 @@ There are 2 broad types of components, *Interfaces* and *Services*:
 
 **Q:** when you refer to “experiment script” that refers to something like sample.py right? Regarding the 3 ways to run the interfaces, how does the experiment script need to change depending on which method is being used (or is that handled automatically based on how the scripts were initiated in terminal?)
 - **A:** Yes, by experiment script I mean like sample.py (or the model/classification script running typically on the cloud computer) - perhaps there is a better term for this, I’ve struggled to figure out what to call it.
-The experiment script doesn’t need to change anything to use the 3 ways of interface. When the experiment script instantiates the clientInterface, that module will try to connect to the projectServer. If it can’t connect they it runs in method 1 (all local). If it can connect then if method 2 or 3 is used depends on how the projectServer was started, i.e. with --dataRemote (--subjectRemote) or not. 
+The experiment script doesn’t need to change anything to use the 3 ways of interface. When the experiment script instantiates the clientInterface, that module will try to connect to the projectServer. If it can’t connect they it runs in method 1 (all local). If it can connect then if method 2 or 3 is used depends on how the projectServer was started, i.e. with --dataRemote (--subjectRemote) or not.
 
-**Q:** I’m not sure i understand the difference between “ProjectServer with local services” and “ProjectServer with remote services”. (Especially because earlier in this document you say that if a module is running remotely then you call it a service — so i thought service means “remote”, but here you refer to local vs remote services) 
+**Q:** I’m not sure i understand the difference between “ProjectServer with local services” and “ProjectServer with remote services”. (Especially because earlier in this document you say that if a module is running remotely then you call it a service — so i thought service means “remote”, but here you refer to local vs remote services)
 - **A:** The projectServer and the experiment script always run on the same computer, this is baked into the code that the clientInterface is only allowed to make a localhost connection to the projectServer (for security reasons). So whether the dataInterface is running within the experiment script (case 1) or in the projectServer (case 2) it is still local to the computer that the experiment script is running on, so in that sense the data is local to the script.
 
 **Q:** even if I am just testing things out (using --test flag) by running two terminals on my local machine, one as projectServer + dataService, the other as subjectService, I still need to have a valid ssl cert? and I cant test out the exporting of text files with dequeueResult via the outputDir flag unless I am using a “remote” subjectservice right?
 - **A:** You don’t need an ssl cert with --test flag, but you must specify --test for each process you start (the subjectInterface as well as projectServer).
 Yes, you need a remote subjectService to test the writing of text files.
 
-**Q:** what if I want to output a text file at the end of each run (or something like combining results across 2 runs and saving that output) — setResult seems to expect a currentRun and currentTR as input? 
+**Q:** what if I want to output a text file at the end of each run (or something like combining results across 2 runs and saving that output) — setResult seems to expect a currentRun and currentTR as input?
 - **A:** You can use the setResultDict() function and set any results you want within the dictionary. The subjectService.py is just an example of how it could be used. So you could set data at the end of a run or at the end of several runs.
 
-**Q:** what is the point of onsetTimeDelayMs in setResult? is it that if I wanted, in psychopy, to wait half a second before updating the stimulus based on the classification results, i would set 500 ms here? - **A:** The onsetTimeDelayMs is meant for cases you want to synchronize the feedback stimulus with the start of a TR, such as when the projectServer knows the timestamp information when TRs start.
+**Q:** what is the point of onsetTimeDelayMs in setResult? is it that if I wanted, in psychopy, to wait half a second before updating the stimulus based on the classification results, i would set 500 ms here?
+- **A:** The onsetTimeDelayMs is meant for cases you want to synchronize the feedback stimulus with the start of a TR, such as when the projectServer knows the timestamp information when TRs start.
 
 
-**Q:** what’s the difference between initWatch and initScannerStream? - **A:**  initWatch and initScannerStream both accomplish the same thing. We originally had the initWatch/watchFile interface. Then we added a more “streaming” interface with BIDS and the initScannerStream/getImageData is that. So the BIDS interface uses initScannerStream internally, but it can also be used for a Dicom stream. I would say use the initScrannerStream interface and consider the initWatch as deprecated (or for backward compatibility).
+**Q:** what’s the difference between initWatch and initScannerStream?
+- **A:**  initWatch and initScannerStream both accomplish the same thing. We originally had the initWatch/watchFile interface. Then we added a more “streaming” interface with BIDS and the initScannerStream/getImageData is that. So the BIDS interface uses initScannerStream internally, but it can also be used for a Dicom stream. I would say use the initScrannerStream interface and consider the initWatch as deprecated (or for backward compatibility).
 
 **Q:** can I have the experiment script execute different code dependent on a subject’s button press? if so how would i let the experiment script have access to that information of what/if the subject pressed a button?
 - **A:** There is some support for getResponses, and I made an example in the jsPsych feedback. For PsychoPy the subject responses would need to be queued and returned whenever the experiment script calls getResponse or getAllReponses. So the stubs are there, it just needs to be filled out some.
@@ -115,5 +117,4 @@ Other Notes from discussion:
 - How can I change the experiment script based on button presses? Answer: currently only implemented in javascript version of subjectinterface via getAllResponses(); not implemented in python subjectinterface yet; probably not good idea to go from control room machine to cloud directly.
 - we also talked about some vnc viewer specifics — needs its own installation, new conda environment, etc
 - also talked about how you cant easily view analyzed data on the control room machine (going from cloud back to the control room to bypass using VNC viewer), or you can depending on your MRI Center’s setup but we want rtcloud to be workable regardless of the setup
-you can potentially bypass VNC Viewer by encoding the image you want to look at into a dictionary and sending that through to the presentation laptop, but at that point its probably not worth it compared to the initial setup cost of doing VNC viewer route 
-
+you can potentially bypass VNC Viewer by encoding the image you want to look at into a dictionary and sending that through to the presentation laptop, but at that point its probably not worth it compared to the initial setup cost of doing VNC viewer route
