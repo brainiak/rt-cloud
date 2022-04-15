@@ -21,7 +21,7 @@ if [ -z $IP ]; then
 fi
 
 if [ -z $URL ]; then
-  URL='localhost'
+  URL='localhost.'
 fi
 
 START_DATE='20220101120000Z'
@@ -36,7 +36,7 @@ mkdir -p tmp
 # create empty certs index
 cat /dev/null > tmp/index.txt
 # initialize serial number of certs
-echo '01' > tmp/serial.txt
+echo '1000' > tmp/serial.txt
 
 # create the openssl ca config file
 cat <<EOF >tmp/ca.config
@@ -59,17 +59,20 @@ commonName              = supplied
 emailAddress            = optional
 
 [req]
-distinguished_name=req_distinguished_name
-req_extensions=v3_req
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+x509_extensions = v3_req
+default_md = sha256
 prompt=no
 
 [v3_req]
+basicConstraints=CA:TRUE
 subjectAltName = @alt_names
-#subjectAltName=DNS.1:princeton.edu,DNS.2:localhost,DNS.3:$URL,IP.1:$IP
+#subjectAltName=DNS.1:princeton.edu,DNS.2:localhost.,DNS.3:$URL,IP.1:$IP
 
 [alt_names]
 DNS.1 = princeton.edu
-DNS.2 = localhost
+DNS.2 = localhost.
 DNS.3 = $URL
 IP.1 = $IP
 
@@ -85,13 +88,16 @@ EOF
 
 # Make the private key if needed
 if [ ! -f rtcloud_private.key ]; then
-  openssl genrsa -out rtcloud_private.key 2048
+  openssl genrsa -out rtcloud_private.key 4096
 fi
 
 # Note - we need to do this in two steps in order to be able to specify
 #  a starting and ending date. Using openssl req -x509 doesn't allow specifying
 #  a start date. So we must first create the signing request and then sign with
 #  openssl ca -selfsign -new which does allow specifying a start date.
+# We want a consistent starting and ending date so recreating the ssl certificate
+#   with a different IP address in the SubjectAlternateNames section will still
+#   match previously made certificates.
 
 # First create a certificate signing request
 openssl req -new -key rtcloud_private.key -sha256 -config tmp/ca.config -out tmp/rtcloud.csr
@@ -99,6 +105,6 @@ openssl req -new -key rtcloud_private.key -sha256 -config tmp/ca.config -out tmp
 # Next sign the request
 openssl ca -selfsign -md sha256 -batch -outdir ./ -keyfile rtcloud_private.key \
    -config tmp/ca.config -extensions v3_req -startdate $START_DATE -enddate $END_DATE \
-   -in tmp/rtcloud.csr -out rtcloud.crt \
+   -in tmp/rtcloud.csr -out rtcloud.crt
 
 popd
