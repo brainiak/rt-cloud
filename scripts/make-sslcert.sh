@@ -21,7 +21,7 @@ if [ -z $IP ]; then
 fi
 
 if [ -z $URL ]; then
-  URL='localhost.'
+  URL='localhost'
 fi
 
 START_DATE='20220101120000Z'
@@ -68,13 +68,14 @@ prompt=no
 [v3_req]
 basicConstraints=CA:TRUE
 subjectAltName = @alt_names
-#subjectAltName=DNS.1:princeton.edu,DNS.2:localhost.,DNS.3:$URL,IP.1:$IP
+#subjectAltName=DNS.1:princeton.edu,DNS.2:localhost,DNS.3:$URL,IP.1:127.0.0.1,IP.2:$IP
 
 [alt_names]
 DNS.1 = princeton.edu
-DNS.2 = localhost.
+DNS.2 = localhost
 DNS.3 = $URL
-IP.1 = $IP
+IP.1 = 127.0.0.1
+IP.2 = $IP
 
 [req_distinguished_name]
 C  = "US"

@@ -6,10 +6,16 @@ import ssl
 import logging
 from .errors import ValidationError
 
+currPath = os.path.dirname(os.path.realpath(__file__))
+rootPath = os.path.dirname(currPath)
 
-def getCertPath(certsDir, sslCertFile):
-    cwd = os.getcwd()
-    certfile = os.path.join(cwd, certsDir, sslCertFile)
+certsDir = os.path.join(rootPath, 'certs')
+sslCertFile = 'rtcloud.crt'
+sslPrivateKey = 'rtcloud_private.key'
+
+def getSslCertFilePath():
+    global certsDir, sslCertFile
+    certfile = os.path.join(certsDir, sslCertFile)
     if os.path.exists(certfile):
         return certfile
     logging.info("Cert not found in local certs dir: {}".format(certfile))
@@ -20,9 +26,9 @@ def getCertPath(certsDir, sslCertFile):
     return certfile
 
 
-def getKeyPath(certsDir, sslPrivateKey):
-    cwd = os.getcwd()
-    keyfile = os.path.join(cwd, certsDir, sslPrivateKey)
+def getSslKeyFilePath():
+    global certsDir, sslPrivateKey
+    keyfile = os.path.join(certsDir, sslPrivateKey)
     if os.path.exists(keyfile):
         return keyfile
     logging.info("Key not found in local certs dir: {}".format(keyfile))

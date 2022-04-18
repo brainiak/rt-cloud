@@ -1,7 +1,10 @@
 #!/bin/bash
-source ~/.bashrc
-conda deactivate
-conda activate websockify
+
+if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "websockify" ]; then
+    CONDA_BASE=$(conda info --base)
+    source $CONDA_BASE/etc/profile.d/conda.sh
+    conda activate websockify
+fi
 
 vncserver :1 -localhost -SecurityTypes None &
 
