@@ -108,4 +108,5 @@ openssl ca -selfsign -md sha256 -batch -outdir ./ -keyfile rtcloud_private.key \
    -config tmp/ca.config -extensions v3_req -startdate $START_DATE -enddate $END_DATE \
    -in tmp/rtcloud.csr -out rtcloud.crt
 
+echo "ssl cert id: " $(md5sum rtcloud.crt)
 popd

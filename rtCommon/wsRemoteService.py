@@ -73,7 +73,8 @@ class WsRemoteService:
                 logging.log(logging.INFO, "Connected to: %s", wsAddr)
                 print("Connected to: {}".format(wsAddr))
                 self.started = True
-                ws.run_forever(sslopt={"ca_certs": getSslCertFilePath()}, ping_interval=5, ping_timeout=1)
+                sslopts = {"ca_certs": getSslCertFilePath()}
+                ws.run_forever(sslopt=sslopts, ping_interval=5, ping_timeout=1)
             except Exception as err:
                 logging.log(logging.INFO, "WsRemoteService Exception {}: {}".format(type(err).__name__, str(err)))
             print('sleep {}'.format(args.interval))
