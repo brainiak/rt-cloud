@@ -7,14 +7,15 @@ do
       ;;
     -url) URL=$2
       ;;
+    -h)
+      echo "Usage: $0 [-ip ip_address] [-url url_address]"
+      echo "Creates the ssl certificate rtcloud.crt and optionally adds"
+      echo "ip_address and/or url_address to the subject alternate names."
+      exit
+      ;;
   esac
   shift
 done
-
-if [[ -z $IP && -z $URL ]]; then
-  echo "Usage: $0 <-ip ip_address | -url url_address>"
-  exit
-fi
 
 if [ -z $IP ]; then
   IP='127.0.0.1'
@@ -109,4 +110,5 @@ openssl ca -selfsign -md sha256 -batch -outdir ./ -keyfile rtcloud_private.key \
    -in tmp/rtcloud.csr -out rtcloud.crt
 
 echo "ssl cert id: " $(md5sum rtcloud.crt)
+echo "ssl key id: " $(md5sum rtcloud_private.key)
 popd

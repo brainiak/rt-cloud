@@ -4,12 +4,17 @@
 args=("${@}")
 for i in ${!args[@]}; do
     #echo "$i = ${args[i]}"
-    if [[ ${args[i]} = "-ip" ]]; then
+    if [[ ${args[i]} == "-ip" ]]; then
       # Get the IP addr value and remove the args from the list
       IP=${args[i+1]}
       unset 'args[i]'
       unset 'args[i+1]'
-    elif [[ ${args[i]} = "-h" ]]; then
+    elif [[ ${args[i]} == "-url" ]]; then
+      # Get the url value and remove the args from the list
+      URL=${args[i+1]}
+      unset 'args[i]'
+      unset 'args[i+1]'
+    elif [[ ${args[i]} == "-h" ]]; then
       echo "USAGE: $0 -p <projectName> [-ip <local_ip_or_hostname>]"
       echo -e "\t[-c <config_toml_file>] [-d <projectDir>]"
       echo -e "\t[--dataRemote] [--subjectRemote] [--remote] [--test]"
@@ -18,12 +23,17 @@ for i in ${!args[@]}; do
     fi
 done
 
-if [ -z $IP ]; then
-    echo "Warning: no ip address supplied, credentials won't be updated"
-else
-    echo "Adding $IP to ssl cert"
-    bash scripts/make-sslcert.sh -ip $IP
+IP_PARAM=""
+if [ -n $IP ]; then
+    IP_PARAM="-ip $IP"
 fi
+
+URL_PARAM=""
+if [ -n $URL ]; then
+    URL_PARAM="-url $URL"
+fi
+
+bash scripts/make-sslcert.sh $IP_PARAM $URL_PARAM
 
 # activate rtcloud conda env if needed
 if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "rtcloud" ]; then
