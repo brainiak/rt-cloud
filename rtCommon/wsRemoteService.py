@@ -64,6 +64,9 @@ class WsRemoteService:
                 if args.test:
                     print("Warning: using non-encrypted connection for test mode")
                     wsAddr = os.path.join('ws://', args.server, self.channelName)
+                    sslopts = None
+                else:
+                    sslopts = {"ca_certs": getSslCertFilePath()}
                 logging.log(DebugLevels.L6, "Trying connection: %s", wsAddr)
                 ws = websocket.WebSocketApp(wsAddr,
                                             on_message=WsRemoteService.on_message,
@@ -73,7 +76,6 @@ class WsRemoteService:
                 logging.log(logging.INFO, "Connected to: %s", wsAddr)
                 print("Connected to: {}".format(wsAddr))
                 self.started = True
-                sslopts = {"ca_certs": getSslCertFilePath()}
                 ws.run_forever(sslopt=sslopts, ping_interval=5, ping_timeout=1)
             except Exception as err:
                 logging.log(logging.INFO, "WsRemoteService Exception {}: {}".format(type(err).__name__, str(err)))

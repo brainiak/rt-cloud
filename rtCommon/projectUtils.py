@@ -64,13 +64,14 @@ def login(serverAddr, username, password, testMode=False):
     Logs in to a web service, prompting user for username/password as needed,
     and returns a session_cookie to allow future requests without logging in.
     """
+    session = requests.Session()
     loginURL = os.path.join('https://', serverAddr, 'login')
     if testMode:
         loginURL = os.path.join('http://', serverAddr, 'login')
         username = 'test'
         password = 'test'
-    session = requests.Session()
-    session.verify = getSslCertFilePath()
+    else:
+        session.verify = getSslCertFilePath()
     try:
         getResp = session.get(loginURL, timeout=10)
     except Exception:
