@@ -116,7 +116,14 @@ def testParseProtocolName():
     parsedValues = metadataFromProtocolName(protocolName)
 
     for key, expectedValue in expectedValues.items():
-        assert parsedValues[key] == expectedValue
+        # pybids 0.15.1 changed the parsing of the 'run' entity
+        # from run-0*(\d+) to run-(\d+), so the previous version
+        # removed leading zeros from run number, but newer version
+        # now includes leading zeros
+        if key == 'run':
+            assert parsedValues[key].lstrip('0') == expectedValue
+        else:
+            assert parsedValues[key] == expectedValue
 
 
 # Test correct Nifti data is extracted
