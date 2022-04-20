@@ -15,10 +15,12 @@ for i in ${!args[@]}; do
   #echo "$i = ${args[i]}"
 done
 
-# activate conda python env
-source ~/.bashrc
-conda deactivate
-conda activate rtcloud
+# activate conda python env if needed
+if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "rtcloud" ]; then
+  CONDA_BASE=$(conda info --base)
+  source $CONDA_BASE/etc/profile.d/conda.sh
+  conda activate rtcloud
+fi
 
 export PYTHONPATH=./rtCommon/:$PYTHONPATH
 echo "python rtCommon/openNeuroService.py ${args[@]}"

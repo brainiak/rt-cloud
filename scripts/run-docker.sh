@@ -19,7 +19,7 @@ for i in ${!args[@]}; do
 done
 
 MAP_PARAM=""
-if [ ! -z $PROJ_DIR ]; then
+if [[ ! -z $PROJ_DIR ]]; then
   PROJ_NAME="$(basename $PROJ_DIR)"
   MAP_PARAM="-v $PROJ_DIR:/rt-cloud/projects/$PROJ_NAME"
 fi

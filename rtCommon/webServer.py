@@ -16,17 +16,15 @@ import threading
 import subprocess
 from pathlib import Path
 from rtCommon.errors import StateError
-from rtCommon.utils import DebugLevels, loadConfigFile
-from rtCommon.certsUtils import getCertPath, getKeyPath
+from rtCommon.utils import DebugLevels, loadConfigFile, md5SumFile
+from rtCommon.certsUtils import getSslCertFilePath, getSslKeyFilePath, certsDir
 from rtCommon.structDict import StructDict, recurseCreateStructDict
-from rtCommon.webHttpHandlers import HttpHandler, LoginHandler, LogoutHandler, certsDir
+from rtCommon.webHttpHandlers import HttpHandler, LoginHandler, LogoutHandler
 from rtCommon.webSocketHandlers import BaseWebSocketHandler
 from rtCommon.webDisplayInterface import WebDisplayInterface
 from rtCommon.projectServerRPC import ProjectRPCService
 from rtCommon.dataInterface import uploadFilesFromList
 
-sslCertFile = 'rtcloud.crt'
-sslPrivateKey = 'rtcloud_private.key'
 CommonOutputDir = '/rtfmriData/'
 
 moduleDir = os.path.dirname(os.path.realpath(__file__))
@@ -92,9 +90,13 @@ class Web():
             print("Listening on: http://localhost:{}".format(Web.httpPort))
             ssl_ctx = None
         else:
+            sslCertId = md5SumFile(getSslCertFilePath())
+            sslKeyId = md5SumFile(getSslKeyFilePath())
+            print(f"Using ssl cert id: {sslCertId}")
+            print(f"Using private key id: {sslKeyId}")
             ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-            ssl_ctx.load_cert_chain(getCertPath(certsDir, sslCertFile),
-                                    getKeyPath(certsDir, sslPrivateKey))
+            ssl_ctx.load_cert_chain(getSslCertFilePath(),
+                                    getSslKeyFilePath())
             print("Listening on: https://localhost:{}".format(Web.httpPort))
 
         Web.ioLoopInst = tornado.ioloop.IOLoop.current()

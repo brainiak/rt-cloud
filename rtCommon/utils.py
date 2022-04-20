@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import pathlib
 import logging
+import hashlib
 from datetime import datetime, date
 from datetime import time as dtime
 import numpy as np  # type: ignore
@@ -97,6 +98,12 @@ def flatten_1Ds(M):
 def dateStr30(timeval):
     return time.strftime("%Y%m%dT%H%M%S", timeval)
 
+def md5SumFile(filePath):
+    md5Sum = None
+    with open(filePath, 'rb') as fp:
+        data = fp.read()
+        md5Sum = hashlib.md5(data).hexdigest()
+    return md5Sum
 
 ##### File and Directory Handling Utilities #####
 def findNewestFile(filepath, filepattern):
