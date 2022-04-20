@@ -24,12 +24,12 @@ for i in ${!args[@]}; do
 done
 
 IP_PARAM=""
-if [ -n $IP ]; then
+if [[ ! -z $IP ]]; then
     IP_PARAM="-ip $IP"
 fi
 
 URL_PARAM=""
-if [ -n $URL ]; then
+if [[ ! -z $URL ]]; then
     URL_PARAM="-url $URL"
 fi
 

@@ -90,7 +90,7 @@ EOF
 
 # Make the private key if needed
 if [ ! -f rtcloud_private.key ]; then
-  openssl genrsa -out rtcloud_private.key 4096
+  openssl genrsa -out rtcloud_private.key 2048
 fi
 
 # Note - we need to do this in two steps in order to be able to specify
