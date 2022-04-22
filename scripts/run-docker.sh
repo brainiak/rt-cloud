@@ -25,5 +25,5 @@ if [[ ! -z $PROJ_DIR ]]; then
 fi
 
 
-echo "docker run -it --rm -v certs:/rt-cloud/certs $MAP_PARAM -p 8888:8888  brainiak/rtcloud:latest" "${args[@]}"
+echo "docker run -it --rm -v certs:/rt-cloud/certs $MAP_PARAM -p 8888:8888 -p 6080:6080 brainiak/rtcloud:latest" "${args[@]}"
 docker run -it --rm -v certs:/rt-cloud/certs $MAP_PARAM -p 8888:8888 -p 6080:6080 brainiak/rtcloud:latest "${args[@]}"
