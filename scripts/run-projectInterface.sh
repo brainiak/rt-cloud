@@ -61,5 +61,6 @@ echo "python rtCommon/projectServer.py ${args[@]}"
 python rtCommon/projectServer.py ${args[@]}
 
 if [[ ! -z $VNC_PID ]]; then
-  kill $VNC_PID
+  # kill $VNC_PID
+  vncserver -kill :1
 fi
