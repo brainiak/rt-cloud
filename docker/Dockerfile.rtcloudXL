@@ -1,6 +1,6 @@
-FROM brainiak/rtconda:1.1 as CONDA_IMAGE
+FROM brainiak/rtconda:1.2 as CONDA_IMAGE
 
-FROM brainiak/rttools:1.1
+FROM brainiak/rttoolsxl:1.2
 
 SHELL ["/bin/bash", "-c"]
 
@@ -14,24 +14,19 @@ USER rtuser
 COPY --from=CONDA_IMAGE /home/rtuser/miniconda3 /home/rtuser/miniconda3
 COPY --from=CONDA_IMAGE /home/rtuser/.bashrc /tmp/conda_bashrc
 
+# Get latests commit tag - to prevent caching old git clone of repo
+ADD https://api.github.com/repos/brainiak/rt-cloud/git/refs/heads/master version.json
+
 # Combine bashrc files from the conda_image
 WORKDIR /home/rtuser
 RUN \
 cp .bashrc bashrc.bak && \
 grep -Fvxf .bashrc /tmp/conda_bashrc > /tmp/bashrc_patch && \
-cat bashrc.bak /tmp/bashrc_patch > .bashrc
-
-# Get latests commit tag - to prevent caching old git clone of repo
-ADD https://api.github.com/repos/brainiak/rt-cloud/git/refs/heads/master version.json
-
-RUN \
+cat bashrc.bak /tmp/bashrc_patch > .bashrc && \
 echo "## Clone rt-cloud repo ##" && \
 git clone https://github.com/brainiak/rt-cloud.git /rt-cloud && \
-mkdir /rt-cloud/certs
-
-RUN echo "conda activate rtcloud" >> ~/.bashrc
-
-RUN \
+mkdir /rt-cloud/certs && \
+echo "conda activate rtcloud" >> ~/.bashrc && \
 echo "## Install web environment ##" && \
 source ~/.bashrc && \
 cd /rt-cloud/web && \
