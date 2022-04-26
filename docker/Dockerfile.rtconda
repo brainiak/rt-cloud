@@ -1,18 +1,22 @@
 FROM centos:7.5.1804
 
-RUN yum install -y git wget ca-certificates
-
+RUN \
+yum install -y git wget ca-certificates && \
 # Create rtuser account
-RUN adduser -u 5454 -U rtuser
+adduser -u 5454 -U rtuser 
 
 # Switch to rtuser
 USER rtuser
 SHELL ["/bin/bash", "-c"]
 
-RUN mkdir ~/Downloads
+# Get the conda environment yaml files to create the conda env
+ADD --chown=rtuser https://raw.githubusercontent.com/brainiak/rt-cloud/master/environment.yml /tmp/
+ADD --chown=rtuser https://raw.githubusercontent.com/brainiak/rt-cloud/master/environment-synthetic-data.yml /tmp/
+ADD --chown=rtuser https://raw.githubusercontent.com/brainiak/rt-cloud/master/websockify.yml /tmp/
 
 # Install Conda
 RUN \
+mkdir ~/Downloads && \
 echo "## Install Miniconda ##" && \
 pushd ~/Downloads && \
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
@@ -23,21 +27,20 @@ source ~/.bashrc && \
 conda update -y conda && \
 rm Miniconda3-latest-Linux-x86_64.sh && \
 popd && \
-echo "## Conda Install Complete ##"
+echo "## Conda Install Complete ##" && \
+echo "## Install conda environment ##" && \
+conda env create -f /tmp/environment.yml && \
+echo "## Install synthetic-data environment ##" && \
+conda env update -f /tmp/environment-synthetic-data.yml && \
+echo "## Install VNC environment ##" && \
+conda env update -f /tmp/websockify.yml && \
+# Cleanup 
+rm -r ~/Downloads && \
+yum clean all && \
+conda clean --all && \
+echo "## Cleanup complete ##" 
 
 ENV PATH="~/miniconda3/bin:${PATH}"
-
-# Get the conda environment yaml files to create the conda env
-ADD --chown=rtuser https://raw.githubusercontent.com/brainiak/rt-cloud/master/environment.yml /tmp/
-ADD --chown=rtuser https://raw.githubusercontent.com/brainiak/rt-cloud/master/environment-synthetic-data.yml /tmp/
-
-RUN \
-echo "## Install conda environment ##" && \
-conda env create -f /tmp/environment.yml
-
-RUN \
-echo "## Install synthetic-data environment ##" && \
-conda env update -f /tmp/environment-synthetic-data.yml
 
 # Switch back to root
 USER root
