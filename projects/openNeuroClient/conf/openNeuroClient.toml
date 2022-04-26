@@ -1,9 +1,10 @@
 title = 'OpenNeuro Client'
-dsAccessionNumber = 'ds002338'
-subjectName = "xp201"
-session=""
-task=""
-runNum = ["01"]
+# dsAccessionNumber = 'ds002338'
+dsAccessionNumber = 'ds003524'
+# subjectName = "xp201"
+subjectName = "s01"
+subjectDay = 1
+runNum = [1]
 scanNum = [1]
 
 plotTitle = 'Realtime Plot'
