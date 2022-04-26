@@ -14,10 +14,11 @@ import argparse
 import threading
 import websocket
 from rtCommon.remoteable import RemoteHandler
-from rtCommon.utils import DebugLevels, trimDictBytes
+from rtCommon.utils import DebugLevels, trimDictBytes, md5SumFile
 from rtCommon.errors import StateError
 from rtCommon.serialization import decodeByteTypeArgs, generateDataParts
-from rtCommon.projectUtils import login, certFile, checkSSLCertAltName, makeSSLCertFile
+from rtCommon.projectUtils import login, checkSSLCertAltName, makeSSLCertFile
+from rtCommon.certsUtils import getSslCertFilePath, getSslKeyFilePath
 
 class WsRemoteService:
     remoteHandler = RemoteHandler()
@@ -63,6 +64,9 @@ class WsRemoteService:
                 if args.test:
                     print("Warning: using non-encrypted connection for test mode")
                     wsAddr = os.path.join('ws://', args.server, self.channelName)
+                    sslopts = None
+                else:
+                    sslopts = {"ca_certs": getSslCertFilePath()}
                 logging.log(DebugLevels.L6, "Trying connection: %s", wsAddr)
                 ws = websocket.WebSocketApp(wsAddr,
                                             on_message=WsRemoteService.on_message,
@@ -72,7 +76,7 @@ class WsRemoteService:
                 logging.log(logging.INFO, "Connected to: %s", wsAddr)
                 print("Connected to: {}".format(wsAddr))
                 self.started = True
-                ws.run_forever(sslopt={"ca_certs": certFile}, ping_interval=5, ping_timeout=1)
+                ws.run_forever(sslopt=sslopts, ping_interval=5, ping_timeout=1)
             except Exception as err:
                 logging.log(logging.INFO, "WsRemoteService Exception {}: {}".format(type(err).__name__, str(err)))
             print('sleep {}'.format(args.interval))
@@ -204,8 +208,17 @@ def parseConnectionArgs():
 
     # Check if the ssl certificate is valid for this server address
     addr, _ = args.server.split(':')
-    if checkSSLCertAltName(certFile, addr) is False:
-        # Addr not listed in sslCert, recreate ssl Cert
-        makeSSLCertFile(addr)
+
+    if not args.test:
+        certFile = getSslCertFilePath()
+        if os.path.exists(certFile):
+            if checkSSLCertAltName(certFile, addr) is False:
+                # Addr not listed in sslCert, recreate ssl Cert
+                print(f"Adding server addresss {addr} to ssl certificate")
+                makeSSLCertFile(addr) # used to add altName server
+        sslCertId = md5SumFile(certFile)
+        sslKeyId = md5SumFile(getSslKeyFilePath())
+        print(f"Using ssl cert id: {sslCertId}")
+        print(f"Using private key id: {sslKeyId}")
 
     return args

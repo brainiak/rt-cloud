@@ -8,9 +8,9 @@ import threading
 import bcrypt
 import logging
 import tornado.web
+from rtCommon.certsUtils import certsDir
 from rtCommon.utils import DebugLevels
 
-certsDir = 'certs'
 maxDaysLoginCookieValid = 0.5
 
 class HttpHandler(tornado.web.RequestHandler):
