@@ -112,9 +112,9 @@ RT-Cloud uses RPC (Remote Procedure Calls) to send command requests from the res
 
 #### Setting Global Timeouts:
 
-- The RPyC global timeout can be set when the ClientInterface is created in the experiment script, as demonstrated in the sample.py project. Simply include the rpyc_timeout= parameter (e.g. ClientInterface(rpyc_timeout=120) for a 120 second timeout). The default is 60 seconds.
+- The RPyC global timeout can be set when the ClientInterface is created in the experiment script, as demonstrated in the sample.py project. Simply include the rpyc_timeout= parameter (e.g. ClientInterface(rpyc_timeout=10) for a 10 second timeout). The default is 120 seconds.
 
-- The Websocket RPC global timeout can be set using the setRPCTimeout() of interface objects (i.e. remoteable objects). For example to increase the timeout of the dataInterface in the experiment script, call dataInterface.setRPCTimeout(10) for a 10 second timeout. The default websocket timeout is 5 seconds.
+- The Websocket RPC global timeout can be set using the setRPCTimeout() of interface objects (i.e. remoteable objects). For example to increase the timeout of the dataInterface in the experiment script, call dataInterface.setRPCTimeout(10) for a 10 second timeout. The default websocket timeout is 60 seconds.
 
 #### Setting Per-Call Timeouts:
 
