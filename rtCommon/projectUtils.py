@@ -12,9 +12,8 @@ import threading
 from pathlib import Path
 import rtCommon.utils as utils
 from rtCommon.imageHandling import readDicomFromBuffer
+from rtCommon.certsUtils import getSslCertFilePath, certsDir
 from requests.packages.urllib3.contrib import pyopenssl
-
-certFile = 'certs/rtcloud.crt'
 
 
 def watchForExit():
@@ -65,13 +64,14 @@ def login(serverAddr, username, password, testMode=False):
     Logs in to a web service, prompting user for username/password as needed,
     and returns a session_cookie to allow future requests without logging in.
     """
+    session = requests.Session()
     loginURL = os.path.join('https://', serverAddr, 'login')
     if testMode:
         loginURL = os.path.join('http://', serverAddr, 'login')
         username = 'test'
         password = 'test'
-    session = requests.Session()
-    session.verify = certFile
+    else:
+        session.verify = getSslCertFilePath()
     try:
         getResp = session.get(loginURL, timeout=10)
     except Exception:
