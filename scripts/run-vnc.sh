@@ -1,6 +1,7 @@
 #!/bin/bash
 
 if [ -z $CONDA_DEFAULT_ENV ] || [ $CONDA_DEFAULT_ENV != "websockify" ]; then
+    source ~/.bashrc
     CONDA_BASE=$(conda info --base)
     source $CONDA_BASE/etc/profile.d/conda.sh
     conda activate websockify
