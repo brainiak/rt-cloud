@@ -29,7 +29,7 @@ class VNCViewerPane extends React.Component {
     super(props)
     this.state = {
       status: 'Loading',
-      desktopName: 'FSL Viewer',
+      desktopName: 'VNC Viewer',
       vncUrl: '',
     }
     // console.log(document.location.href)
