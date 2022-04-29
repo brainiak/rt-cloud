@@ -214,12 +214,11 @@ class FileNotifyHandler(PatternMatchingEventHandler):  # type: ignore
     def on_modified(self, event):
         self.q.put((event, time.time()))
 
-
 # import libraries for Linux version
 if sys.platform in ("linux", "linux2"):
     import inotify
     import inotify.adapters
-
+    import inotify.calls
 
 # Version of FileWatcher for Linux
 class InotifyFileWatcher():
@@ -235,14 +234,20 @@ class InotifyFileWatcher():
         self.waitLoopCount = 0
         # create a listening thread
         self.fileNotifyQ = Queue()  # type: None
-        self.notifier = inotify.adapters.Inotify()
-        self.notify_thread = threading.Thread(name='inotify', target=self.notifyEventLoop)
-        self.notify_thread.setDaemon(True)
-        self.notify_thread.start()
+        try:
+            testing_fd = inotify.calls.inotify_init()
+            self.notifier = inotify.adapters.Inotify()
+            self.notify_thread = threading.Thread(name='inotify', target=self.notifyEventLoop)
+            self.notify_thread.setDaemon(True)
+            self.notify_thread.start()
+        except Exception as err:
+            print("Warning: Inotify not available, falling back to polling")
+            self.notifier = None
 
     def __del__(self):
         self.shouldExit = True
-        self.notify_thread.join(timeout=2)
+        if self.notify_thread:
+            self.notify_thread.join(timeout=2)
 
     def initFileNotifier(self, dir: str, filePattern: str, minFileSize: int, demoStep: int=0) -> None:
         """
@@ -268,10 +273,12 @@ class InotifyFileWatcher():
             raise NotADirectoryError("No such directory: %s" % (dir))
         if dir != self.watchDir:
             if self.watchDir is not None:
-                self.notifier.remove_watch(self.watchDir)
+                if self.notifier is not None:
+                    self.notifier.remove_watch(self.watchDir)
             self.watchDir = dir
-            self.notifier.add_watch(os.path.realpath(self.watchDir), 
-                                    mask=inotify.constants.IN_CLOSE_WRITE)
+            if self.notifier is not None:
+                self.notifier.add_watch(os.path.realpath(self.watchDir), 
+                                        mask=inotify.constants.IN_CLOSE_WRITE)
 
     def waitForFile(self, filename: str, timeout: int=0, timeCheckIncrement: int=1) -> Optional[str]:
         """
@@ -295,8 +302,8 @@ class InotifyFileWatcher():
 
         fileExists = os.path.exists(filename)
         if not fileExists:
-            if self.notify_thread is None:
-                raise FileNotFoundError("No fileNotifier and dicom file not found %s" % (filename))
+            if (self.notifier is not None) and (self.notify_thread is None):
+                raise FileNotFoundError("FileNotifier thread not initialized and dicom file not found %s" % (filename))
             else:
                 logStr = "FileWatcher: Waiting for file {}, timeout {}s ".format(filename, timeout)
                 logging.log(DebugLevels.L6, logStr)
