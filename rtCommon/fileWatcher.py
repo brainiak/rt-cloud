@@ -237,7 +237,8 @@ class InotifyFileWatcher():
         # create a listening thread
         self.fileNotifyQ = Queue()  # type: None
         try:
-            # testing_fd tests whether inotify is working, if not reverts to polling. E.g., Mac M1 testing with Docker fails with inotify
+            # testing_fd tests whether inotify is working, if not reverts to polling.
+            # e.g., Mac M1 testing with Docker fails with inotify
             testing_fd = inotify.calls.inotify_init()
             self.notifier = inotify.adapters.Inotify()
             self.notify_thread = threading.Thread(name='inotify', target=self.notifyEventLoop)
