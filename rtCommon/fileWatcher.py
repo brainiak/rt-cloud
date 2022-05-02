@@ -214,11 +214,13 @@ class FileNotifyHandler(PatternMatchingEventHandler):  # type: ignore
     def on_modified(self, event):
         self.q.put((event, time.time()))
 
+
 # import libraries for Linux version
 if sys.platform in ("linux", "linux2"):
     import inotify
     import inotify.adapters
     import inotify.calls
+
 
 # Version of FileWatcher for Linux
 class InotifyFileWatcher():
@@ -235,6 +237,7 @@ class InotifyFileWatcher():
         # create a listening thread
         self.fileNotifyQ = Queue()  # type: None
         try:
+            # testing_fd tests whether inotify is working, if not reverts to polling. E.g., Mac M1 testing with Docker fails with inotify
             testing_fd = inotify.calls.inotify_init()
             self.notifier = inotify.adapters.Inotify()
             self.notify_thread = threading.Thread(name='inotify', target=self.notifyEventLoop)
