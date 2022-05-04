@@ -6,6 +6,7 @@ nifti files, which is a file format that is better for data analyses.
 
 import os
 import time
+import copy
 import uuid
 import logging
 import subprocess
@@ -131,6 +132,12 @@ def readDicomFromBuffer(data) -> pydicom.dataset.FileDataset:
     """
     dataBytesIO = dicom.filebase.DicomBytesIO(data)
     dicomImg = dicom.dcmread(dataBytesIO)
+    try:
+        # Test if the dicom image is complete
+        dicomImgTest = copy.deepcopy(dicomImg)
+        dicomImgTest.convert_pixel_data()
+    except:
+        raise ValidationError("readDicomFromBuffer: Dicom may be corrupted or truncated")
     return dicomImg
 
 
@@ -322,7 +329,10 @@ def convertDicomFileToNifti(dicomFilename, niftiFilename):
         outName = os.path.splitext(outName)[0]  # remove extention
     cmd = [dcm2niiCmd, '-s', 'y', '-b', 'n', '-o', outPath, '-f', outName,
            dicomFilename]
-    subprocess.run(cmd, shell=False, stdout=subprocess.DEVNULL)
+    proc = subprocess.run(cmd, shell=False, stdout=subprocess.DEVNULL)
+    if proc.returncode != 0:
+        raise StateError("Failed to convert Dicom to Nifti. Dicom may be corrupted")
+
 
 
 def niftiToMem(niftiImg):

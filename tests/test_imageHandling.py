@@ -8,7 +8,7 @@ from datetime import time as dtime
 from nibabel.nicom import dicomreaders
 
 from rtCommon.dataInterface import DataInterface
-from rtCommon.errors import ValidationError
+from rtCommon.errors import ValidationError, StateError
 from tests.common import test_dicomPath, test_dicomTruncPath, test_inputDirPath
 from tests.common import countUnanonymizedSensitiveAttrs
 import rtCommon.imageHandling as imgHandler
@@ -25,6 +25,12 @@ def test_readDicom():
     vol2 = imgHandler.parseDicomVolume(dicomImg2, 64)
     assert vol2 is not None
     assert (vol1 == vol2).all()
+
+    # Try reading a truncated dicom file
+    with open(test_dicomTruncPath, 'rb') as fp:
+        data = fp.read()
+    with pytest.raises(ValidationError):
+        dicomImgTrunc = imgHandler.readDicomFromBuffer(data)
 
     # if dataInterface is not initialized with allowedDirs or allowedFileTypes,
     # it should fail
@@ -82,6 +88,11 @@ def test_nifti():
         assert niftiImg1.header == niftiImgFromDcm.header
         assert np.array_equal(np.array(niftiImg1.dataobj),
                               np.array(niftiImgFromDcm.dataobj))
+
+        # Test trying to convert a truncated dicom to nifti
+        niftiTruncFilename = os.path.join(tmpDir, 'nifti_trunc.nii')
+        with pytest.raises(StateError):
+            imgHandler.convertDicomFileToNifti(test_dicomTruncPath, niftiTruncFilename)
 
 
 def test_dicomTimeToTr(dicomImage):

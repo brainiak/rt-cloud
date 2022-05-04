@@ -147,8 +147,9 @@ class DataInterface(RemoteableExtensible):
             raise RequestError("getImageData: timeout parameter must be > 0 secs")
 
         loop_timeout = 5  # 5 seconds per loop
-        time_remaining = timeout
-        while time_remaining > 0:
+        endTime = time.time() + timeout
+        while time.time() < endTime:
+            time_remaining = endTime - time.time()
             if time_remaining < loop_timeout:
                 loop_timeout = time_remaining
             try:
@@ -163,12 +164,18 @@ class DataInterface(RemoteableExtensible):
                 return dicomImg
             except TimeoutError as err:
                 logging.info(f"Waiting for {filename} ...")
+                pass
+            except ValidationError as err:
+                # readDicomFromBuffer will raise ValidationError if Dicom seems
+                # corrupted. Retry for up to timeout.
+                logging.info(f"Dicom not completely written, retry ...")
+                time.sleep(0.05)
+                pass
             except Exception as err:
                 errMsg = f"getImageData Error, filename {filename} err: {err}"
                 logging.error(errMsg)
                 raise RequestError(errMsg)
-            time_remaining -= loop_timeout
-        raise RequestError(f"getImageData: Dicom file {self.streamInfo.imgDir}/{filename} not found")
+        raise RequestError(f"getImageData: Dicom file {self.streamInfo.imgDir}/{filename} not found or corrupted")
 
     def getFile(self, filename: str) -> bytes:
         """Returns a file's data immediately or fails if the file doesn't exist."""
