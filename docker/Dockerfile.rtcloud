@@ -3,9 +3,6 @@ FROM brainiak/rttools:1.3
 
 SHELL ["/bin/bash", "-c"]
 
-RUN \
-mkdir /rt-cloud
-
 # Copy miniconda environment from the conda_image
 COPY --from=CONDA_IMAGE /root/miniconda3 /root/miniconda3
 COPY --from=CONDA_IMAGE /root/.bashrc /tmp/conda_bashrc
@@ -16,6 +13,7 @@ ADD https://api.github.com/repos/brainiak/rt-cloud/git/refs/heads/master version
 # Combine bashrc files from the conda_image
 WORKDIR /root
 RUN \
+mkdir /rt-cloud && \
 cp .bashrc bashrc.bak && \
 grep -Fvxf .bashrc /tmp/conda_bashrc > /tmp/bashrc_patch && \
 cat bashrc.bak /tmp/bashrc_patch > .bashrc && \
