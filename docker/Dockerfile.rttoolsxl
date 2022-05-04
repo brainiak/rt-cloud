@@ -1,10 +1,6 @@
 FROM centos:7.5.1804
 
 RUN \
-# Create rtuser account
-adduser -u 5454 -U rtuser && \
-# Make /opt owned to rtuser
-chown -R rtuser:rtuser /opt && \
 # Yum install packages
 yum install -y git wget ca-certificates && \
 # packages needed for FSL install
@@ -52,14 +48,9 @@ echo "## VNC Install Complete ##" && \
 # Cleanup 
 rm -r ~/Downloads && \
 yum clean all && \
-echo "## Cleanup complete ##" 
-
-# Switch to rtusers
-USER rtuser
-
-RUN \
-mkdir ~/.vnc && \
+echo "## Cleanup complete ##" && \
 # setting up vnc xstartup
+mkdir ~/.vnc && \
 echo 'unset SESSION_MANAGER' >> ~/.vnc/xstartup && \ 
 echo 'unset DBUS_SESSION_BUS_ADDRESS' >> ~/.vnc/xstartup && \
 echo 'xsetroot -solid grey -cursor_name left_ptr' >> ~/.vnc/xstartup && \
@@ -73,8 +64,5 @@ echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/.bashrc && \
 echo 'export FSLDIR PATH' >> ~/.bashrc && \
 echo 'export LD_LIBRARY_PATH=${FSLDIR}/lib:${FSLDIR}/fslpython/lib:${LD_LIBRARY_PATH}' >> ~/.bashrc && \
 echo "## Completed bashrc setup ##"
-
-# Switch back to root
-USER root
 
 CMD /bin/bash
