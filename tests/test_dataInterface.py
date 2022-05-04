@@ -11,7 +11,7 @@ from rtCommon.imageHandling import readDicomFromBuffer, readDicomFromFile
 from rtCommon.errors import ValidationError, RequestError
 import rtCommon.utils as utils
 from tests.backgroundTestServers import BackgroundTestServers
-from tests.common import rtCloudPath, test_dicomPath, testPath, tmpDir
+from tests.common import rtCloudPath, test_dicomPath, testPath, tmpDir, test_inputDirPath
 from tests.common import countUnanonymizedSensitiveAttrs
 
 # Note these tests will test the local version of DataInterface (not remote)
@@ -245,6 +245,14 @@ def runDataInterfaceMethodTests(dataInterface, dicomTestFilename):
             streamImage = dataInterface.getImageData(streamId, 0, timeout=tmout)
         endTime = time.time()
         assert round(endTime - startTime) == tmout
+
+    # Test reading corrupted dicom and retrying
+    streamId = dataInterface.initScannerStream(test_inputDirPath,
+                                               "trunc_001_000013_{TR:06d}.dcm",
+                                               200*1024, anonymize=False)
+    with pytest.raises((RequestError, Exception)):
+        # The truncated file will be retried and eventually time out
+        streamImage = dataInterface.getImageData(streamId, imageIndex=5, timeout=1)
 
     # check clock skew function
     rtt = utils.calcAvgRoundTripTime(dataInterface.ping)
