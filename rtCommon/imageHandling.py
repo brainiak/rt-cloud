@@ -131,13 +131,13 @@ def readDicomFromBuffer(data) -> pydicom.dataset.FileDataset:
     Use internally.
     """
     dataBytesIO = dicom.filebase.DicomBytesIO(data)
-    dicomImg = dicom.dcmread(dataBytesIO)
     try:
+        dicomImg = dicom.dcmread(dataBytesIO)
         # Test if the dicom image is complete
         dicomImgTest = copy.deepcopy(dicomImg)
         dicomImgTest.convert_pixel_data()
-    except:
-        raise ValidationError("readDicomFromBuffer: Dicom may be corrupted or truncated")
+    except Exception as err:
+        raise ValidationError(f"readDicomFromBuffer: Dicom may be corrupted or truncated {err}")
     return dicomImg
 
 
