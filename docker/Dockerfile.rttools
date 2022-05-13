@@ -18,11 +18,11 @@ echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/.bashrc && \
 echo 'export FSLDIR PATH' >> ~/.bashrc && \
 echo 'export LD_LIBRARY_PATH=${FSLDIR}/lib:${FSLDIR}/fslpython/lib:${LD_LIBRARY_PATH}' >> ~/.bashrc && \
 echo "## FSL Install Complete ##" && \
-# Remove bulk of FSL leaving only binary analysis functions
+# Remove bulk of FSL (including fsleyes!) leaving only binary analysis functions
 echo "## Removing non-essential FSL utilites! ##" && \
 source ~/.bashrc && \
 cd $FSLDIR && \
-rm -r config data doc extras fslpython include lib python refdoc src tcl  && \  
+rm -r config data doc extras fslpython include lib python refdoc src tcl  && \
 rm -r etc/default_flobs.flobs etc/flirtsch etc/js etc/luts etc/matlab && \
 rm build build.log && \
 rm ${FSLDIR}/bin/fslview* ${FSLDIR}/bin/eddy* && \
