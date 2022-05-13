@@ -2,9 +2,9 @@ FROM centos:7.5.1804
 
 RUN \
 # Yum install packages
-yum install -y git wget ca-certificates && \
-# packages needed for FSL install
-yum -y install file which zip gzip bzip2 libpng12 libmng mesa-libGL-devel && \
+yum install -y git wget ca-certificates epel-release && \
+# Packages needed for FSL install (note: "openblas-devel.x86_64" requires "epel-release" be installed)
+yum -y install file which zip gzip bzip2 libpng12 libmng mesa-libGL-devel openblas-devel.x86_64 && \
 # Install Neuroscience Tools
 mkdir ~/Downloads && \
 # Install FSL
@@ -18,7 +18,7 @@ echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/.bashrc && \
 echo 'export FSLDIR PATH' >> ~/.bashrc && \
 echo 'export LD_LIBRARY_PATH=${FSLDIR}/lib:${FSLDIR}/fslpython/lib:${LD_LIBRARY_PATH}' >> ~/.bashrc && \
 echo "## FSL Install Complete ##" && \
-# Remove bulk of FSL (inc. fslview!) leaving only binary analysis functions
+# Remove bulk of FSL (including fsleyes!) leaving only binary analysis functions
 echo "## Removing non-essential FSL utilites! ##" && \
 source ~/.bashrc && \
 cd $FSLDIR && \
@@ -52,6 +52,12 @@ rm -r ${c3dpath}/lib && \
 rm c3d-nightly-Linux-gcc64.tar.gz && \
 popd && \
 echo "## C3D Install Complete ##" && \
+# VNC Install
+echo "## VNC Install ##" && \
+yum -y install tigervnc-server && \
+yum -y install xclock && \
+yum -y install xdotool && \
+echo "## VNC Install Complete ##" && \
 # Cleanup 
 rm -r ~/Downloads && \
 yum clean all && \
