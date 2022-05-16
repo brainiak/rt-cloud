@@ -245,7 +245,7 @@ class DicomToBidsStream():
         """
         raise NotImplementedError('getNumVolumes not implemented for DicomBidsStream')
 
-    def getIncremental(self, volIdx=-1, timeout=5, demoStep=0) -> BidsIncremental:
+    def getIncremental(self, volIdx=-1, timeout=5, demoStep=0, returnNifti=False) -> BidsIncremental:
         """
         Get the BIDS incremental for the corresponding DICOM image indicated
         by the volIdx, where volIdx is equivalent to TR id.
@@ -277,7 +277,10 @@ class DicomToBidsStream():
         self.nextVol += 1
         if demoStep is not None and demoStep > 0:
             demoDelay(demoStep)
-        return incremental, niftiImage
+        if returnNifti:
+            return incremental, niftiImage
+        else:
+            return incremental
 
 
 class BidsStream:
