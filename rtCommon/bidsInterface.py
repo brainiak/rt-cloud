@@ -19,7 +19,7 @@ from rtCommon.imageHandling import convertDicomImgToNifti
 from rtCommon.dataInterface import DataInterface
 from rtCommon.openNeuro import OpenNeuroCache
 from rtCommon.errors import RequestError, MissingMetadataError
-
+from rtCommon.utils import demoDelay
 
 class BidsInterface(RemoteableExtensible):
     """
@@ -123,7 +123,7 @@ class BidsInterface(RemoteableExtensible):
         self.streamMap[streamId] = bidsStream
         return streamId
 
-    def getIncremental(self, streamId, volIdx=-1, timeout=5) -> BidsIncremental:
+    def getIncremental(self, streamId, volIdx=-1, timeout=5, demoStep=0) -> BidsIncremental:
         """
         Get a BIDS Incremental from a stream
 
@@ -133,11 +133,12 @@ class BidsInterface(RemoteableExtensible):
                 entered it will return the next volume
             timeout: Max number of seconds to wait for incremental when
                      running real-time
+            demoStep: Simulate x second TR delay
         Returns:
             A BidsIncremental containing the image volume
         """
         stream = self.streamMap[streamId]
-        bidsIncremental = stream.getIncremental(volIdx, timeout=timeout)
+        bidsIncremental = stream.getIncremental(volIdx, timeout=timeout, demoStep=demoStep)
         return bidsIncremental
 
     def getNumVolumes(self, streamId) -> int:
@@ -244,7 +245,7 @@ class DicomToBidsStream():
         """
         raise NotImplementedError('getNumVolumes not implemented for DicomBidsStream')
 
-    def getIncremental(self, volIdx=-1, timeout=5) -> BidsIncremental:
+    def getIncremental(self, volIdx=-1, timeout=5, demoStep=0, returnNifti=False) -> BidsIncremental:
         """
         Get the BIDS incremental for the corresponding DICOM image indicated
         by the volIdx, where volIdx is equivalent to TR id.
@@ -259,6 +260,7 @@ class DicomToBidsStream():
             timeout: Max number of seconds to wait for incremental
         Returns:
             BidsIncremental for the matched DICOM for the run/volume
+            niftiImage of the DICOM 
         """
         if volIdx >= 0:
             # reset the next volume to the user specified volume
@@ -273,7 +275,12 @@ class DicomToBidsStream():
         niftiImage = convertDicomImgToNifti(dcmImg)
         incremental = BidsIncremental(niftiImage, dicomMetadata)
         self.nextVol += 1
-        return incremental
+        if demoStep is not None and demoStep > 0:
+            demoDelay(demoStep)
+        if returnNifti:
+            return incremental, niftiImage
+        else:
+            return incremental
 
 
 class BidsStream:
@@ -297,7 +304,7 @@ class BidsStream:
         """Return the number of brain volumes in the run"""
         return self.numVolumes
 
-    def getIncremental(self, volIdx=-1, timeout=5) -> BidsIncremental:
+    def getIncremental(self, volIdx=-1, timeout=5, demoStep=0) -> BidsIncremental:
         """
         Get a BIDS incremental for the indicated index in the current subject/run
         VolIdx acts similar to a file_seek pointer. If a volIdx >= 0 is supplied
