@@ -1,0 +1,16 @@
+FROM centos:7.5.1804
+
+RUN \
+# Yum install packages
+yum install -y git wget ca-certificates epel-release && \
+# VNC Install
+echo "## VNC Install ##" && \
+yum -y install tigervnc-server && \
+yum -y install xclock && \
+yum -y install xdotool && \
+echo "## VNC Install Complete ##" && \
+# Cleanup 
+yum clean all && \
+echo "## Cleanup complete ##"
+
+CMD /bin/bash
