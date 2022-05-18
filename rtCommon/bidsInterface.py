@@ -123,7 +123,7 @@ class BidsInterface(RemoteableExtensible):
         self.streamMap[streamId] = bidsStream
         return streamId
 
-    def getIncremental(self, streamId, volIdx=-1, timeout=5, demoStep=0) -> BidsIncremental:
+    def getIncremental(self, streamId, volIdx=-1, timeout=5, demoStep=0, returnNifti=False) -> BidsIncremental:
         """
         Get a BIDS Incremental from a stream
 
@@ -138,7 +138,7 @@ class BidsInterface(RemoteableExtensible):
             A BidsIncremental containing the image volume
         """
         stream = self.streamMap[streamId]
-        bidsIncremental = stream.getIncremental(volIdx, timeout=timeout, demoStep=demoStep)
+        bidsIncremental = stream.getIncremental(volIdx, timeout=timeout, demoStep=demoStep, returnNifti=returnNifti)
         return bidsIncremental
 
     def getNumVolumes(self, streamId) -> int:
@@ -304,7 +304,7 @@ class BidsStream:
         """Return the number of brain volumes in the run"""
         return self.numVolumes
 
-    def getIncremental(self, volIdx=-1, timeout=5, demoStep=0) -> BidsIncremental:
+    def getIncremental(self, volIdx=-1, timeout=5, demoStep=0, returnNifti=False) -> BidsIncremental:
         """
         Get a BIDS incremental for the indicated index in the current subject/run
         VolIdx acts similar to a file_seek pointer. If a volIdx >= 0 is supplied
