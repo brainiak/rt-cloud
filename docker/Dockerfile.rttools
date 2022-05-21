@@ -62,15 +62,11 @@ echo "## VNC Install Complete ##" && \
 rm -r ~/Downloads && \
 yum clean all && \
 echo "## Cleanup complete ##" && \
-# setting up bashrc
-echo "## Setup bashrc ##" && \
-echo 'export PATH=${PATH}:/opt/ANTs-2.1.0-Linux/bin' >> ~/.bashrc && \
-echo 'export PATH=${PATH}:${c3dpath}/bin' >> ~/.bashrc && \
-echo 'FSLDIR=/opt/fsl' >> ~/.bashrc && \
-echo '. ${FSLDIR}/etc/fslconf/fsl.sh' >> ~/.bashrc && \
-echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/.bashrc && \
-echo 'export FSLDIR PATH' >> ~/.bashrc && \
-echo 'export LD_LIBRARY_PATH=${FSLDIR}/lib:${FSLDIR}/fslpython/lib:${LD_LIBRARY_PATH}' >> ~/.bashrc && \
-echo "## Completed bashrc setup ##"
+# setting up vnc xstartup
+mkdir ~/.vnc && \
+echo 'unset SESSION_MANAGER' >> ~/.vnc/xstartup && \ 
+echo 'unset DBUS_SESSION_BUS_ADDRESS' >> ~/.vnc/xstartup && \
+echo 'xsetroot -solid grey -cursor_name left_ptr' >> ~/.vnc/xstartup && \
+echo 'xeyes' >> ~/.vnc/xstartup
 
 CMD /bin/bash

@@ -1,0 +1,10 @@
+Bootstrap: docker
+From: brainiak/rtcloudxl:1.3
+
+%post
+    source /opt/.bashrc
+    conda init
+
+%environment
+    cp -r /opt/.vnc ~/.vnc
+    cp -r /rt-cloud /tmp

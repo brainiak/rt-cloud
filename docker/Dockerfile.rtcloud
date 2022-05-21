@@ -4,7 +4,8 @@ FROM brainiak/rttools:1.3
 SHELL ["/bin/bash", "-c"]
 
 # Copy miniconda environment from the conda_image
-COPY --from=CONDA_IMAGE /root/miniconda3 /root/miniconda3
+COPY --from=CONDA_IMAGE /opt/miniconda3 /opt/miniconda3
+COPY --from=CONDA_IMAGE /opt/nodejs /opt/nodejs
 COPY --from=CONDA_IMAGE /root/.bashrc /tmp/conda_bashrc
 
 # Get latests commit tag - to prevent caching old git clone of repo
@@ -26,7 +27,12 @@ source ~/.bashrc && \
 cd /rt-cloud/web && \
 npm install && \
 npm run build && \
-echo "## Completed Installing rt-cloud ##"
+rm -r /rt-cloud/.git && \
+echo "## Completed Installing rt-cloud ##" && \
+# Copy things out of $HOME for use by singularity
+cp ~/.bashrc /opt/.bashrc && \
+cp -r ~/.vnc /opt/.vnc && \
+echo "## Copied .bashrc and /.vnc for Singularity ##"
 
 EXPOSE 8888
 WORKDIR /rt-cloud
