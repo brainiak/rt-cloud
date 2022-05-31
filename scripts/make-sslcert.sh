@@ -25,8 +25,13 @@ if [ -z $URL ]; then
   URL='localhost'
 fi
 
-START_DATE='20220101120000Z'
-END_DATE='20320101120000Z'
+current_date_time="`date +%Y%m%d%H%M%S`"
+START_DATE=$current_date_time"Z"
+# certificate will expire one year from now
+# some browsers require certificates to expire after a year
+END_DATE=$(($current_date_time + 10000000000))"Z"
+echo "start date: " $START_DATE
+echo "end date: " $END_DATE
 
 if [ ! -d "certs" ]; then
   mkdir certs
