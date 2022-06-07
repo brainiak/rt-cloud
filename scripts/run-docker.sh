@@ -38,6 +38,5 @@ fi
 # create ~/certs if it doesnt exist
 [[ -d ~/certs ]] || mkdir ~/certs
 
-echo ${args[@]}
 echo "docker run -it --rm -v ~/certs:/rt-cloud/certs $MAP_PARAM -p 8888:8888 -p 6080:6080 $DOCKER_IMAGE" "${args[@]}"
 docker run -it --rm -v ~/certs:/rt-cloud/certs $MAP_PARAM -p 8888:8888 -p 6080:6080 $DOCKER_IMAGE "${args[@]}"
