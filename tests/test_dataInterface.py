@@ -114,7 +114,7 @@ def runReadWriteFileTest(dataInterface, testFileName, isUsingProjectServer=False
 
     extraArgs = {}
     if isUsingProjectServer:
-        extraArgs = {'rpc_timeout': 120}
+        extraArgs = {'rpc_timeout': 180}
 
     # Test getFile
     print('test getFile')
