@@ -77,7 +77,7 @@ class TestDataInterface:
                                                        allowedFileTypes=allowedFileTypes,
                                                        dataRemote=True,
                                                        subjectRemote=False)
-        clientInterface = ClientInterface(rpyc_timeout=70)
+        clientInterface = ClientInterface(rpyc_timeout=90)
         dataInterface = clientInterface.dataInterface
         assert clientInterface.isDataRemote() == True
         assert dataInterface.isRemote == True
@@ -114,7 +114,7 @@ def runReadWriteFileTest(dataInterface, testFileName, isUsingProjectServer=False
 
     extraArgs = {}
     if isUsingProjectServer:
-        extraArgs = {'rpc_timeout': 120}
+        extraArgs = {'rpc_timeout': 180}
 
     # Test getFile
     print('test getFile')

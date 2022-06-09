@@ -25,13 +25,11 @@ if [ -z $URL ]; then
   URL='localhost'
 fi
 
-current_date_time="`date +%Y%m%d%H%M%S`"
-START_DATE=$current_date_time"Z"
-# certificate will expire one year from now
+# certificate will expire one year from Jan 1 of current year
 # some browsers require certificates to expire after a year
-END_DATE=$(($current_date_time + 10000000000))"Z"
-echo "start date: " $START_DATE
-echo "end date: " $END_DATE
+current_year="`date +%Y`"
+START_DATE=$current_year"0101120000Z"
+END_DATE=$(($current_year + 1))"0101120000Z"
 
 if [ ! -d "certs" ]; then
   mkdir certs
@@ -114,6 +112,15 @@ openssl ca -selfsign -md sha256 -batch -outdir ./ -keyfile rtcloud_private.key \
    -config tmp/ca.config -extensions v3_req -startdate $START_DATE -enddate $END_DATE \
    -in tmp/rtcloud.csr -out rtcloud.crt
 
-echo "ssl cert id: " $(md5sum rtcloud.crt)
-echo "ssl key id: " $(md5sum rtcloud_private.key)
+# Print hashes
+# GNU uses md5sum but Macs may only have md5
+if ! command -v md5sum
+then
+  echo "ssl cert id: " $(md5 rtcloud.crt)
+  echo "ssl key id: " $(md5 rtcloud_private.key)
+else
+  echo "ssl cert id: " $(md5sum rtcloud.crt)
+  echo "ssl key id: " $(md5sum rtcloud_private.key)
+fi
+
 popd
