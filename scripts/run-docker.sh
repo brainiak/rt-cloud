@@ -22,9 +22,9 @@ for i in ${!args[@]}; do
     elif [[ ${args[i]} = "-lite" ]]; then
       DOCKER_IMAGE="brainiak/rtcloudlite:latest"
     elif [[ ${args[i]} = "-h" ]]; then
-      echo "USAGE: $0 --projDir <project-dir-to-map> [list of commands to run in docker image]"
-      echo "USAGE: $0 -xl use docker image brainiak/rtcloudxl:latest"
-      echo "USAGE: $0 -lite use docker image brainiak/rtcloudlite:latest"
+      echo "USAGE: $0 --projDir <project-dir-to-map> -xl -lite [list of commands to run in docker image]"
+      echo "-xl uses docker image brainiak/rtcloudxl:latest"
+      echo "-lite uses docker image brainiak/rtcloudlite:latest"
       exit 0
     fi
 done
