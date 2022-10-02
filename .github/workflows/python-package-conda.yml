@@ -13,8 +13,6 @@ jobs:
     - uses: actions/setup-node@v3
       with:
         node-version: 16
-    - run: npm ci
-    - run: npm test
 
     # Necessary to prevent permission issues with tar when unpacking the cache
     # into the /usr/share/miniconda/ directory
