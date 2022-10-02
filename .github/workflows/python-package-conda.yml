@@ -9,10 +9,7 @@ jobs:
       max-parallel: 5
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-node@v3
-      with:
-        node-version: 16
+    - uses: actions/checkout@v2
 
     # Necessary to prevent permission issues with tar when unpacking the cache
     # into the /usr/share/miniconda/ directory
@@ -20,21 +17,35 @@ jobs:
       run: |
         sudo chown -R $(whoami):$(id -ng) /usr/share/miniconda/
 
+    # Modified from:
+    # https://github.com/marketplace/actions/setup-miniconda#caching
+    - name: Set or unpack cached conda packages
+      uses: actions/cache@v2
+      env:
+        # Increase this value to reset cache if environment.yml has not changed
+        CACHE_NUMBER: 0
+      with:
+        path: /usr/share/miniconda
+        key:
+          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
+            hashFiles('environment.yml') }}-${{
+            hashFiles('environment-synthetic-data.yml') }}
+
     - name: Add conda to system path
       run: |
         # $CONDA is an environment variable pointing to the root of the
         # miniconda directory
         echo $CONDA/bin >> $GITHUB_PATH
 
-    - name: Install conda environment
-      run: |
-        conda install -y -c defaults -c conda-forge awscli bcrypt boto3 dcm2niix flake8 indexed_gzip jupyter mypy nibabel nilearn nodejs pip pydicom python=3.7 pytest requests rpyc scipy toml tornado websocket-client wsaccel
-        pip install inotify pybids watchdog
-        conda list
-
     - name: Install bids-validator for test suite
       run: |
         sudo npm install -g bids-validator@1.7.3
+
+    - name: Install conda environment
+      run: |
+        conda list
+        conda env update --file environment.yml --name base
+        conda env update --file environment-synthetic-data.yml --name base
 
     - name: Lint with flake8
       run: |
@@ -51,3 +62,4 @@ jobs:
     - name: Test with pytest
       run: |
         python -m pytest tests/
+        
