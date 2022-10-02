@@ -1,22 +1,27 @@
-FROM centos:7.5.1804
+FROM brainiak/rtconda:1.4 
 
 RUN \
-# Yum install packages
-yum install -y git wget ca-certificates epel-release && \
+# Packages needed for FSL install
+yum install -y file which zip gzip bzip2 libpng12 libmng mesa-libGL-devel epel-release && \
+# Activate conda and bashrc 
+source ~/.bashrc && \
+conda activate rtcloud && \
+yum -y install openblas-devel.x86_64 && \
 # VNC Install
 echo "## VNC Install ##" && \
 yum -y install tigervnc-server && \
 yum -y install xclock && \
 yum -y install xdotool && \
 echo "## VNC Install Complete ##" && \
+# Cleanup 
+yum clean all && \
+yes | conda clean --all && \
+echo "## Cleanup complete ##" && \
 # setting up vnc xstartup
 mkdir ~/.vnc && \
 echo 'unset SESSION_MANAGER' >> ~/.vnc/xstartup && \ 
 echo 'unset DBUS_SESSION_BUS_ADDRESS' >> ~/.vnc/xstartup && \
 echo 'xsetroot -solid grey -cursor_name left_ptr' >> ~/.vnc/xstartup && \
-echo 'xeyes' >> ~/.vnc/xstartup && \
-# Cleanup 
-yum clean all && \
-echo "## Cleanup complete ##"
+echo 'xeyes' >> ~/.vnc/xstartup
 
 CMD /bin/bash

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+## Any changes made to this file should ALSO be made to analysis_listener.sh!
+
 ### Default Parameters Set within subjectService ##
 # SERVER='localhost:8888'
 # Retry Connection Interval: 5 sec

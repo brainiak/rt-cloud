@@ -15,6 +15,7 @@ import sys
 import logging
 import argparse
 import threading
+import json # for saving dictionaries as string
 currPath = os.path.dirname(os.path.realpath(__file__))
 rootPath = os.path.dirname(currPath)
 sys.path.append(rootPath)
@@ -58,7 +59,7 @@ if __name__ == "__main__":
 
     # parse remaining args
     parser = argparse.ArgumentParser()
-    parser.add_argument('--outputDir', '-o', default=None, type=str,
+    parser.add_argument('--outputDir', '-o', default="/rt-cloud/outDir", type=str,
                         help='Directory to write classification result text files')
     args, _ = parser.parse_known_args(namespace=connectionArgs)
 
@@ -67,23 +68,34 @@ if __name__ == "__main__":
 
     while True:
         feedbackMsg = subjectService.subjectInterface.msgQueue.get(block=True, timeout=None)
-        subjectNum = feedbackMsg.get('subjectNum', None)
-        subjectDay = feedbackMsg.get('subjectDay', None)
-        runId = feedbackMsg.get('runId', None)
-        trId = feedbackMsg.get('trId', None)
-        value = feedbackMsg.get('value', None)
-        timestamp = feedbackMsg.get('timestamp', None)
-        if None in [runId, trId, value]:
-            print(f"Missing a required key in feedback result: run {runId}, tr {trId}, value {value}")
-            continue
-        print(f"feedback: runid {runId}, tr {trId}, value {value}, timestamp {timestamp}")
-        if args.outputDir is not None:
-            dir = args.outputDir
-            if None not in [subjectNum, subjectDay]:
-                dir = os.path.join(dir, "subject{}/day{}".format(subjectNum, subjectDay))
-            dir = os.path.join(dir, f'run{runId}', 'classoutput')
-            if not os.path.exists(dir):
-                os.makedirs(dir)
-            filename = os.path.join(dir, f'vol-{runId}-{trId}.txt')
-            with open(filename, 'w') as fp:
-                fp.write(str(value))
+        name = feedbackMsg.get('name', None)
+        if name is not None: # using setResultDict
+            if args.outputDir is not None:
+                dir = args.outputDir
+                if not os.path.exists(dir):
+                    os.makedirs(dir)
+                filename = os.path.join(dir, f'{name}.json')
+                with open(filename, 'w') as fp:
+                    fp.write(json.dumps(feedbackMsg))
+                print(f"saved json to {args.outputDir}/{name}.json")
+        else: # using setResult
+            subjectNum = feedbackMsg.get('subjectNum', None)
+            subjectDay = feedbackMsg.get('subjectDay', None)
+            runId = feedbackMsg.get('runId', None)
+            trId = feedbackMsg.get('trId', None)
+            value = feedbackMsg.get('value', None)
+            timestamp = feedbackMsg.get('timestamp', None)
+            if None in [runId, trId, value]:
+                print(f"Missing a required key in feedback result: run {runId}, tr {trId}, value {value}")
+                continue
+            print(f"feedback: runid {runId}, tr {trId}, value {value}, timestamp {timestamp}")
+            if args.outputDir is not None:
+                dir = args.outputDir
+                if None not in [subjectNum, subjectDay]:
+                    dir = os.path.join(dir, "subject{}/day{}".format(subjectNum, subjectDay))
+                dir = os.path.join(dir, f'run{runId}', 'classoutput')
+                if not os.path.exists(dir):
+                    os.makedirs(dir)
+                filename = os.path.join(dir, f'vol-{runId}-{trId}.txt')
+                with open(filename, 'w') as fp:
+                    fp.write(str(value))

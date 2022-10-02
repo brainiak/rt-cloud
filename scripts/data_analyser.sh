@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-
-## Any changes made to this file should ALSO be made to data_analyser.sh!
+## THIS FILE IS IDENTICAL TO run-projectInterface.sh
+## Any changes made to this file should ALSO be made to that file! (and vice-versa)
 
 # get commandline args
 args=("${@}")
