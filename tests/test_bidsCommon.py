@@ -89,7 +89,7 @@ def testEntitiesDictGeneration():
     # Ensure entity count correct
     # Manually summed from bids.json and derivatives.json, which are on Github
     # at bids-standard/pybids/bids/layout/config/
-    NUM_ENTITIES = 34
+    NUM_ENTITIES = 38
     assert len(entities) == NUM_ENTITIES
 
     # Ensure case correct

@@ -31,7 +31,7 @@ jobs:
 
     - name: Install bids-validator for test suite
       run: |
-        sudo npm install -g bids-validator
+        sudo npm install -g bids-validator@1.7.3
 
     - name: Lint with flake8
       run: |
