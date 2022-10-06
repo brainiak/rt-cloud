@@ -49,7 +49,7 @@ Windows: https://docs.docker.com/desktop/windows/install/
 
 Mac: https://docs.docker.com/desktop/mac/install/
 
-- M1 Macs are not supported! You should follow the local installation instructions instead. All RTCloud functionality will work but scripts will run very slowly.
+- M1 Macs are not supported! All RTCloud functionality will work but scripts will run very slowly. You should follow the local installation instructions instead. 
 
 Linux: https://docs.docker.com/engine/install/
 
