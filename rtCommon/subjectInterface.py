@@ -75,7 +75,7 @@ class SubjectInterface(RemoteableExtensible):
         }
         self.msgQueue.put(feedbackMsg)
 
-    def setResultDict(self, values: dict, onsetTimeDelayMs: int=0, name='out') -> None:
+    def setResultDict(self, values: dict, onsetTimeDelayMs: int=0, name='defaultname') -> None:
         """
         Same as setResult except the caller can provide a dictionary with
         whatever entries are desired to be used at the subjectService.
@@ -93,8 +93,8 @@ class SubjectInterface(RemoteableExtensible):
         valuesCopy = dict(valuesCopy)
 
         if not self.subjectRemote:
-            if name == 'out': # assuming test mode
-                print('Please change name of your results output to something other than "out"!')
+            if name == 'defaultname': # assuming test mode
+                print('Check whether you specified a valid name parameter using setResultDict!')
                 self.msgQueue.put(valuesCopy)
             else:
                 currPath = os.path.dirname(os.path.realpath(__file__))
