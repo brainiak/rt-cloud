@@ -423,4 +423,5 @@ Test Singularity is properly installed:
     - <code>python -m pytest -s -v tests/</code>
 
 ## Further Reading
-- [Run Project in a Docker Container](docs/run-in-docker.md)
+- [Run RT-Cloud in the Cloud (e.g., Microsoft Azure, Amazon AWS)](docs/run-in-docker.md)
+- [Using VNC Server to view GUI applications in the web interface](docs/how-to-run.md)
