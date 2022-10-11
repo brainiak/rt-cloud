@@ -32,7 +32,7 @@ Assuming that Docker is installed (if not, see instructions below) you can follo
 
     docker run -it --rm -p 8888:8888 brainiak/rtcloud:latest scripts/data_analyser.sh -p sample --test 
 
-Wait for the terminal to output "Listening on: http://localhost:8888" and then open your web browser and go to the url "localhost:8888" (if using a cloud machine, replace "localhost" to the cloud server's ip address). The login username/passsword for the web browser are both "test". Click the "Run" button to run through the simulated real-time scanning example. 
+Wait for the terminal to output "Listening on: http://localhost:8888" and then open your web browser and go to the url "localhost:8888" (if using a cloud machine, replace "localhost" to the cloud server's ip address). The login username/password for the web browser are both "test". Click the "Run" button to run through the simulated real-time scanning example. 
 
 # RTCloud Installation & Usage 
 
@@ -193,7 +193,9 @@ Note that the template project uses FSL and ANTs commands, which are preinstalle
 ## 4. Run RTCloud experiment: template project
 The following starts up the three RTCloud components and runs through the template project mentioned in step 3. These three components can all be run on the same machine or can be separately started up on different machines. 
 
-**If you are running all three components on the same machine for testing purposes** then you should skip steps 4b and 4c, remove the <code>--dataRemote</code> and <code>--subjectRemote</code> arguments, and if using Docker add <code>-v OUT_DIR:/rt-cloud/outDir</code> to the data_analyser command (where OUT_DIR refers to where you want your realtime outputs stored). Use "172.17.0.1" as the WEB_IP (this is Docker's network ip).
+**If you are running all three components on the same machine within a single terminal for testing purposes** then you can skip steps 4b and 4c, remove the <code>--dataRemote</code> and <code>--subjectRemote</code> arguments, and if using Docker add <code>-v OUT_DIR:/rt-cloud/outDir</code> to the data_analyser command (where OUT_DIR refers to where you want your realtime outputs stored). 
+
+**If you are running all three components on the same machine with different terminal windows for testing purposes** then you should only specify "-p 8888:8888" in the initial data_analyser command, and you should use "172.17.0.1" as your WEB_IP if using Docker.
 
 ### 4a. Run data_analyser
 
@@ -205,7 +207,7 @@ Replace <full_path_to_template_project_folder> with the path to your template fo
 
     docker run -it --rm -p 8888:8888 -v ~/certs:/rt-cloud/certs -v $PROJ_DIR:/rt-cloud/projects/template brainiak/rtcloud:latest scripts/data_analyser.sh -p template --dataRemote --subjectRemote
 
-You should eventually see an output in your terminal that says "Listening on: https://localhost:8888" (or http://localhost:8888 if not using SSL encryption). Copy this address and paste it into your web browser. You will need to replace "localhost" with the IP address of the data_analyser (e.g., the public ip address of the cloud machine, or Docker's network ip "172.17.0.1" if running data_analyser locally). Login using the username/password you created in step 2, or using username:test password:test if running in --test mode. 
+You should eventually see an output in your terminal that says "Listening on: https://localhost:8888" (or http://localhost:8888 if not using SSL encryption). Copy this address and paste it into your web browser. You may need to replace "localhost" with the IP address of the data_analyser (e.g., the public ip address of the cloud machine, or potentially Docker's network ip "172.17.0.1"). Login using the username/password you created in step 2, or using username:test password:test if running in --test mode. 
 
 After you login, look to the top-right of the web interface and you should see indicators referencing which of the three RT-Cloud components have connected ("browser" for data_analyser, "dataConn" for data_streamer, "subjConn" for analysis_listener). All three of these components must be connected before running RT-Cloud.
 
