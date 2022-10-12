@@ -1,23 +1,18 @@
-FROM brainiak/rtconda:1.3 as CONDA_IMAGE
-FROM brainiak/rttoolslite:1.3
+FROM brainiak/rttoolslite:1.4
 
 SHELL ["/bin/bash", "-c"]
-
-# Copy miniconda environment from the conda_image
-COPY --from=CONDA_IMAGE /opt/miniconda3 /opt/miniconda3
-COPY --from=CONDA_IMAGE /opt/nodejs /opt/nodejs
-COPY --from=CONDA_IMAGE /root/.bashrc /tmp/conda_bashrc
 
 # Get latests commit tag - to prevent caching old git clone of repo
 ADD https://api.github.com/repos/brainiak/rt-cloud/git/refs/heads/master version.json
 
 # Combine bashrc files from the conda_image
-WORKDIR /root
+WORKDIR /
 RUN \
+# Activate conda and bashrc 
+source ~/.bashrc && \
+conda activate rtcloud && \
+# Install rt-cloud from github
 mkdir /rt-cloud && \
-cp .bashrc bashrc.bak && \
-grep -Fvxf .bashrc /tmp/conda_bashrc > /tmp/bashrc_patch && \
-cat bashrc.bak /tmp/bashrc_patch > .bashrc && \
 echo "## Clone rt-cloud repo ##" && \
 git clone https://github.com/brainiak/rt-cloud.git /rt-cloud && \
 mkdir /rt-cloud/certs && \
@@ -27,12 +22,10 @@ source ~/.bashrc && \
 cd /rt-cloud/web && \
 npm install && \
 npm run build && \
-rm -r /rt-cloud/.git && \
 echo "## Completed Installing rt-cloud ##" && \
-# Copy things out of $HOME for use by singularity
+# Copy .bashrc out of $HOME for use by singularity
 cp ~/.bashrc /opt/.bashrc && \
-cp -r ~/.vnc /opt/.vnc && \
-echo "## Copied .bashrc and /.vnc for Singularity ##"
+echo "## Copied .bashrc for Singularity ##"
 
 EXPOSE 8888
 WORKDIR /rt-cloud

@@ -19,7 +19,7 @@ from rtCommon.wsRemoteService import WsRemoteService, parseConnectionArgs
 from rtCommon.utils import DebugLevels, installLoggers
 
 
-defaultAllowedDirs = ['/tmp', '/data']
+defaultAllowedDirs = ['/tmp', '/data', '/var']
 defaultAllowedTypes = ['.dcm', '.mat', '.txt']
 
 

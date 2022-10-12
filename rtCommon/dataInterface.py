@@ -298,6 +298,9 @@ class DataInterface(RemoteableExtensible):
 
         if type(data) == str:
             data = data.encode()
+        elif type(data) == float or type(data) == int:
+            data = str(data)
+            data = data.encode()
 
         outputDir = os.path.dirname(filename)
         if not os.path.exists(outputDir):

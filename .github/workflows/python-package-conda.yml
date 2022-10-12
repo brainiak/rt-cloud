@@ -39,7 +39,7 @@ jobs:
 
     - name: Install bids-validator for test suite
       run: |
-        sudo npm install -g bids-validator
+        sudo npm install -g bids-validator@1.7.3
 
     - name: Install conda environment
       run: |
@@ -62,3 +62,4 @@ jobs:
     - name: Test with pytest
       run: |
         python -m pytest tests/
+        

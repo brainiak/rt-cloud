@@ -11,21 +11,25 @@ https://aws.amazon.com/getting-started/tutorials/launch-a-virtual-machine/
 ### Some notes for Azure VM:
 - Choose CentOS 7.5 (which the following instructions are based on)
 - Create a resource group 'rtcloud' to make it easier to track later
-- Choose VM instance type F4s_v2, F8s_v2, or F16s_v2 (depending on number of cores desired)
-- Choose premium SSD disk, no need for an extra data disk, but we will extend the main disk to 60 GB after VM creation.
-- NIC network security group - choose 'Advanced' to create a network security group. This will allow you later to configure port 8888 as allowed for traffic.
+- Choose VM Size D4ads_v5 (or F4s_v2, F8s_v2, F16s_v2, etc. depending on number of cores desired)
+- Choose standard SSD disk
 - Choose Auto-shutdown and set a time during the night (in case you forget to power down)
-
+- After VM creation, make sure the VM is stopped and go to Disks > change size to 128 GiB (or however large a storage space you think you need)
+- Go to Networking > Add inbound port rule: Change destination port ranges to "8888,6080" (no quotes) with Priority 1010
+- Also in Networking, make sure there is an SSH port existing. If not, Add inbound port rule: Service set to SSH, Destination port ranges to 22, Protocol set to TCP, Priority 1000
 
 ## Install Docker
 **Install Docker Engine**
 
     sudo yum install -y yum-utils device-mapper-persistent-data lvm2
     sudo yum-config-manager -y --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose
+    sudo yum install -y docker-ce docker-ce-cli containerd.io
+    wget https://raw.githubusercontent.com/brainiak/rt-cloud/master/docker/docker-compose.yml
+    sudo yum install -y docker-compose
 
 **Add your username to the docker group** (to avoid using sudo for docker commands)
 
+    sudo groupadd docker
     sudo usermod -aG docker <username>
     newgrp docker
 
@@ -33,6 +37,8 @@ https://aws.amazon.com/getting-started/tutorials/launch-a-virtual-machine/
 
     sudo systemctl enable docker
     sudo systemctl start docker
+
+After installation steps, might need to log out and log back in to have docker recognize the group.
 
 **test docker**
 
@@ -44,17 +50,19 @@ https://aws.amazon.com/getting-started/tutorials/launch-a-virtual-machine/
     docker pull brainiak/rtcloud:latest
 
 **Add the rtgroup**<br>
-Add a new group with GID 5454 to you local system which matches the user and group ID used in the rtcloud Docker container. Add your username to be a member of the rtgroup.
+Add a new group with GID 5454 to your local system which matches the user and group ID used in the rtcloud Docker container. Add your username to be a member of the rtcloud group.
 
-    sudo groupadd -g 5454 rtgroup
-    sudo usermod -a -G rtgroup <your-username>
-    sudo chgrp -R rtgroup <projects-dir>
+    sudo adduser -u 5454 -U rtcloud
+    sudo usermod -a -G rtcloud <your-username>
+    sudo chgrp -R rtcloud <projects-dir>
 
-**Create the rtcloud ssl certificate**<br>
-This will create a self-signed SSL certificate called **rtcloud.crt** to allow encrypted communication with the projectInterface. You will need to install the rtcloud.crt certificate in your browser for trusted communication. The certificate will be created in location:<br> /var/lib/docker/volumes/certs/\_data/rtcloud.crt
+**Create RTCloud SSL certificate**<br>
+The following instructions will create a "certs" folder on your local machine. The path to this certs folder needs to be provided every time you run RTCloud containers in order to allow encrypted communication across components. You will also need to install the certs/rtcloud.crt certificate in your browser for trusted communication.
 
     IP=`curl https://ifconfig.co/`
-    docker run -it --rm -v certs:/rt-cloud/certs brainiak/rtcloud:latest scripts/make-sslcert.sh -ip $IP
+    docker run -it --name ssl brainiak/rtcloud:latest scripts/make-sslcert.sh -ip $IP
+    docker cp ssl:/rt-cloud/certs /PathOnYourLocalMachine
+    docker rm -f ssl
 
 **Add a user for web interface**<br>
 The web connection to the projectInterface requires a user/password to authenticate. You can create a username and password with this command.
@@ -118,3 +126,20 @@ And to re-tag them, such as for a release:
 
     docker tag brainiak/rtcloud:latest brainiak/rtcloud:1.3
 
+# VM
+    sudo docker run -it --rm -v certs:/rt-cloud/certs -v projects:/rt-cloud/projects -p 8888:8888 -p 6080:6080 brainiak/rtcloud:latest scripts/run-projectInterface.sh -p sampler --dataRemote --subjectRemote 
+
+    sudo docker run -it --rm -p 8888:8888  brainiak/rtcloud_root:1.1 scripts/run-projectInterface.sh -p sample --subjectRemote --dataRemote --test
+
+# MRI control
+    sudo docker run -it --rm -v certs:/rt-cloud/certs -v /home/paulscotti/rt-cloud_small/projects/sample/dicomDir:/rt-cloud/dicomDir -p 8888:8888 -p 6080:6080 brainiak/rtcloud:latest scripts/run-scannerDataService.sh -s paulscotti@http://20.51.203.69/:8888 -d /rt-cloud/dicomDir,/tmp --test
+
+    docker run -it --rm -p 8888:8888 brainiak/rtcloud_root:1.1 scripts/run-scannerDataService.sh -s 20.51.203.69:8888 -d /rt-cloud/projects/sample/dicomDir/20190219.0219191_faceMatching.0219191_faceMatching,/tmp --test
+
+the 20.115.68.26 is the address for the projectInterface!
+
+# presenter
+    sudo docker run -it --rm -v certs:/rt-cloud/certs -p 8888:8888 -p 6080:6080 brainiak/rtcloud:latest python rtCommon/subjectService.py -s paulscotti@http://20.51.203.69/:8888 --test
+
+# psychopy
+    python psychopy_test.py

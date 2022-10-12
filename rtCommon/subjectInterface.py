@@ -11,6 +11,8 @@ The subjectInterface instance can also be instantiated within the projectServer 
 projectServer and presentation computer run on the same system.
 """
 import time
+import os
+import json
 from queue import Queue, Empty
 from rtCommon.remoteable import RemoteableExtensible
 from rtCommon.errors import ValidationError
@@ -39,6 +41,7 @@ class SubjectInterface(RemoteableExtensible):
                 requests via RPC (subjectRemote=True)
         """
         super().__init__(isRemote=subjectRemote)
+        self.subjectRemote = subjectRemote
         if subjectRemote is True:
             return
         self.msgQueue = Queue()
@@ -72,7 +75,7 @@ class SubjectInterface(RemoteableExtensible):
         }
         self.msgQueue.put(feedbackMsg)
 
-    def setResultDict(self, values: dict, onsetTimeDelayMs: int=0) -> None:
+    def setResultDict(self, values: dict, onsetTimeDelayMs: int=0, name='defaultname') -> None:
         """
         Same as setResult except the caller can provide a dictionary with
         whatever entries are desired to be used at the subjectService.
@@ -80,15 +83,32 @@ class SubjectInterface(RemoteableExtensible):
             values: a dictionary with the desired values to send for this TR
             onsetTimeDelayMs: time in milliseconds to wait before presenting the feedback stimulus
         """
-        print(f'SubjectInterface: setResult2: values {values}')
         if onsetTimeDelayMs < 0:
             raise ValidationError(f'onsetTimeDelayMs must be >= 0, {onsetTimeDelayMs}')
 
         valuesCopy = values.copy()
+        valuesCopy['name'] = name
         valuesCopy['onsetTimeDelayMs'] = onsetTimeDelayMs
         valuesCopy['timestamp'] = time.time()
-        self.msgQueue.put(valuesCopy)
+        valuesCopy = dict(valuesCopy)
 
+        if not self.subjectRemote:
+            if name == 'defaultname': # assuming test mode
+                print('Check whether you specified a valid name parameter using setResultDict!')
+                self.msgQueue.put(valuesCopy)
+            else:
+                currPath = os.path.dirname(os.path.realpath(__file__))
+                rootPath = os.path.dirname(currPath)
+                dir = rootPath+'/outDir'
+                if not os.path.exists(dir):
+                    os.makedirs(dir)
+                filename = os.path.join(dir, f'{name}.json')
+                with open(filename, 'w') as fp:
+                    fp.write(json.dumps(valuesCopy))
+                print(f"saved json to {dir}/{name}.json")
+        else:
+            self.msgQueue.put(valuesCopy)
+    
     def setMessage(self, message: str) -> None:
         """
         Updates the message displayed to the subject

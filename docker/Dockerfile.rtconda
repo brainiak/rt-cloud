@@ -1,48 +1,45 @@
-FROM insgeek/centos:7.5
+FROM centos:7.5.1804
 
 SHELL ["/bin/bash", "-c"]
 
-# Install Conda
 RUN \
-yum install -y git wget ca-certificates unzip && \
-mkdir ~/Downloads && \
+yum install -y git wget ca-certificates && \
+mkdir /opt/Downloads && \
+echo "## Get rtcloud environments setup ##" && \
+wget https://raw.githubusercontent.com/brainiak/rt-cloud/master/environment.yml -P /tmp/ && \
+wget https://raw.githubusercontent.com/brainiak/rt-cloud/master/environment-synthetic-data.yml -P /tmp/ && \
+wget https://raw.githubusercontent.com/brainiak/rt-cloud/master/websockify.yml -P /tmp/ && \
 echo "## Install Miniconda ##" && \
-pushd ~/Downloads && \
+pushd /opt/Downloads && \
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
 bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda3 && \
 echo export PATH="/opt/miniconda3/bin:\$PATH" >> ~/.bashrc && \
 echo ". /opt/miniconda3/etc/profile.d/conda.sh" >> ~/.bashrc && \
 source ~/.bashrc && \
 conda update -y conda && \
-rm Miniconda3-latest-Linux-x86_64.sh && \
+popd && \
+rm -r /opt/Downloads && \
 echo "## Install conda environment ##" && \
 conda create --name rtcloud && \
 conda activate rtcloud && \
-conda install -y -c defaults -c conda-forge awscli bcrypt boto3 dcm2niix flake8 indexed_gzip jupyter mypy nibabel nilearn pip pydicom python=3.7 pytest requests rpyc scipy toml websocket-client wsaccel && \
+conda install -y -c defaults -c conda-forge awscli bcrypt boto3 dcm2niix flake8 indexed_gzip jupyter mypy nibabel nilearn nodejs pip pydicom python=3.7 requests rpyc scipy toml tornado websocket-client wsaccel && \
 pip install inotify pybids watchdog && \
-# nodejs refuses to install a version greater than 12.12, which is required for bids-validator, so need to install separately
-wget https://nodejs.org/dist/v16.15.0/node-v16.15.0-linux-x64.tar.xz && \
-xz -d node-v16.15.0-linux-x64.tar.xz && \
-tar xvf node-v16.15.0-linux-x64.tar && \
-mv node-v16.15.0-linux-x64 /opt/nodejs && \
-echo export PATH="/opt/nodejs/bin:\$PATH" >> ~/.bashrc && \
-popd && \
 echo "## Install synthetic-data environment ##" && \
 conda install -y -c brainiak -c defaults -c conda-forge brainiak && \
 conda install -y -c defaults -c conda-forge nomkl && \
-conda deactivate && \
+yes | conda clean --all && \
 echo "## Install VNC environment ##" && \
 yum install -y openssl tk && \
+conda deactivate && \
 conda create --name websockify && \
 conda activate websockify && \
 conda install -y -c defaults ca-certificates certifi libedit libffi libgcc-ng libstdcxx-ng ncurses openssl pip python readline setuptools sqlite tk tornado wheel xz zlib && \
 pip install numpy websockify && \
-conda deactivate && \
 echo "## Conda Install Complete ##" && \
 # Cleanup 
-rm -r ~/Downloads && \
 yum clean all && \
-conda clean --all && \
+yes | conda clean --all && \
+conda deactivate && \
 echo "## Cleanup complete ##" 
 
 ENV PATH="/opt/miniconda3/bin:${PATH}"

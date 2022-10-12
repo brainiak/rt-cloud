@@ -4,7 +4,13 @@ From: brainiak/rtcloud:latest
 %post
     source /opt/.bashrc
     conda init
-    cp -r /opt/.vnc ~/.vnc
-    cp -r /rt-cloud /tmp
-    echo '. /opt/.bashrc' >> /rtcloud.sh
-    echo 'cd /tmp/rt-cloud' >> /rtcloud.sh
+    yes | cp -r /opt/.vnc ~/.vnc
+    yes | cp -r /rt-cloud /tmp
+    echo '. /opt/.bashrc' >> /run-singularity.sh
+    echo 'cd /tmp/rt-cloud' >> /run-singularity.sh
+
+%runscript
+    . /run-singularity.sh
+
+%startscript
+    . /run-singularity.sh
