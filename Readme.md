@@ -396,6 +396,8 @@ Test Singularity is properly installed:
     singularity run docker://hello-world -->
 
 # Other Links
+- [Run RT-Cloud in the Cloud (e.g., Microsoft Azure, Amazon AWS)](docs/run-in-docker.md)
+- [Using VNC Server to view GUI applications in the web interface](docs/how-to-run.md)
 - [Providing Subject Feedback with jsPsych](docs/subject-feedback.md)
 
 # Troubleshooting / Common errors
@@ -421,7 +423,4 @@ Test Singularity is properly installed:
     - <code>npm install -g bids-validator</code>
 4. Run the test suite
     - <code>python -m pytest -s -v tests/</code>
-
-## Further Reading
-- [Run RT-Cloud in the Cloud (e.g., Microsoft Azure, Amazon AWS)](docs/run-in-docker.md)
-- [Using VNC Server to view GUI applications in the web interface](docs/how-to-run.md)
+    
