@@ -108,8 +108,8 @@ Either pull rtcloud (9Gb, recommended), rtcloudxl (30Gb), or rtcloudlite (3.6Gb)
         - Note: you must use the name "rtcloud" for your conda environment!
     - <code>conda activate rtcloud</code>
 4. Install necessary packages
-    - <code>conda install -y -c defaults -c conda-forge awscli bcrypt boto3 dcm2niix flake8 indexed_gzip jupyter mypy nibabel nilearn nodejs pip pydicom python=3.7 requests rpyc scipy toml tornado websocket-client wsaccel</code>
-    - <code>pip install inotify pybids watchdog</code>
+    - <code>conda install -y -c defaults -c conda-forge awscli bcrypt boto3 dcm2niix flake8 indexed_gzip jupyter mypy nibabel nilearn nodejs pip pydicom python=3.8 requests rpyc scipy toml tornado websocket-client</code>
+    - <code>pip install inotify pybids watchdog wsaccel</code>
 5. Install node module dependencies<br>
     - <code>cd web; npm install; cd ..</code>
 6. Install [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation), [ANTs](http://stnava.github.io/ANTs/), or any other software that you plan to use for real-time analysis
