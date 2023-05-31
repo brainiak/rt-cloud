@@ -95,12 +95,10 @@ If you lack root permissions, you will need to build the .sif file on a machine 
 **Singularity usage instructions.** Enter your Singularity image running RT-Cloud. Then execute a few commands to setup your environment:
 1. <code>singularity exec docker/rtcloud.sif bash</code>
 2. <code>source /opt/run-singularity.sh</code>
-3. Install node module dependencies<br>
-    - <code>cd web; npm install; cd ..</code>
 
-You will need to perform steps 1 & 2 every time you enter the Singularity image (step 3 installation will persist so you do not need to repeat it).
+You will need to perform the above steps 1 & 2 every time you want to use RT-Cloud with Singularity.
 
-Now you can follow the same steps as the local installation to run RT-Cloud via Singularity! Note that ``source /opt/run-singularity.sh`` activates a pre-made "rtcloud" conda environment and changes your directory to rt-cloud/ (located in /tmp so you have write permissions).
+Now you can follow the same steps as the local installation to run RT-Cloud via Singularity! Note that ``source /opt/run-singularity.sh`` activates a pre-made "rtcloud" conda environment and changes your directory to /tmp/rt-cloud/ (/tmp allows write permissions).
 
 ### Local Installation
 (Note: Windows not supported.)
