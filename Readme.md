@@ -84,7 +84,7 @@ Example of terminal commands for Linux (CentOS 7) installation:
     sudo yum update -y && \
     sudo yum install -y singularity-runtime singularity
 
-Download the docker/.def file corresponding to the Docker container you wish to run via Singularity: rtcloud (9Gb, recommended), rtcloudxl (30Gb), or rtcloudlite (3.6Gb). The build the Singularity container for it via:
+Clone this GitHub repository, cd into it, and build the Singularity image corresponding to the Docker container you wish to run: rtcloud (9Gb, recommended), rtcloudxl (30Gb), or rtcloudlite (3.6Gb).
 
 1. <code>git clone https://github.com/brainiak/rt-cloud.git</code>
 2. <code>cd rt-cloud/docker/</code>
@@ -92,14 +92,14 @@ Download the docker/.def file corresponding to the Docker container you wish to 
 
 If you lack root permissions, you will need to build the .sif file on a machine that has root permissions and then transfer the .sif file.
 
-**Singularity usage instructions.** Enter your Singularity container running RT-Cloud. Then execute a few commands to setup your environment:
+**Singularity usage instructions.** Enter your Singularity image running RT-Cloud. Then execute a few commands to setup your environment:
 1. <code>cd rt-cloud/</code>
 2. <code>singularity exec docker/rtcloud.sif bash</code>
 3. <code>source /opt/.bashrc</code>
 4. Install node module dependencies<br>
     - <code>cd web; npm install; cd ..</code>
 
-You will need to perform steps 1-3 every time you enter the Singularity container (step 4 installation will persist so you do not need to repeat it.)
+You will need to perform steps 1-3 every time you enter the Singularity image (step 4 installation will persist so you do not need to repeat it.)
 
 Now you can follow the same steps as the local installation to run RT-Cloud via Singularity! Note that ``source /opt/.bashrc`` activates the pre-made "rtcloud" conda environment.
 
