@@ -2,9 +2,13 @@ Bootstrap: docker
 From: brainiak/rtcloudxl:latest
 
 %post
-    source /opt/.bashrc
     conda init
+    echo 'source /opt/.bashrc' >> /opt/run-singularity.sh
+    echo 'yes | rsync -a /rt-cloud /tmp' >> /opt/run-singularity.sh
+    echo 'cd /tmp/rt-cloud' >> /opt/run-singularity.sh
+    chmod -R a+rwx /tmp
+    chmod -R a+rwx /rt-cloud
 
-%environment
-    cp -r /opt/.vnc ~/.vnc
-    cp -r /rt-cloud /tmp
+%runscript
+    echo "Singularity container running."
+    source /opt/run-singularity.sh
