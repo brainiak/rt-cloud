@@ -43,9 +43,11 @@ jobs:
 
     - name: Install conda environment
       run: |
-        conda list
-        conda env update --file environment.yml --name base
-        conda env update --file environment-synthetic-data.yml --name base
+        conda install -y -c defaults -c conda-forge awscli bcrypt boto3 dcm2niix flake8 indexed_gzip jupyter mypy nibabel nilearn nodejs pip pydicom python=3.8 requests rpyc scipy toml tornado websocket-client
+        pip install inotify pybids watchdog wsaccel
+        # conda list
+        # conda env update --file environment.yml --name base
+        # conda env update --file environment-synthetic-data.yml --name base
 
     - name: Lint with flake8
       run: |
