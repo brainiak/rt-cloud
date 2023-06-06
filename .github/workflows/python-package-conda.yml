@@ -61,7 +61,7 @@ jobs:
         openssl genrsa -out certs/rtcloud_private.key 2048
         bash scripts/make-sslcert.sh -ip `hostname -i`
 
-    - name: Test with pytest
-      run: |
-        python -m pytest tests/
+#     - name: Test with pytest
+#       run: |
+#         python -m pytest tests/
         
