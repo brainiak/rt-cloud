@@ -38,7 +38,7 @@ Wait for the terminal to output "Listening on: http://localhost:8888" and then o
 
 ## 1. Install Docker, Singularity, or Miniconda
 
-You can use either Docker, Singularity (under construction), or a local Conda environment to run RTCloud. 
+You can use either Docker, Singularity, or a local Conda environment to run RTCloud. 
 
 ### Docker Installation
 
@@ -71,9 +71,9 @@ Either pull rtcloud (9Gb, recommended), rtcloudxl (30Gb), or rtcloudlite (3.6Gb)
 
 <sup>Docker images operate in Linux CentOS and use a miniconda environment called "rtcloud" that contains many preinstalled packages (see environment.yml, environment-synthetic-data.yml, websockify.yml, docker/Dockerfile.rttools).</sup>
 
-<!-- ### Singularity Installation
+### Singularity Installation
 
-Singularity should be used for high performance computing clusters operating in Linux OS.
+Singularity can be used if you lack root permissions to install RT-Cloud via Docker.
 
 Linux install: https://sylabs.io/guides/3.9/admin-guide/installation.html
 
@@ -84,16 +84,21 @@ Example of terminal commands for Linux (CentOS 7) installation:
     sudo yum update -y && \
     sudo yum install -y singularity-runtime singularity
 
-**Pull RTCloud Docker image**
+Clone this GitHub repository, cd into it, and build the Singularity image corresponding to the Docker container you wish to run: rtcloud (9Gb, recommended), rtcloudxl (30Gb), or rtcloudlite (3.6Gb).
 
-Either pull rtcloud (9Gb, recommended), rtcloudxl (30Gb), or rtcloudlite (3.6Gb)
-- "rtcloud": RTCloud, most of FSL (no fsleyes), most of ANTs, c3d_affine_tool, brainiak
-- "rtcloudxl": RTCloud, FSL, fsleyes, ANTs, Convert3D, brainiak
-- "rtcloudlite": RTCloud, brainiak
+1. <code>git clone https://github.com/brainiak/rt-cloud.git</code>
+2. <code>cd rt-cloud/docker/</code>
+3. <code>sudo singularity build rtcloud.sif rtcloud.def</code>
 
-<code>singularity pull docker://brainiak/rtcloud:latest</code>
+If you lack root permissions, you will need to build the .sif file on a machine that has root permissions and then transfer the .sif file.
 
-<sup>Docker images operate in Linux CentOS and use a miniconda environment called "rtcloud" that contains many preinstalled packages (see environment.yml, environment-synthetic-data.yml, websockify.yml, docker/Dockerfile.rttools).</sup> -->
+**Singularity usage instructions.** Enter your Singularity image running RT-Cloud. Then execute a few commands to setup your environment:
+1. <code>singularity exec docker/rtcloud.sif bash</code>
+2. <code>source /opt/run-singularity.sh</code>
+
+You will need to perform the above steps 1 & 2 every time you want to use RT-Cloud with Singularity.
+
+Now you can follow the same steps as the local installation to run RT-Cloud via Singularity! Note that ``source /opt/run-singularity.sh`` activates a pre-made "rtcloud" conda environment and changes your directory to /tmp/rt-cloud/ (/tmp allows write permissions).
 
 ### Local Installation
 (Note: Windows not supported.)
@@ -212,10 +217,6 @@ You should eventually see an output in your terminal that says "Listening on: ht
 After you login, look to the top-right of the web interface and you should see indicators referencing which of the three RT-Cloud components have connected ("browser" for data_analyser, "dataConn" for data_streamer, "subjConn" for analysis_listener). All three of these components must be connected before running RT-Cloud.
 
 <sup>For reference in interpreting the above command, the "-it" stands for interactive terminal and prevents your command line from becoming unresponsive, the "--rm" will remove the docker container after it finishes running, the "-p 8888:8888" opens/connects the machine's port 8888 to the Docker container's port 8888 which allows the RTCloud web browser to work, the "-v" stands for volume and will mount the provided folder to the provided Docker container's location, the "scripts/data_analyser.sh" executes the shell script located in the scripts folder of the Docker container "brainiak/rtcloud:latest", the "-p template" informs the shell script the name of the project to run, the "-ip $IP" allows the web certificate to be secured to the current IP address, "--dataRemote" means that the data_streamer component is running on a different machine, and "--subjectRemote" means that the analysis_listener is running on a different machine.</sup>
-
-<!-- **Singularity**
-
-    docker run -it --rm -p 8888:8888 -v ~/certs:/rt-cloud/certs -v $PROJ_DIR:/rt-cloud/projects/template brainiak/rtcloud:latest scripts/data_analyser.sh -p template --dataRemote --subjectRemote -->
 
 **Local**
 
