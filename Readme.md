@@ -9,6 +9,11 @@ RT-Cloud supports any sort of machine configuration. You could run RT-Cloud enti
 
 For more information on RT-Cloud, see our paper in [NeuroImage 2022](https://www.sciencedirect.com/science/article/pii/S1053811922004141). If you publish work that utilized RT-Cloud, please include a citation to this paper.
 
+---
+After you have installed RT-Cloud, please check out our `rtcloud-projects` repository, where we have full example projects, demos of Psychopy integration, and project templates.
+https://github.com/brainiak/rtcloud-projects
+---
+
 **Overview of RT-Cloud Components**
 ![](docs/rtcloud_schematic.png )<br>
 - **data_streamer** (runs on machine that recieves/sends DICOMs)
@@ -34,7 +39,7 @@ Assuming that Docker is installed (if not, see instructions below) you can follo
 
 Wait for the terminal to output "Listening on: http://localhost:8888" and then open your web browser and go to the url "localhost:8888" (if using a cloud machine, replace "localhost" to the cloud server's ip address). The login username/password for the web browser are both "test". Click the "Run" button to run through the simulated real-time scanning example. 
 
-# RTCloud Installation & Usage 
+# RTCloud Installation & Usage
 
 ## 1. Install Docker, Singularity, or Miniconda
 
