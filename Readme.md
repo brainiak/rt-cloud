@@ -10,8 +10,12 @@ RT-Cloud supports any sort of machine configuration. You could run RT-Cloud enti
 For more information on RT-Cloud, see our paper in [NeuroImage 2022](https://www.sciencedirect.com/science/article/pii/S1053811922004141). If you publish work that utilized RT-Cloud, please include a citation to this paper.
 
 ---
-After you have installed RT-Cloud, please check out our `rtcloud-projects` repository, where we have full example projects, demos of Psychopy integration, and project templates.
-https://github.com/brainiak/rtcloud-projects
+
+After you have installed RT-Cloud, please check out our `rtcloud-projects` repository (https://github.com/brainiak/rtcloud-projects).
+
+There you can find full example projects, demos of Psychopy integration, and empty project templates.
+
+
 ---
 
 **Overview of RT-Cloud Components**
