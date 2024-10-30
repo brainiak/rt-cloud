@@ -11,7 +11,7 @@ For more information on RT-Cloud, see our paper in [NeuroImage 2022](https://www
 
 ---
 
-After you have installed RT-Cloud, please check out our `rtcloud-projects` repository (https://github.com/brainiak/rtcloud-projects).
+After you have installed RT-Cloud, please check out our `rtcloud-projects` repository: https://github.com/brainiak/rtcloud-projects.
 
 There you can find full example projects, demos of Psychopy integration, and empty project templates for starting your own RT-Cloud project.
 
