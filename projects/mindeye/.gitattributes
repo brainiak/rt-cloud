@@ -1,0 +1,4 @@
+*.nii.gz filter=lfs diff=lfs merge=lfs -text
+BidsDir/sub-01/ses-nsd02/func/sub-01_ses-nsd02_task-nsdcore_run-01_bold.nii.gz filter=lfs diff=lfs merge=lfs -text
+BidsDir/sub-01/ses-nsd02/func/sub-01_ses-nsd02_task-nsdcore_run-01_sbref.nii.gz filter=lfs diff=lfs merge=lfs -text
+projects/mindeye/BidsDir/sub-01/ses-nsd02/func/sub-01_ses-nsd02_task-nsdcore_run-01_bold.nii.gz filter=lfs diff=lfs merge=lfs -text

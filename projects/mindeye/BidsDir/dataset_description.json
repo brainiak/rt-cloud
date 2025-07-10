@@ -1,0 +1,34 @@
+{
+    "Name": "Natural Scenes Dataset",
+    "BIDSVersion": "1.5.0",
+    "Authors": [
+        "Emily J. Allen",
+        "Ghislain St-Yves",
+        "Yihan Wu",
+        "Jesse L. Breedlove",
+        "Jacob S. Prince",
+        "Logan T. Dowdle",
+        "Brad Caron",
+        "Franco Pestilli",
+        "Ian Charest",
+        "J. Benjamin Hutchinson",
+        "Thomas Naselaris",
+        "Kendrick Kay"
+    ],
+    "Funding": [
+        "National Institute of Health Grant P41 EB015894",
+        "National Institute of Health Grant P41 EB027061",
+        "National Institute of Health Grant P30 NS076408",
+        "National Institute of Health Grant S10 RR026783",
+        "National Institute of Health Grant S10 OD017974-01",
+        "National Institute of Health Grant U01 EB02514",
+        "W. M. Keck Foundation"
+    ],
+    "ReferencesAndLinks": [
+        "https://www.biorxiv.org/content/10.1101/2021.02.22.432340v1",
+        "http://naturalscenesdataset.org/",
+        "https://registry.opendata.aws/nsd/"
+    ],
+    "HowToAcknowledge": "If you use these data, please cite the appropriate manuscripts.",
+    "License": "CC0"
+}

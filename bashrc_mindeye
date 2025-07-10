@@ -1,0 +1,22 @@
+# .bashrc
+
+# User specific aliases and functions
+
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+        . /etc/bashrc
+fi
+export PATH=/opt/miniconda3/bin:$PATH
+. /opt/miniconda3/etc/profile.d/conda.sh
+FSLDIR=/opt/fsl
+. ${FSLDIR}/etc/fslconf/fsl.sh
+PATH=${FSLDIR}/bin:${PATH}
+export FSLDIR PATH
+export LD_LIBRARY_PATH=${FSLDIR}/lib:${FSLDIR}/fslpython/lib:${LD_LIBRARY_PATH}
+
+conda activate /home/ri4541@pu.win.princeton.edu/miniforge3/envs/rt_mindEye2
+#source /home/ri4541@pu.win.princeton.edu/rt_mindeye/bin/activate

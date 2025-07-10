@@ -90,8 +90,9 @@ class BidsArchive:
         self.rootPath = os.path.abspath(rootPath)
         # Formatting initialization logic this way enables the creation of an
         # empty BIDS archive that an incremntal can then be appended to
+        db_path = os.path.join(self.rootPath, "pybids.db")
         try:
-            self.data = BIDSLayout(rootPath)
+            self.data = BIDSLayout(rootPath, database_path=db_path, reset_database=True)
         except Exception as e:
             logger.debug("Failed to open dataset at %s (%s)",
                          self.rootPath, str(e))
@@ -291,7 +292,8 @@ class BidsArchive:
         # Updating layout is currently quite expensive. However, the underlying
         # PyBids implementation uses a SQL database to store the index, and it
         # has no public methods to cleanly and incrementally update the DB.
-        self.data = BIDSLayout(self.rootPath)
+        db_path = os.path.join(self.rootPath, "pybids.db")
+        self.data = BIDSLayout(self.rootPath, database_path=db_path, reset_database=True)
 
     def _addImage(self, img: nib.Nifti1Image, path: str,
                   updateLayout: bool = True) -> None:

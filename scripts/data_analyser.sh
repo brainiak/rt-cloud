@@ -59,6 +59,7 @@ pushd web
 npm run build
 popd
 
+source rtcloud/bin/activate
 export PYTHONPATH=./rtCommon/:$PYTHONPATH
 echo "python rtCommon/projectServer.py ${args[@]}"
 python rtCommon/projectServer.py ${args[@]}
