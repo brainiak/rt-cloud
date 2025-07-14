@@ -621,46 +621,27 @@ for run_num in range(1,2):
     print(f"==START OF DAY 2 RUN {run_num}!==\n")
     # stream in that data!
     # import debugpy
+    # os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
     # debugpy.listen(("0.0.0.0", 5678))  # listen on all interfaces, port 5678
     # print("Waiting for debugger to attach...")
     # debugpy.wait_for_client()
     # debugpy.breakpoint()
     # print("Debugger attached, continuing...")
-
-    # Remove the BIDS database and cache before each run to avoid index corruption
-    raw_bids_dir = os.path.join(data_path, "raw_bids")
-    # Move non-BIDS files to backup before initializing BIDS stream
-    backup_dir = os.path.join(raw_bids_dir, "non_bids_backup")
-    os.makedirs(backup_dir, exist_ok=True)
-    for fname in os.listdir(raw_bids_dir):
-        if not (fname.startswith("sub-") or fname in ["dataset_description.json", "participants.tsv"]):
-            fpath = os.path.join(raw_bids_dir, fname)
-            backup_path = os.path.join(backup_dir, fname)
-            print(f"Moving non-BIDS file or directory: {fpath} -> {backup_path}")
-            shutil.move(fpath, backup_path)
-    print("Files in raw_bids after BIDS filtering:", os.listdir(raw_bids_dir))
-    subject_dir = os.path.join(raw_bids_dir, 'sub-005')
-    print("Files in subject_dir:", os.listdir(subject_dir))
-    ses_dir = os.path.join(subject_dir, 'ses-03')
-    print("Files in ses-03:", os.listdir(ses_dir))
-    func_dir = os.path.join(ses_dir, 'func')
-    print("Files in func:", os.listdir(func_dir))
-    bold_path = os.path.join(func_dir, 'sub-005_ses-03_task-C_run-01_bold.nii.gz')
-    print("Expected BIDS file path:", bold_path, "Exists:", os.path.exists(bold_path))
-    time.sleep(0.5)
-    import importlib
-    import rtCommon.bidsInterface
-    importlib.reload(rtCommon.bidsInterface)
-    from rtCommon.bidsInterface import BidsInterface
+    
+    # breakpoint()
     data_stream = BidsInterface()
-    streamID = data_stream.initBidsStream(raw_bids_dir, **{'datatype': 'func',
+    cwd = os.getcwd()
+    print("cwd ", cwd)
+    print(os.listdir(f"{data_path}/raw_bids"))
+    streamID = data_stream.initBidsStream(f"{data_path}/raw_bids", **{'datatype': 'func',
                                         'extension': '.nii.gz',
                                         'run': "01",
                                         'session': '03',
                                         'subject': '005',
                                         'suffix': 'bold',
                                         'task': 'C'})
-    print(f"{run_num} started")
+
+    print(f"Run {run_num} started")
     mc_params = []
     imgs = []
     events_df = ndscore_events[run_num - 1]
@@ -762,9 +743,6 @@ for run_num in range(1,2):
                 # when we are not at the end of a stimulus trial, send an empty dictionary to the analysis listener with "pass"
                 subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
                                 values={'pass': "pass"})
-        
-    print(f"==END OF RUN {run_num}!==\n")
-    bidsInterface.closeStream(streamID)
         
     print(f"==END OF RUN {run_num}!==\n")
     bidsInterface.closeStream(streamID)
