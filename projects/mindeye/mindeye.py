@@ -54,6 +54,8 @@ from collections import defaultdict
 import pickle
 import pdb
 import imageio.v2 as imageio
+import zlib
+import base64
 
 """-----------------------------------------------------------------------------
 Imports for rtcloud
@@ -92,10 +94,12 @@ try:
     storage_path = config['storage_path']
     data_path = config['data_path']
     derivatives_path = config['derivatives_path']
+    output_path = config['output_path']
     fsl_path = config['fsl_path']
     assert os.path.exists(storage_path), "The specified data and model storage path does not exist."
     assert os.path.exists(data_path), "The specified BOLD path does not exist."
     assert os.path.exists(derivatives_path), "The specified derivatives path does not exist."
+    assert os.path.exists(output_path), "The specified output path does not exist."
     assert os.path.exists(fsl_path), "The specified FSL path does not exist."
 except FileNotFoundError:
     raise FileNotFoundError("config.json file not found. Please create it with the required paths.")
@@ -480,6 +484,7 @@ try:
 except:
     pass
 
+imsize = 224
 # get the mask and the reference files
 ndscore_events = [pd.read_csv(f'{data_path}/events/sub-005_ses-03_task-C_run-{run+1:02d}_events.tsv', sep = "\t", header = 0) for run in range(n_runs)]  # create a new list of events_df's which will have the trial_type modified to be unique identifiers
 ndscore_tr_labels = [pd.read_csv(f"{data_path}/events/sub-005_ses-03_task-C_run-{run+1:02d}_tr_labels.csv") for run in range(n_runs)]
@@ -492,9 +497,6 @@ def fast_apply_mask(target=None,mask=None):
     return target[np.where(mask == 1)].T
 ses1_boldref_nib = nib.load(ses1_boldref)
 union_mask = np.load(f"{data_path}/union_mask_from_ses-01-02.npy")
-# apply union mask to the nsdgeneral ROI and convert to nifti
-assert mask_img.get_fdata().sum() == union_mask.shape
-union_mask_img = new_img_like(mask_img, union_mask)
 
 # apply union_mask to mask_img and return nifti object
 
@@ -522,10 +524,12 @@ union_mask_img = nib.Nifti1Image(new_mask_data.astype(np.uint8), affine=mask_img
 print("union_mask_img.shape", union_mask_img.shape)
 print("union mask num voxels", int(union_mask_img.get_fdata().sum()))
 
-lss_glm = FirstLevelModel(t_r=tr_length,slice_time_ref=0,hrf_model='glover',
-                        drift_model='polynomial',high_pass=None,mask_img=mask_img,
-                        signal_scaling=False,smoothing_fwhm=None,noise_model='ar1',
-                        n_jobs=-1,verbose=-1,memory_level=1,minimize_memory=True)
+def compress_and_encode_image(image_array):
+    # Convert the image array to bytes, compress, and encode
+    compressed_data = zlib.compress(image_array.tobytes())
+    encoded_data = base64.b64encode(compressed_data).decode('utf-8')
+    return encoded_data
+
 
 def do_reconstructions(betas_tt):
     """
@@ -560,8 +564,11 @@ def do_reconstructions(betas_tt):
                 reconsTR = samples.cpu()
             else:
                 reconsTR = torch.vstack((reconsTR, samples.cpu()))
-            imsize = 224
-            reconsTR = transforms.Resize((imsize,imsize), antialias=True)(reconsTR).float().numpy().tolist()
+
+            reconsTR = transforms.Resize((imsize,imsize), antialias=True)(reconsTR).float().numpy()
+
+            # image_array = transforms.Resize((imsize, imsize), antialias=True)(reconsTR).float().numpy()
+            # reconsTR = compress_and_encode_image(image_array)
 
         return reconsTR, clipvoxelsTR
     
@@ -595,9 +602,12 @@ def get_top_retrievals(clipvoxel, all_images, total_retrievals=1):
     fwd_sim = np.array(fwd_sim.cpu())
     which = np.flip(np.argsort(fwd_sim, axis = 0))
     
-    imsize = 224
     for attempt in range(total_retrievals):
-        values_dict[f"attempt{(attempt+1)}"] = transforms.Resize((imsize,imsize), antialias=True)(all_images[which[attempt].copy()]).float().numpy().tolist()
+        image_array = transforms.Resize((imsize, imsize), antialias=True)(all_images[which[attempt].copy()]).float().numpy()
+        encoded_image = compress_and_encode_image(image_array)
+        values_dict[f"attempt{(attempt+1)}"] = encoded_image
+
+        # values_dict[f"attempt{(attempt+1)}"] = transforms.Resize((imsize,imsize), antialias=True)(all_images[which[attempt].copy()]).half().numpy().tolist()
     return values_dict
 
 def convert_image_array_to_PIL(image_array):
@@ -615,9 +625,31 @@ def convert_image_array_to_PIL(image_array):
     # convert the image array to PIL
     return Image.fromarray(image_array)
 
+plot_images=False
+save_individual_images=False
+save_all_recons=False
+evaluate_session=False
+
+mc_dir = f"{derivatives_path}/motion_corrected"
+mc_resampled_dir = f"{derivatives_path}/motion_corrected_resampled"
+if os.path.exists(mc_dir):
+    shutil.rmtree(mc_dir)
+os.makedirs(mc_dir)
+if os.path.exists(mc_resampled_dir):
+    shutil.rmtree(mc_resampled_dir)
+os.makedirs(mc_resampled_dir)
+
+ses3_to_ses1_mat = f'{derivatives_path}/ses3ref_to_ses1ref'
+# set the output type to NIFTI_GZ
+os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'
+assert np.all(ses1_boldref_nib.affine == union_mask_img.affine)
+all_betas = []
+
+# Loop over all 11 runs in the session
+n_runs = 11
 
 # go through each run
-for run_num in range(1,2):
+for run_num in range(1, n_runs + 1):
     print(f"==START OF DAY 2 RUN {run_num}!==\n")
     # stream in that data!
     # import debugpy
@@ -639,111 +671,357 @@ for run_num in range(1,2):
                                         'session': '03',
                                         'subject': '005',
                                         'suffix': 'bold',
-                                        'task': 'C'})
+                                        'task': 'C'}) # TODO change to dicom
 
     print(f"Run {run_num} started")
     mc_params = []
     imgs = []
     events_df = ndscore_events[run_num - 1]
     tr_labels_hrf = ndscore_tr_labels[run_num - 1]["tr_label_hrf"].tolist()
+    events_df = events_df[events_df['image_name'] != 'blank.jpg']  # must drop blank.jpg after tr_labels_hrf is defined to keep indexing consistent
     beta_maps_list = []
     all_trial_names_list = []
-    # get the all images tensor
     all_images = None
-    seen_label_before = ["blank"]
-    # get the list of all images in torch tensor format for this run (should be 62 or 63 images)
-    all_COCO_ids = []
-    for TR in range(186):
-        if tr_labels_hrf[TR] not in seen_label_before:
-            seen_label_before.append(tr_labels_hrf[TR])
-            image_COCO_id = int(float(tr_labels_hrf[TR].split("_")[1])) - 1
-            new_image_pt = torch.from_numpy(np.reshape(images[image_COCO_id],(1,3,224,224)))
-            all_images = new_image_pt if all_images == None else torch.vstack((all_images, new_image_pt))
-            all_COCO_ids.append(image_COCO_id)
-    print(all_COCO_ids)
+
+    save_path = f"{output_path}/sub-005_ses-03_task-C_run-{run_num:02d}_recons"
+    os.makedirs(save_path, exist_ok=True)
+    if save_individual_images:
+        os.makedirs(os.path.join(save_path, "individual_images"), exist_ok=True)
+
+    all_recons_save = []
+    all_clipvoxels_save = []
+    all_ground_truth_save = []
+    all_retrieved_save = []
+
     stimulus_trial_counter = 0
-    for TR in range(186):
+    T1_brain = f"{data_path}/sub-005_desc-preproc_T1w_brain.nii.gz"
+    n_trs = 192
+    assert len(tr_labels_hrf) == n_trs, "there should be image labels for each TR"
+    assert all(label in image_names for label in tr_labels_hrf if label != 'blank'), "Some labels in tr_labels_hrf are missing from image_names."
+    assert len(images) > n_trs, "images array is too short."
+
+    for TR in range(n_trs-1):
         print(f"TR {TR}")
         # stream in the nifti
+        cur_vol = f"sub-005_ses-03_task-C_run-{run_num:02d}_bold_{TR:04d}"
+        curr_image_path = f"{derivatives_path}/vols/{cur_vol}.nii.gz"
+
         incremental_bids_image = data_stream.getIncremental(streamID,volIdx=TR,
-                                        timeout=999999,demoStep=1.6)
+                                        timeout=999999,demoStep=1.5)  # TODO change to dicom
         image_data = incremental_bids_image.image
         current_label = tr_labels_hrf[TR]
-
+        print(current_label)
         
-        if TR == 0:
-            day2_run1_bold_ref = image_data
+        if TR == 0 and run_num == 1:
+            # ses3_vol0_nib = image_data
             # make the day 2 bold ref
-            nib.save(image_data, day2_boldref)
+            print(image_data.shape)
+            print(ses3_vol0)
+            nib.save(image_data, ses3_vol0)
             # save the transformation from the day 2 bold ref to the day 1 
-            os.system(f"flirt -in {day2_boldref} \
-            -ref {day1_boldref} \
-            -omat {day2_to_day1_mat} \
-            -dof 6")
-        # load nifti file
-        tmp = f'{data_and_model_storage_path}/day2_subj1/tmp_run{run_num}.nii.gz'
-        nib.save(index_img(image_data,0),tmp)
-        start = time.time()
-        # on first tr the motion correction will have no issue so that mc_params is properly populated
-        mc = f'{data_and_model_storage_path}/day2_subj1/tmp_mc_run{run_num}'
-        os.system(f"mcflirt -in {tmp} -reffile {day2_boldref} -out {mc} -plots -mats")
+            # os.system(f"antsRegistrationSyNQuick.sh \
+            #   -d 3 \
+            #   -f {T1_brain} \
+            #   -m {ses3_vol0} \
+            #   -o {derivatives_path}/ses3_vol0_epi2T1_")
+
+            os.system(f"flirt -in {ses3_vol0} \
+                -ref {ses1_boldref} \
+                -omat {ses3_to_ses1_mat} \
+                -dof 6")
+
+            # for simulation, just load it in
+            # ses3_boldref_path = f"{derivatives_path}/ses3_vol0_epi2T1_Warped.nii.gz"
+            # ses3_boldref = nib.load(ses3_boldref_path)
+
+        mc = f"{mc_dir}/{cur_vol}_mc"
+        os.system(f"{fsl_path}/mcflirt -in {derivatives_path}/vols/{cur_vol}.nii.gz -reffile {derivatives_path}/vols/sub-005_ses-03_task-C_run-01_bold_0000.nii.gz -out {mc} -plots -mats")
         mc_params.append(np.loadtxt(f'{mc}.par'))
-        mc_day1_aligned = f'{data_and_model_storage_path}/day2_subj1/tmp_mc_day1_aligned_run{run_num}'
-        current_tr_to_day1 = f"{data_and_model_storage_path}/day2_subj1/current_tr_to_day1_run{run_num}"
-        os.system(f"convert_xfm -concat {day2_to_day1_mat} -omat {current_tr_to_day1} {mc}.mat/MAT_0000")    
+
+        current_tr_to_ses1 = f"{derivatives_path}/current_tr_to_ses1_run{run_num}"
+        os.system(f"convert_xfm -concat {ses3_to_ses1_mat} -omat {current_tr_to_ses1} {mc}.mat/MAT_0000")    
+        
         # apply concatenated matrix to the current TR
-        os.system(f"flirt -in {tmp} \
-        -ref {day1_boldref} \
-        -out {mc_day1_aligned} \
-        -init {current_tr_to_day1} \
-        -applyxfm")
-        # now delete the mc from current tr to bold reference mat
-        os.system(f"rm -r {mc}.mat") 
-        imgs.append(get_data(mc_day1_aligned + ".nii.gz")) # only add to imgs list
-        if tr_labels_hrf[TR] != tr_labels_hrf[TR + 1] and tr_labels_hrf[TR] != "blank":
-            # the current image is the last TR of a real image
-            cropped_events = events_df[events_df.trial_number <= int(float(tr_labels_hrf[TR].split("_")[3]))]
-            for i_trial, trial in cropped_events.iterrows():
-                cropped_events.loc[i_trial, "trial_type"] = "reference" if i_trial < (len(cropped_events) - 1) else "probe"
-            # get the image id from this stimulus trial that we are fitting a model on
-            image_COCO_id = int(float(tr_labels_hrf[TR].split("_")[1])) - 1
+        final_vol = f"{mc_resampled_dir}/ses-03_run-{run_num:02d}_{TR:04d}_mc_boldres.nii.gz"
+        os.system(f"flirt -in {curr_image_path} \
+            -ref {ses1_boldref} \
+            -out {final_vol} \
+            -init {current_tr_to_ses1} \
+            -applyxfm")
+
+        os.system(f"rm -r {mc}.mat")
+        imgs.append(get_data(final_vol))
+
+        if current_label not in ('blank', 'blank.jpg'):
+            events_df = events_df.copy()
+            events_df['onset'] = events_df['onset'].astype(float)
+
+            run_start_time = events_df['onset'].iloc[0]
+            events_df = events_df.copy()
+            events_df['onset'] -= run_start_time
+
+            cropped_events = events_df[events_df.onset <= TR*tr_length]
+            cropped_events = cropped_events.copy()
+            cropped_events.loc[:, 'trial_type'] = np.where(cropped_events['trial_number'] == stimulus_trial_counter, "probe", "reference")
+            cropped_events = cropped_events.drop(columns=['is_correct', 'image_name', 'response_time', 'trial_number'])
+
             # collect all of the images at each TR into a 4D time series
             img = np.rollaxis(np.array(imgs),0,4)
-            img = new_img_like(day1_boldref_nibd,img,copy_header=True)
+            img = new_img_like(ses1_boldref_nib,img,copy_header=True)
             # run the model with mc_params confounds to motion correct
-            lss_glm.fit(run_imgs=img,events=cropped_events, confounds = pd.DataFrame(np.array(mc_params)))
+            lss_glm = FirstLevelModel(t_r=tr_length,slice_time_ref=0,hrf_model='glover',
+                        drift_model='cosine', drift_order=1,high_pass=0.01,mask_img=union_mask_img,
+                        signal_scaling=False,smoothing_fwhm=None,noise_model='ar1',
+                        n_jobs=-1,verbose=-1,memory_level=1,minimize_memory=True)
+            
+            lss_glm.fit(run_imgs=img, events=cropped_events, confounds = pd.DataFrame(np.array(mc_params)))
+            dm = lss_glm.design_matrices_[0]
             # get the beta map and mask it
             beta_map = lss_glm.compute_contrast("probe", output_type="effect_size")
             beta_map_np = beta_map.get_fdata()
-            beta_map_np = fast_apply_mask(target=beta_map_np,mask=mask_img.get_fdata())
-            beta_maps_list.append(beta_map_np)
-            index_for_norm = min(20, stimulus_trial_counter + 1)
-            beta_map_np = (beta_map_np - np.mean(np.vstack(beta_maps_list)[:index_for_norm,:], axis = 0)) / np.std(np.vstack(beta_maps_list)[:index_for_norm,:], axis = 0)
-            beta_map_np = np.reshape(beta_map_np, (1,1,25225))
-            betas_tt = torch.Tensor(beta_map_np).to("cpu")
-            new_image_pt = torch.from_numpy(images[image_COCO_id])
-            reconsTR, clipvoxelsTR = do_reconstructions(betas_tt)
-            values_dict = get_top_retrievals(clipvoxelsTR, all_images=all_images, stimulus_trial_counter = stimulus_trial_counter)
-            values_dict["recons"] = reconsTR
-            # subjInterface.setResultDict allows us to send to the analysis listener immediately
-            subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
-                                        values=values_dict)
-            stimulus_trial_counter += 1
-        else:
-            if tr_labels_hrf[TR] != "blank":
-                # this is the non-last TR of a real image
-                values_dict = {}
-                image_COCO_id = int(float(tr_labels_hrf[TR].split("_")[1])) - 1
-                imsize = 50
-                values_dict["ground_truth"] = transforms.Resize((imsize,imsize))(all_images[stimulus_trial_counter]).float().numpy().tolist()
+            beta_map_np = fast_apply_mask(target=beta_map_np,mask=union_mask_img.get_fdata())
+            all_betas.append(beta_map_np)
+            if "MST_pairs" in current_label:
+                correct_image_index = np.where(current_label == vox_image_names)[0][0]  # using the first occurrence based on image name, assumes that repeated images are identical (which they should be)
+                z_mean = np.mean(np.array(all_betas), axis=0)
+                z_std = np.std(np.array(all_betas), axis=0)
+                betas = ((np.array(all_betas) - z_mean) / (z_std + 1e-6))[-1]  # use only the beta pattern from the most recent image
+                betas = betas[np.newaxis, np.newaxis, :]
+                betas_tt = torch.Tensor(betas).to("cpu")
+                reconsTR, clipvoxelsTR = do_reconstructions(betas_tt)
+                if clipvoxelsTR is None:
+                    with torch.no_grad(), torch.cuda.amp.autocast(dtype=torch.float16):
+                        voxel = betas_tt
+                        voxel = voxel.to(device)
+                        assert voxel.shape[1] == 1
+                        voxel_ridge = model.ridge(voxel[:,[-1]],0) # 0th index of subj_list
+                        backbone0, clip_voxels0, blurry_image_enc0 = model.backbone(voxel_ridge)
+                        clip_voxels = clip_voxels0
+                        backbone = backbone0
+                        blurry_image_enc = blurry_image_enc0[0]
+                        clipvoxelsTR = clip_voxels.cpu()
+
+                values_dict = get_top_retrievals(clipvoxelsTR, all_images=images[MST_idx], total_retrievals=5)
+                values_dict["recons"] = compress_and_encode_image(reconsTR)
+                reconsTR = reconsTR.tolist()
+
+                image_array = transforms.Resize((imsize, imsize), antialias=True)(images[correct_image_index]).float().numpy()
+                encoded_image = compress_and_encode_image(image_array)
+                values_dict["ground_truth"] = encoded_image
+
+                # values_dict["ground_truth"] = transforms.Resize((imsize,imsize))(images[correct_image_index]).half().numpy().tolist()  # half() == float16
+
+                # subjInterface.setResultDict allows us to send to the analysis listener immediately
                 subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
                                             values=values_dict)
+
+                image_array = np.array(reconsTR)[0]
+                # If the image has 3 channels (RGB), you need to reorder the dimensions
+                if image_array.ndim == 3 and image_array.shape[0] == 3:
+                    image_array = np.transpose(image_array, (1, 2, 0))  # Change shape to (height, width, 3)
+
+                # Display the image
+                if plot_images:
+                    # plot original and reconstructed images
+                    plt.figure(figsize=(10, 5))
+                    plt.subplot(1, 2, 1)
+                    plt.title("Original Image")
+                    plt.imshow(images[correct_image_index].half().numpy().transpose(1, 2, 0), cmap='gray')
+                    plt.axis('off')
+                    plt.subplot(1, 2, 2)
+                    plt.title("Reconstructed Image")
+                    plt.imshow(image_array, cmap='gray' if image_array.ndim == 2 else None)
+                    plt.axis('off')
+                    plt.show()
+
+                    # plot original with top 5 retrievals
+                    plt.figure(figsize=(10, 5))
+                    plt.subplot(1, 6, 1)
+                    plt.title("Original Image")
+                    plt.imshow(images[correct_image_index].half().numpy().transpose(1, 2, 0), cmap='gray')
+                    plt.axis('off')
+                    for i in range(5):
+                        plt.subplot(1, 6, i+2)
+                        plt.title(f"Retrieval {i+1}")
+                        plt.imshow(np.array(values_dict[f"attempt{i+1}"][0]).transpose(1, 2, 0), cmap='gray')
+                        plt.axis('off')
+                    plt.show()
+
+                # save reconstructed image, retrieved images, clip_voxels, and ground truth image
+                if save_individual_images:
+                    # save the reconstructed image
+                    convert_image_array_to_PIL(image_array).save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_reconstructed.png"))
+                    # save the retrieved images
+                    for key, value in values_dict.items():
+                        if key not in ('ground_truth', 'recons'):
+                            convert_image_array_to_PIL(np.array(value)).save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_retrieved_{key}.png"))
+                    # save the clip_voxels
+                    np.save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_clip_voxels.npy"), clipvoxelsTR)
+                    # save the ground truth image
+                    convert_image_array_to_PIL(images[correct_image_index].half().numpy()).save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_ground_truth.png"))
+                all_recons_save.append(image_array)
+                all_clipvoxels_save.append(clipvoxelsTR)
+                all_ground_truth_save.append(images[correct_image_index].half().numpy())
+                all_retrieved_save.append([np.array(value) for key, value in values_dict.items() if (not ('ground_truth' in key))])
+            
             else:
-                # blank TR
-                # when we are not at the end of a stimulus trial, send an empty dictionary to the analysis listener with "pass"
                 subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
-                                values={'pass': "pass"})
+                    values={'pass': "pass"})
+            
+            stimulus_trial_counter += 1
+        elif current_label == 'blank.jpg':
+            # values_dict = {}
+            # image_COCO_id = int(float(tr_labels_hrf[TR].split("_")[1])) - 1
+            # values_dict["ground_truth"] = transforms.Resize((imsize,imsize))(all_images[stimulus_trial_counter]).float().numpy().tolist()
+            # subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
+            #                             values=values_dict)
+            subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
+                values={'pass': "pass"})
+            stimulus_trial_counter += 1
+        else:
+            assert current_label == 'blank'
+            # blank TR
+            # when we are not at the end of a stimulus trial, send an empty dictionary to the analysis listener with "pass"
+            subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
+                            values={'pass': "pass"})
         
     print(f"==END OF RUN {run_num}!==\n")
+
+    # save the design matrix for the current run
+    dm.to_csv(os.path.join(save_path, f"design_run-{run_num:02d}.csv"))
+    plot_design_matrix(dm, output_file=os.path.join(save_path, "dm"))
+    dm[['probe', 'reference']].plot(title='Probe/Reference Regressors', figsize=(10, 4))
+    plt.savefig(os.path.join(save_path, "regressors"))
+    # save betas so far
+    np.save(os.path.join(save_path, f"betas_run-{run_num:02d}.npy"), np.array(all_betas))
+    print(f"==END OF RUN {run_num}!==\n")
+    # save the tensors
+    if save_all_recons:
+        all_recons_save_tensor = torch.tensor(all_recons_save).permute(0,3,1,2)
+        all_clipvoxels_save_tensor = torch.stack(all_clipvoxels_save, dim=0)
+        all_ground_truth_save_tensor = torch.tensor(all_ground_truth_save)
+        all_retrieved_save_tensor = torch.stack([torch.tensor(np.array(item)) for item in all_retrieved_save], dim=0)
+        torch.save(all_recons_save_tensor, os.path.join(save_path, "all_recons.pt"))
+        torch.save(all_clipvoxels_save_tensor, os.path.join(save_path, "all_clipvoxels.pt"))
+        torch.save(all_ground_truth_save_tensor, os.path.join(save_path, "all_ground_truth.pt"))
+        torch.save(all_retrieved_save_tensor, os.path.join(save_path, "all_retrieved.pt"))
+        print("all_recons_save_tensor.shape: ", all_recons_save_tensor.shape)
+        print("all_clipvoxels_save_tensor.shape: ", all_clipvoxels_save_tensor.shape)
+        print("all_ground_truth_save_tensor.shape: ", all_ground_truth_save_tensor.shape)
+        print("all_retrieved_save_tensor.shape: ", all_retrieved_save_tensor.shape)
+        print("All tensors saved successfully on ", save_path)
+    
     bidsInterface.closeStream(streamID)
 
+
+print('all done!')
+if evaluate_session:
+    # Run evaluation metrics
+    from utils_mindeye import calculate_retrieval_metrics, calculate_alexnet, calculate_clip, calculate_swav, calculate_efficientnet_b1, calculate_inception_v3, calculate_pixcorr, calculate_ssim, deduplicate_tensors
+    all_recons_save_tensor = []
+    all_clipvoxels_save_tensor = []
+    all_ground_truth_save_tensor = []
+    all_retrieved_save_tensor = []
+
+    for run_num in range(n_runs):
+        save_path = f"{output_path}/sub-005_ses-03_task-C_run-{run_num+1:02d}_recons"
+
+        try:
+            # recons = torch.load(os.path.join(save_path, "all_recons.pt")).to(torch.float16)
+            # clipvoxels = torch.load(os.path.join(save_path, "all_clipvoxels.pt")).to(torch.float16)
+            # ground_truth = torch.load(os.path.join(save_path, "all_ground_truth.pt")).to(torch.float16)
+            recons = torch.load(os.path.join(save_path, "all_recons.pt")).to(torch.float16).to(device)
+            clipvoxels = torch.load(os.path.join(save_path, "all_clipvoxels.pt")).to(torch.float16).to(device)
+            ground_truth = torch.load(os.path.join(save_path, "all_ground_truth.pt")).to(torch.float16).to(device)
+
+            all_recons_save_tensor.append(recons)
+            all_clipvoxels_save_tensor.append(clipvoxels)
+            all_ground_truth_save_tensor.append(ground_truth)
+        except FileNotFoundError:
+            print("Error: Tensors not found. Please check the save path.")
+
+    # Concatenate tensors along the first dimension
+    try:
+        all_recons_save_tensor = torch.cat(all_recons_save_tensor, dim=0)
+        all_clipvoxels_save_tensor = torch.cat(all_clipvoxels_save_tensor, dim=0)
+        all_ground_truth_save_tensor = torch.cat(all_ground_truth_save_tensor, dim=0)
+    except RuntimeError:
+        print('Error: Couldn\'t concatenate tensors')
+
+    with torch.autocast(device_type="cuda", dtype=torch.float16):
+        unique_clip_voxels, unique_ground_truth, duplicated = deduplicate_tensors(all_clipvoxels_save_tensor, all_ground_truth_save_tensor)
+        
+        print('calculating retrieval subset 0 (first set of repeats)')
+        unique_clip_voxels_subset0 = all_clipvoxels_save_tensor[np.array(duplicated)[:,0]]
+        unique_ground_truth_subset0 = all_ground_truth_save_tensor[np.array(duplicated)[:,0]]
+        all_fwd_acc_subset0, all_bwd_acc_subset0 = calculate_retrieval_metrics(unique_clip_voxels_subset0, unique_ground_truth_subset0)
+
+        print('calculating retrieval subset 1 (second set of repeats)')
+        unique_clip_voxels_subset1 = all_clipvoxels_save_tensor[np.array(duplicated)[:,1]]
+        unique_ground_truth_subset1 = all_ground_truth_save_tensor[np.array(duplicated)[:,1]]
+        all_fwd_acc_subset1, all_bwd_acc_subset1 = calculate_retrieval_metrics(unique_clip_voxels_subset1, unique_ground_truth_subset1)
+        pixcorr = calculate_pixcorr(all_recons_save_tensor, all_ground_truth_save_tensor)
+        ssim_ = calculate_ssim(all_recons_save_tensor, all_ground_truth_save_tensor)
+        alexnet2, alexnet5 = calculate_alexnet(all_recons_save_tensor, all_ground_truth_save_tensor)
+        inception = calculate_inception_v3(all_recons_save_tensor, all_ground_truth_save_tensor)
+        clip_ = calculate_clip(all_recons_save_tensor, all_ground_truth_save_tensor)
+        efficientnet = calculate_efficientnet_b1(all_recons_save_tensor, all_ground_truth_save_tensor)
+        swav = calculate_swav(all_recons_save_tensor, all_ground_truth_save_tensor)
+
+
+    # save the results to a csv file
+    df_metrics = pd.DataFrame({
+        "Metric": [
+            "alexnet2",
+            "alexnet5",
+            "inception",
+            "clip_",
+            "efficientnet",
+            "swav",
+            "pixcorr",
+            "ssim",
+            "all_fwd_acc_subset0",
+            "all_bwd_acc_subset0",
+            "all_fwd_acc_subset1",
+            "all_bwd_acc_subset1"
+        ],
+        "Value": [
+            alexnet2,
+            alexnet5,
+            inception,
+            clip_,
+            efficientnet,
+            swav,
+            pixcorr,
+            ssim_,
+            all_fwd_acc_subset0,
+            all_bwd_acc_subset0,
+            all_fwd_acc_subset1,
+            all_bwd_acc_subset1
+        ]
+    })
+
+    percentage_metrics = ["alexnet2", "alexnet5", "inception", "clip_", "retrieval"]
+    lower_better_metrics = ["efficientnet", "swav"]
+    higher_better_arrow = "↑"
+    lower_better_arrow = "↓"
+
+    # Format function
+    def format_metric(metric, value):
+        if metric in percentage_metrics:
+            return f"{value * 100:.2f}% {higher_better_arrow}"
+        elif metric in lower_better_metrics:
+            return f"{value:.2f} {lower_better_arrow}"
+        else:
+            return f"{value:.2f} {higher_better_arrow}"
+
+    # Apply formatting
+    df_formatted = df_metrics.copy()
+    df_formatted["Formatted"] = df_formatted.apply(lambda row: format_metric(row["Metric"], row["Value"]), axis=1)
+    df_formatted.set_index("Metric", inplace=True)
+    df_formatted.index.name = "Metric"
+
+    # Print and save
+    print(df_formatted[["Formatted"]])
+
+    # df_formatted[["Formatted"]].to_csv(os.path.join(save_path, "metrics.csv"))

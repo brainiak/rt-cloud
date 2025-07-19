@@ -10,6 +10,15 @@ import numpy as np
 import pdb
 import PIL
 from PIL import Image
+import base64
+import zlib
+
+def decode_and_decompress_image(encoded_data, shape):
+    compressed_data = base64.b64decode(encoded_data)
+    decompressed_data = zlib.decompress(compressed_data)
+    image_array = np.frombuffer(decompressed_data, dtype=np.uint8).reshape(shape)
+    return image_array
+
 
 # function to get PIL image from nump array 
 def np_to_Image(x):
@@ -28,8 +37,8 @@ outPath = f"{absolute_path}/rt-cloud/outDir"
 recons_or_retrievals = "ret"
 # Setup variables
 starting_TR = 0
-end_TR = 188
-numRuns = 2
+end_TR = 192
+numRuns = 11
 
 # Setup the Window
 win = visual.Window(
@@ -46,10 +55,10 @@ waiting.draw()
 win.flip()
 
 # go through a run!
-for run in range(1,2):
+for run in range(numRuns):
     print(f"run {run}")
     # go through each TR
-    for TR in range(186):
+    for TR in range(191):
         print(f"TR {TR}")
         filename = f'{outPath}/run{run}_TR{TR}.json'
         print("filename: ", filename)
@@ -65,6 +74,15 @@ for run in range(1,2):
                 with open(filename) as f:
                     results = json.load(f)
                 print("read!")
+
+                for key in results:
+                    if ((key in ('ground_truth', 'recons')) or ('attempt' in key)) \
+                        and isinstance(results[key], str):  # Assuming encoded image data is stored as strings
+                        # Provide the original shape of the image
+                        original_shape = (224, 224, 3)
+                        results[key] = decode_and_decompress_image(results[key], original_shape)
+                print('results json decoded and decompressed')
+
                 results_not_read = False
             except:
                 print("results not reading yet!")
