@@ -104,6 +104,8 @@ try:
 except FileNotFoundError:
     raise FileNotFoundError("config.json file not found. Please create it with the required paths.")
 
+imsize = 224
+
 print(f"Using storage path: {storage_path}")
 
 ### Multi-GPU config ###
@@ -398,7 +400,7 @@ assert len(MST_ID) == len(image_idx)
 print(MST_ID.shape)
 assert len(all_MST_images) == 693
 
-resize_transform = transforms.Resize((224, 224))
+resize_transform = transforms.Resize((imsize, imsize))
 MST_images = []
 images = None
 for im_name in tqdm(image_idx):
@@ -484,7 +486,6 @@ try:
 except:
     pass
 
-imsize = 224
 # get the mask and the reference files
 ndscore_events = [pd.read_csv(f'{data_path}/events/sub-005_ses-03_task-C_run-{run+1:02d}_events.tsv', sep = "\t", header = 0) for run in range(n_runs)]  # create a new list of events_df's which will have the trial_type modified to be unique identifiers
 ndscore_tr_labels = [pd.read_csv(f"{data_path}/events/sub-005_ses-03_task-C_run-{run+1:02d}_tr_labels.csv") for run in range(n_runs)]
@@ -526,6 +527,8 @@ print("union mask num voxels", int(union_mask_img.get_fdata().sum()))
 
 def compress_and_encode_image(image_array):
     # Convert the image array to bytes, compress, and encode
+    if image_array.dtype != np.uint8:
+        image_array = image_array.astype(np.uint8)
     compressed_data = zlib.compress(image_array.tobytes())
     encoded_data = base64.b64encode(compressed_data).decode('utf-8')
     return encoded_data
@@ -565,7 +568,7 @@ def do_reconstructions(betas_tt):
             else:
                 reconsTR = torch.vstack((reconsTR, samples.cpu()))
 
-            reconsTR = transforms.Resize((imsize,imsize), antialias=True)(reconsTR).float().numpy()
+            reconsTR = transforms.Resize((imsize, imsize), antialias=True)(reconsTR)
 
             # image_array = transforms.Resize((imsize, imsize), antialias=True)(reconsTR).float().numpy()
             # reconsTR = compress_and_encode_image(image_array)
@@ -589,7 +592,7 @@ def get_top_retrievals(clipvoxel, all_images, total_retrievals=1):
     '''
     values_dict = {}
     with torch.amp.autocast('cuda', dtype=torch.float16):
-        emb = clip_img_embedder(torch.reshape(all_images,(all_images.shape[0], 3, 224, 224)).to(device)).float() # CLIP-Image
+        emb = clip_img_embedder(torch.reshape(all_images,(all_images.shape[0], 3, imsize, imsize)).to(device)).float() # CLIP-Image
         emb = emb.cpu()
         emb_ = clipvoxel # CLIP-Brain
         emb = emb.reshape(len(emb),-1)
@@ -603,7 +606,18 @@ def get_top_retrievals(clipvoxel, all_images, total_retrievals=1):
     which = np.flip(np.argsort(fwd_sim, axis = 0))
     
     for attempt in range(total_retrievals):
-        image_array = transforms.Resize((imsize, imsize), antialias=True)(all_images[which[attempt].copy()]).float().numpy()
+        image_tensor = all_images[which[attempt].copy()]  # [C, H, W]
+        if image_tensor.dim() == 4 and image_tensor.shape[0] == 1:
+            image_tensor = image_tensor.squeeze(0)  # Remove extra batch dim
+        resized = transforms.Resize((imsize, imsize), antialias=True)(image_tensor.unsqueeze(0))  # [1, C, H, W]
+        # squeeze(0) goes from [1, 3, H, W] -> [3, H, W]
+        # permute(1, 2, 0) undoes the permute(2, 0, 1) from loading in the image
+        # clamp(0, 1) makes sure the values are all between 0 and 1 (prevents under/overflow due to floating point imprecision)
+        # * 255 converts from [0, 1] (floating point) to [0, 255] (8-bit)
+        # byte() casts to uint8
+        # numpy() casts from torch tensor to numpy array
+        # print(f"resized shape before squeeze: {resized.shape}")
+        image_array = (resized.squeeze(0).permute(1, 2, 0).clamp(0, 1) * 255).byte().numpy()
         encoded_image = compress_and_encode_image(image_array)
         values_dict[f"attempt{(attempt+1)}"] = encoded_image
 
@@ -640,7 +654,6 @@ if os.path.exists(mc_resampled_dir):
 os.makedirs(mc_resampled_dir)
 
 ses3_to_ses1_mat = f'{derivatives_path}/ses3ref_to_ses1ref'
-# set the output type to NIFTI_GZ
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'
 assert np.all(ses1_boldref_nib.affine == union_mask_img.affine)
 all_betas = []
@@ -802,10 +815,11 @@ for run_num in range(1, n_runs + 1):
                         clipvoxelsTR = clip_voxels.cpu()
 
                 values_dict = get_top_retrievals(clipvoxelsTR, all_images=images[MST_idx], total_retrievals=5)
-                values_dict["recons"] = compress_and_encode_image(reconsTR)
-                reconsTR = reconsTR.tolist()
+                values_dict["recons"] = compress_and_encode_image((reconsTR.squeeze(0).permute(1, 2, 0).clamp(0, 1) * 255).byte().numpy())
+                reconsTR = reconsTR.half().numpy()
 
-                image_array = transforms.Resize((imsize, imsize), antialias=True)(images[correct_image_index]).float().numpy()
+                resized = transforms.Resize((imsize, imsize), antialias=True)(images[correct_image_index])
+                image_array = (resized.squeeze(0).permute(1, 2, 0).clamp(0, 1) * 255).byte().numpy()
                 encoded_image = compress_and_encode_image(image_array)
                 values_dict["ground_truth"] = encoded_image
 
@@ -815,7 +829,7 @@ for run_num in range(1, n_runs + 1):
                 subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
                                             values=values_dict)
 
-                image_array = np.array(reconsTR)[0]
+                image_array = reconsTR[0]
                 # If the image has 3 channels (RGB), you need to reorder the dimensions
                 if image_array.ndim == 3 and image_array.shape[0] == 3:
                     image_array = np.transpose(image_array, (1, 2, 0))  # Change shape to (height, width, 3)
