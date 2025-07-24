@@ -487,16 +487,19 @@ except:
     pass
 
 # get the mask and the reference files
+tmpPath = f"{data_path}/tmp/"  # temporary path to save nifti file at each TR
+os.makedirs(tmpPath, exist_ok=True)
 ndscore_events = [pd.read_csv(f'{data_path}/events/sub-005_ses-03_task-C_run-{run+1:02d}_events.tsv', sep = "\t", header = 0) for run in range(n_runs)]  # create a new list of events_df's which will have the trial_type modified to be unique identifiers
 ndscore_tr_labels = [pd.read_csv(f"{data_path}/events/sub-005_ses-03_task-C_run-{run+1:02d}_tr_labels.csv") for run in range(n_runs)]
 tr_length = 1.5
 mask_img = nib.load(f'{data_path}/sub-005_final_mask.nii.gz')  # nsdgeneral mask in functional space
-ses1_boldref= f"{data_path}/sub-005_ses-01_task-C_run-01_space-T1w_boldref.nii.gz"  # preprocessed boldref from ses-01
-ses3_vol0 = f"{derivatives_path}/vols/sub-005_ses-03_task-C_run-01_bold_0000.nii.gz" # first volume (vol0000) of real-time session
-# day2_to_day1_mat =  f"{storage_path}/day2ref_to_day1ref"
+fmriprep_boldref = f"{data_path}/sub-005_ses-01_task-C_run-01_space-T1w_boldref.nii.gz"  # preprocessed boldref from ses-01
+rt_vol0 = f"{tmpPath}/vol0.nii.gz" # first volume (vol0000) of real-time session
+
 def fast_apply_mask(target=None,mask=None):
     return target[np.where(mask == 1)].T
-ses1_boldref_nib = nib.load(ses1_boldref)
+
+fmriprep_boldref_nib = nib.load(fmriprep_boldref)
 union_mask = np.load(f"{data_path}/union_mask_from_ses-01-02.npy")
 
 # apply union_mask to mask_img and return nifti object
@@ -653,10 +656,11 @@ if os.path.exists(mc_resampled_dir):
     shutil.rmtree(mc_resampled_dir)
 os.makedirs(mc_resampled_dir)
 
-ses3_to_ses1_mat = f'{derivatives_path}/ses3ref_to_ses1ref'
+rt_to_fmriprep_mat = f'{derivatives_path}/ses3ref_to_ses1ref'
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'
-assert np.all(ses1_boldref_nib.affine == union_mask_img.affine)
+assert np.all(fmriprep_boldref_nib.affine == union_mask_img.affine)
 all_betas = []
+shown_filenames = dict()
 
 # Loop over all 11 runs in the session
 n_runs = 11
@@ -664,27 +668,21 @@ n_runs = 11
 # go through each run
 for run_num in range(1, n_runs + 1):
     print(f"==START OF DAY 2 RUN {run_num}!==\n")
-    # stream in that data!
-    # import debugpy
-    # os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
-    # debugpy.listen(("0.0.0.0", 5678))  # listen on all interfaces, port 5678
-    # print("Waiting for debugger to attach...")
-    # debugpy.wait_for_client()
-    # debugpy.breakpoint()
-    # print("Debugger attached, continuing...")
-    
-    # breakpoint()
-    data_stream = BidsInterface()
     cwd = os.getcwd()
     print("cwd ", cwd)
-    print(os.listdir(f"{data_path}/raw_bids"))
-    streamID = data_stream.initBidsStream(f"{data_path}/raw_bids", **{'datatype': 'func',
-                                        'extension': '.nii.gz',
-                                        'run': "01",
-                                        'session': '03',
-                                        'subject': '005',
-                                        'suffix': 'bold',
-                                        'task': 'C'}) # TODO change to dicom
+    # print(os.listdir(f"{data_path}/raw_bids"))
+    run_to_dicom = {1:5, 2:6, 3:7, 4:8, 5:10, 6:11, 7:12, 8:13, 9:15, 10:16, 11:17}
+    dicomNamePattern = "001_{RUN:06d}_{TR:06d}.dcm"
+    dicomScanNamePattern = stringPartialFormat(dicomNamePattern, 'RUN', run_to_dicom[run_num])
+
+    filename = "phantomtest"
+    dicomDir = f"/home/scontrol/20250724.{filename}.{filename}"  # directory to use when the scanner mounts to the real-time computer
+    # dicomDir = f"{data_path}/dicom_ses-03"
+    streamID = bidsInterface.initDicomBidsStream(dicomDir, dicomScanNamePattern,
+                                               300000, anonymize=False,
+                                               **{'subject':f'{filename}',
+                                                  'run':f'{run_num}',
+                                                  'task':'C'})
 
     print(f"Run {run_num} started")
     mc_params = []
@@ -715,52 +713,36 @@ for run_num in range(1, n_runs + 1):
 
     for TR in range(n_trs-1):
         print(f"TR {TR}")
-        # stream in the nifti
-        cur_vol = f"sub-005_ses-03_task-C_run-{run_num:02d}_bold_{TR:04d}"
-        curr_image_path = f"{derivatives_path}/vols/{cur_vol}.nii.gz"
-
-        incremental_bids_image = data_stream.getIncremental(streamID,volIdx=TR,
-                                        timeout=999999,demoStep=1.5)  # TODO change to dicom
+        incremental_bids_image = bidsInterface.getIncremental(streamID,volIdx=TR+1,
+                                        timeout=999999,demoStep=0)
         image_data = incremental_bids_image.image
+        curr_nifti = f'{tmpPath}/temp.nii'
+        nib.save(image_data, curr_nifti)
+
         current_label = tr_labels_hrf[TR]
         print(current_label)
         
         if TR == 0 and run_num == 1:
-            # ses3_vol0_nib = image_data
-            # make the day 2 bold ref
-            print(image_data.shape)
-            print(ses3_vol0)
-            nib.save(image_data, ses3_vol0)
-            # save the transformation from the day 2 bold ref to the day 1 
-            # os.system(f"antsRegistrationSyNQuick.sh \
-            #   -d 3 \
-            #   -f {T1_brain} \
-            #   -m {ses3_vol0} \
-            #   -o {derivatives_path}/ses3_vol0_epi2T1_")
+            nib.save(image_data, rt_vol0)  # real-time volume 0, will be used to motion correct all future volumes
 
-            os.system(f"flirt -in {ses3_vol0} \
-                -ref {ses1_boldref} \
-                -omat {ses3_to_ses1_mat} \
-                -dof 6")
+            os.system(f"flirt -in {rt_vol0} \
+                -ref {fmriprep_boldref} \
+                -omat {rt_to_fmriprep_mat} \
+                -dof 6")  # register real-time volume 0 to the fmriprep bold reference image and output the corresponding transformation matrix
 
-            # for simulation, just load it in
-            # ses3_boldref_path = f"{derivatives_path}/ses3_vol0_epi2T1_Warped.nii.gz"
-            # ses3_boldref = nib.load(ses3_boldref_path)
-
-        mc = f"{mc_dir}/{cur_vol}_mc"
-        os.system(f"{fsl_path}/mcflirt -in {derivatives_path}/vols/{cur_vol}.nii.gz -reffile {derivatives_path}/vols/sub-005_ses-03_task-C_run-01_bold_0000.nii.gz -out {mc} -plots -mats")
+        mc = f"{tmpPath}/temp_aligned"
+        os.system(f"{fsl_path}/mcflirt -in {curr_nifti} -reffile {rt_vol0} -out {mc} -plots -mats")
         mc_params.append(np.loadtxt(f'{mc}.par'))
 
-        current_tr_to_ses1 = f"{derivatives_path}/current_tr_to_ses1_run{run_num}"
-        os.system(f"convert_xfm -concat {ses3_to_ses1_mat} -omat {current_tr_to_ses1} {mc}.mat/MAT_0000")    
+        current_tr_to_orig_ses = f"{derivatives_path}/current_tr_to_orig_ses_run{run_num}"
+        os.system(f"convert_xfm -concat {rt_to_fmriprep_mat} -omat {current_tr_to_orig_ses} {mc}.mat/MAT_0000")  # combine 2 transforms: motion correction and cross-session registration
         
-        # apply concatenated matrix to the current TR
         final_vol = f"{mc_resampled_dir}/ses-03_run-{run_num:02d}_{TR:04d}_mc_boldres.nii.gz"
-        os.system(f"flirt -in {curr_image_path} \
-            -ref {ses1_boldref} \
+        os.system(f"flirt -in {curr_nifti} \
+            -ref {fmriprep_boldref} \
             -out {final_vol} \
-            -init {current_tr_to_ses1} \
-            -applyxfm")
+            -init {current_tr_to_orig_ses} \
+            -applyxfm")  # apply combined transformation matrix to the current TR
 
         os.system(f"rm -r {mc}.mat")
         imgs.append(get_data(final_vol))
@@ -780,7 +762,7 @@ for run_num in range(1, n_runs + 1):
 
             # collect all of the images at each TR into a 4D time series
             img = np.rollaxis(np.array(imgs),0,4)
-            img = new_img_like(ses1_boldref_nib,img,copy_header=True)
+            img = new_img_like(fmriprep_boldref_nib,img,copy_header=True)
             # run the model with mc_params confounds to motion correct
             lss_glm = FirstLevelModel(t_r=tr_length,slice_time_ref=0,hrf_model='glover',
                         drift_model='cosine', drift_order=1,high_pass=0.01,mask_img=union_mask_img,
@@ -794,6 +776,8 @@ for run_num in range(1, n_runs + 1):
             beta_map_np = beta_map.get_fdata()
             beta_map_np = fast_apply_mask(target=beta_map_np,mask=union_mask_img.get_fdata())
             all_betas.append(beta_map_np)
+            # shown_filenames[current_label] = len(all_betas)
+
             if "MST_pairs" in current_label:
                 correct_image_index = np.where(current_label == vox_image_names)[0][0]  # using the first occurrence based on image name, assumes that repeated images are identical (which they should be)
                 z_mean = np.mean(np.array(all_betas), axis=0)
