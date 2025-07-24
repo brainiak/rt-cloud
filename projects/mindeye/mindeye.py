@@ -56,6 +56,7 @@ import pdb
 import imageio.v2 as imageio
 import zlib
 import base64
+from copy import deepcopy
 
 """-----------------------------------------------------------------------------
 Imports for rtcloud
@@ -672,10 +673,11 @@ for run_num in range(1, n_runs + 1):
     print("cwd ", cwd)
     # print(os.listdir(f"{data_path}/raw_bids"))
     run_to_dicom = {1:5, 2:6, 3:7, 4:8, 5:10, 6:11, 7:12, 8:13, 9:15, 10:16, 11:17}
+    # dicomNamePattern = "{RUN}-{TR}-1.dcm"
     dicomNamePattern = "001_{RUN:06d}_{TR:06d}.dcm"
     dicomScanNamePattern = stringPartialFormat(dicomNamePattern, 'RUN', run_to_dicom[run_num])
 
-    filename = "phantomtest"
+    filename = "005_ses05_rtmindeye"
     dicomDir = f"/home/scontrol/20250724.{filename}.{filename}"  # directory to use when the scanner mounts to the real-time computer
     # dicomDir = f"{data_path}/dicom_ses-03"
     streamID = bidsInterface.initDicomBidsStream(dicomDir, dicomScanNamePattern,
@@ -776,13 +778,30 @@ for run_num in range(1, n_runs + 1):
             beta_map_np = beta_map.get_fdata()
             beta_map_np = fast_apply_mask(target=beta_map_np,mask=union_mask_img.get_fdata())
             all_betas.append(beta_map_np)
-            # shown_filenames[current_label] = len(all_betas)
+            
+            if current_label not in shown_filenames.keys():
+                shown_filenames[current_label] = [len(all_betas)]
+                is_repeat = False
+            else:
+                shown_filenames[current_label].append(len(all_betas))
+                is_repeat = True
+                print(f"The following image is a repeat! Averaging betas across repeats\n{shown_filenames[current_label]}")
 
-            if "MST_pairs" in current_label:
+            if "MST_pairs" in current_label and (TR>50 or run_num >= 2):
                 correct_image_index = np.where(current_label == vox_image_names)[0][0]  # using the first occurrence based on image name, assumes that repeated images are identical (which they should be)
                 z_mean = np.mean(np.array(all_betas), axis=0)
                 z_std = np.std(np.array(all_betas), axis=0)
-                betas = ((np.array(all_betas) - z_mean) / (z_std + 1e-6))[-1]  # use only the beta pattern from the most recent image
+                if is_repeat:
+                    beta_repeat_idxs = shown_filenames[current_label]
+                    assert len(beta_repeat_idxs) > 1  # this image has been shown more than once
+                    betas_repeats = []
+                    for b in beta_repeat_idxs:
+                        # re-z-score the older betas in addition to the newest beta since we have more data to z-score with
+                        tmp = ((np.array(all_betas) - z_mean) / (z_std + 1e-6))[b-1]
+                        betas_repeats.append(tmp)
+                    betas = np.mean(np.array(betas_repeats), axis=0)  # average beta patterns over all available repeats
+                else:
+                    betas = ((np.array(all_betas) - z_mean) / (z_std + 1e-6))[-1]  # use only the beta pattern from the most recent image
                 betas = betas[np.newaxis, np.newaxis, :]
                 betas_tt = torch.Tensor(betas).to("cpu")
                 reconsTR, clipvoxelsTR = do_reconstructions(betas_tt)
