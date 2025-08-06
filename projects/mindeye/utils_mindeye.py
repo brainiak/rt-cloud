@@ -381,7 +381,7 @@ def load_design_files(sub, session, func_task_name, designdir, design_ses_list=N
     elif (sub=='sub-001' and session in ('ses-02', 'ses-03', 'ses-04', 'ses-05')) or \
          (sub=='sub-002' and session in ('ses-02')) or sub=='sub-003' or \
          (sub=='sub-004' and session in ('ses-01', 'ses-02')) or \
-         (sub=='sub-005' and session in ('ses-01', 'ses-02', 'ses-03')) or \
+         (sub=='sub-005' and session in ('ses-01', 'ses-02', 'ses-03', 'ses-06')) or \
          (sub=='sub-006' and session in ('ses-01')):
         
         if (sub=='sub-001' and session in ('ses-05')):
@@ -411,7 +411,7 @@ def load_design_files(sub, session, func_task_name, designdir, design_ses_list=N
             assert func_task_name == 'C'
             filename = f"{designdir}/csv/{sub}_ses-08.csv"
 
-        elif (sub=='sub-005' and session in ('ses-01', 'ses-02', 'ses-03')) or sub=='sub-006' and session in ('ses-01'):
+        elif (sub=='sub-005' and session in ('ses-01', 'ses-02', 'ses-03', 'ses-06')) or sub=='sub-006' and session in ('ses-01'):
             filename = f"{designdir}/csv/{sub}_{session}.csv"
         
         data, starts, images, is_new_run, image_names = process_design(filename)

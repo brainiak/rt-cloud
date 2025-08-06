@@ -119,7 +119,7 @@ accelerator = Accelerator(split_batches=False, mixed_precision="fp16")
 device = accelerator.device
 
 cache_dir= f"{data_and_model_storage_path}/cache"
-model_name="sub-005_all_task-C_bs24_MST_rishab_MSTsplit_union_mask_finetune_0"
+model_name = "sub-005_ses-01-03_task-C_bs24_MST_rishab_MSTsplit_unionmask_ses-01-03_finetune"
 subj=1
 hidden_dim=1024
 blurry_recon = False
@@ -267,7 +267,7 @@ utils_mindeye.count_params(model)
 
 # Load pretrained model ckpt
 # Replace with pre_trained_fine_tuned_model.pth
-tag='sub-005_all_task-C_bs24_MST_rishab_MSTsplit_union_mask_finetune_0.pth'
+tag=f'{model_name}.pth'
 outdir = f'{data_path}/model'
 # print(f"\n---loading {outdir}/{tag}.pth ckpt---\n")
 checkpoint = torch.load(outdir+f'/{tag}', map_location='cpu')
@@ -308,10 +308,10 @@ f = h5py.File(f'{data_and_model_storage_path}/coco_images_224_float16.hdf5', 'r'
 images = f['images']
 
 sub = "sub-005"
-session = "ses-03"
+session = "ses-06"
 task = 'C'  # 'study' or 'A'; used to search for functional run in bids format
 func_task_name = 'C'  # 'study' or 'A'; used to search for functional run in bids format
-n_runs = 11
+n_runs = 7
 
 ses_list = [session]
 design_ses_list = [session]
@@ -399,7 +399,11 @@ for i, im in enumerate(image_names):  # need unique_MST_images to be defined, so
         
 assert len(MST_ID) == len(image_idx)
 print(MST_ID.shape)
-assert len(all_MST_images) == 693
+if sub == 'sub-005' and session == 'ses-06':
+    pass
+    # assert len(all_MST_images) == 630
+else:
+    assert len(all_MST_images) == 693
 
 resize_transform = transforms.Resize((imsize, imsize))
 MST_images = []
@@ -421,7 +425,10 @@ for im_name in tqdm(image_idx):
 print("images", images.shape)
 MST_images = np.array(MST_images)
 print("len MST_images", len(MST_images))
-assert len(MST_images[MST_images==True]) == 124
+if sub == 'sub-005' and session == 'ses-06':
+    pass
+else:
+    assert len(MST_images[MST_images==True]) == 124
 print("MST_images==True", len(MST_images[MST_images==True]))
 
 
@@ -442,7 +449,6 @@ for s_idx, s in enumerate(ses_list):
     assert len(im) == len(vo)
     all_dicts.append({k:v for k,v in enumerate(vo)})
 
-assert session == 'ses-03'
 image_to_indices = defaultdict(lambda: [[] for _ in range(len(ses_list))])
 for ses_idx, idx_to_name in enumerate(all_dicts):
     for idx, name in idx_to_name.items():
@@ -451,16 +457,13 @@ for ses_idx, idx_to_name in enumerate(all_dicts):
 image_to_indices = dict(image_to_indices)
 
 utils_mindeye.seed_everything(0)
-MST_idx = np.array([v for k,v in image_to_indices.items() if 'MST_pairs' in k])
-# train_image_indices = np.array([]).astype(np.int8)
-# test_image_indices = np.concatenate([np.where(MST_images == True)[0], np.where(MST_images == False)[0]])
-train_image_indices = np.where(MST_images == False)[0]
-test_image_indices = np.where(MST_images == True)[0]
-print(len(train_image_indices), len(test_image_indices))
+# Collect indices for images containing 'MST_pairs'
+MST_idx = [v[0][0] if len(v[0]) > 0 else None for k, v in image_to_indices.items() if 'MST_pairs' in k]
 
-# for now, use the first subset of repeats only
-MST_idx = MST_idx[:,0,0]
-print("MST_idx", MST_idx.shape)
+# Remove any None values (in case some images don't have repeats)
+MST_idx = [idx for idx in MST_idx if idx is not None]
+
+print("MST_idx", len(MST_idx))
 
 projectDir = os.path.dirname(os.path.realpath(__file__)) #'.../rt-cloud/projects/project_name'
 today = date.today()
@@ -490,8 +493,8 @@ except:
 # get the mask and the reference files
 tmpPath = f"{data_path}/tmp/"  # temporary path to save nifti file at each TR
 os.makedirs(tmpPath, exist_ok=True)
-ndscore_events = [pd.read_csv(f'{data_path}/events/sub-005_ses-03_task-C_run-{run+1:02d}_events.tsv', sep = "\t", header = 0) for run in range(n_runs)]  # create a new list of events_df's which will have the trial_type modified to be unique identifiers
-ndscore_tr_labels = [pd.read_csv(f"{data_path}/events/sub-005_ses-03_task-C_run-{run+1:02d}_tr_labels.csv") for run in range(n_runs)]
+ndscore_events = [pd.read_csv(f'{data_path}/events/{sub}_{session}_task-{func_task_name}_run-{run+1:02d}_events.tsv', sep = "\t", header = 0) for run in range(n_runs)]  # create a new list of events_df's which will have the trial_type modified to be unique identifiers
+ndscore_tr_labels = [pd.read_csv(f"{data_path}/events/{sub}_{session}_task-{func_task_name}_run-{run+1:02d}_tr_labels.csv") for run in range(n_runs)]
 tr_length = 1.5
 mask_img = nib.load(f'{data_path}/sub-005_final_mask.nii.gz')  # nsdgeneral mask in functional space
 fmriprep_boldref = f"{data_path}/sub-005_ses-01_task-C_run-01_space-T1w_boldref.nii.gz"  # preprocessed boldref from ses-01
@@ -574,9 +577,6 @@ def do_reconstructions(betas_tt):
 
             reconsTR = transforms.Resize((imsize, imsize), antialias=True)(reconsTR)
 
-            # image_array = transforms.Resize((imsize, imsize), antialias=True)(reconsTR).float().numpy()
-            # reconsTR = compress_and_encode_image(image_array)
-
         return reconsTR, clipvoxelsTR
     
 def batchwise_cosine_similarity(Z,B):
@@ -625,7 +625,6 @@ def get_top_retrievals(clipvoxel, all_images, total_retrievals=1):
         encoded_image = compress_and_encode_image(image_array)
         values_dict[f"attempt{(attempt+1)}"] = encoded_image
 
-        # values_dict[f"attempt{(attempt+1)}"] = transforms.Resize((imsize,imsize), antialias=True)(all_images[which[attempt].copy()]).half().numpy().tolist()
     return values_dict
 
 def convert_image_array_to_PIL(image_array):
@@ -657,7 +656,7 @@ if os.path.exists(mc_resampled_dir):
     shutil.rmtree(mc_resampled_dir)
 os.makedirs(mc_resampled_dir)
 
-rt_to_fmriprep_mat = f'{derivatives_path}/ses3ref_to_ses1ref'
+rt_to_fmriprep_mat = f'{derivatives_path}/rtref_to_ses1ref'
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'
 assert np.all(fmriprep_boldref_nib.affine == union_mask_img.affine)
 all_betas = []
@@ -673,16 +672,18 @@ for run_num in range(1, n_runs + 1):
     print("cwd ", cwd)
     # print(os.listdir(f"{data_path}/raw_bids"))
     run_to_dicom = {1:5, 2:6, 3:7, 4:8, 5:10, 6:11, 7:12, 8:13, 9:15, 10:16, 11:17}
-    # dicomNamePattern = "{RUN}-{TR}-1.dcm"
-    dicomNamePattern = "001_{RUN:06d}_{TR:06d}.dcm"
+    
+    # dicomNamePattern = "{RUN}-{TR}-1.dcm"  # use this for scanner dicoms WITHOUT "RT Start On"
+    dicomNamePattern = "001_{RUN:06d}_{TR:06d}.dcm"  # use this for scanner dicoms WITH "RT Start On"
+    
     dicomScanNamePattern = stringPartialFormat(dicomNamePattern, 'RUN', run_to_dicom[run_num])
 
-    filename = "005_ses05_rtmindeye"
-    dicomDir = f"/home/scontrol/20250724.{filename}.{filename}"  # directory to use when the scanner mounts to the real-time computer
+    dicom_filename = "005_ses06_rtmindeye"  # when registering the subject into the scanner, this is what was entered for last name and subject ID
+    dicomDir = f"/home/scontrol/20250729.{dicom_filename}.{dicom_filename}"  # directory to use when the scanner mounts to the real-time computer
     # dicomDir = f"{data_path}/dicom_ses-03"
     streamID = bidsInterface.initDicomBidsStream(dicomDir, dicomScanNamePattern,
                                                300000, anonymize=False,
-                                               **{'subject':f'{filename}',
+                                               **{'subject':f'{dicom_filename}',
                                                   'run':f'{run_num}',
                                                   'task':'C'})
 
@@ -696,7 +697,7 @@ for run_num in range(1, n_runs + 1):
     all_trial_names_list = []
     all_images = None
 
-    save_path = f"{output_path}/sub-005_ses-03_task-C_run-{run_num:02d}_recons"
+    save_path = f"{output_path}/{sub}_{session}_task-{func_task_name}_run-{run_num:02d}_recons"
     os.makedirs(save_path, exist_ok=True)
     if save_individual_images:
         os.makedirs(os.path.join(save_path, "individual_images"), exist_ok=True)
@@ -707,7 +708,11 @@ for run_num in range(1, n_runs + 1):
     all_retrieved_save = []
 
     stimulus_trial_counter = 0
-    T1_brain = f"{data_path}/sub-005_desc-preproc_T1w_brain.nii.gz"
+    # Counter for MST_pairs trials and evenly spaced recon points
+    mst_trial_counter = 0
+    mst_total = 63  # total MST_pairs trials in a run (adjust if needed)
+    mst_recon_points = np.linspace(5, mst_total, 7, dtype=int).tolist()
+    T1_brain = f"{data_path}/{sub}_desc-preproc_T1w_brain.nii.gz"
     n_trs = 192
     assert len(tr_labels_hrf) == n_trs, "there should be image labels for each TR"
     assert all(label in image_names for label in tr_labels_hrf if label != 'blank'), "Some labels in tr_labels_hrf are missing from image_names."
@@ -739,7 +744,7 @@ for run_num in range(1, n_runs + 1):
         current_tr_to_orig_ses = f"{derivatives_path}/current_tr_to_orig_ses_run{run_num}"
         os.system(f"convert_xfm -concat {rt_to_fmriprep_mat} -omat {current_tr_to_orig_ses} {mc}.mat/MAT_0000")  # combine 2 transforms: motion correction and cross-session registration
         
-        final_vol = f"{mc_resampled_dir}/ses-03_run-{run_num:02d}_{TR:04d}_mc_boldres.nii.gz"
+        final_vol = f"{mc_resampled_dir}/{sub}_{session}_run-{run_num:02d}_{TR:04d}_mc_boldres.nii.gz"
         os.system(f"flirt -in {curr_nifti} \
             -ref {fmriprep_boldref} \
             -out {final_vol} \
@@ -785,113 +790,112 @@ for run_num in range(1, n_runs + 1):
             else:
                 shown_filenames[current_label].append(len(all_betas))
                 is_repeat = True
-                print(f"The following image is a repeat! Averaging betas across repeats\n{shown_filenames[current_label]}")
+                print(f"The following image is a repeat!\n{shown_filenames[current_label]}")
 
-            if "MST_pairs" in current_label and (TR>50 or run_num >= 2):
-                correct_image_index = np.where(current_label == vox_image_names)[0][0]  # using the first occurrence based on image name, assumes that repeated images are identical (which they should be)
-                z_mean = np.mean(np.array(all_betas), axis=0)
-                z_std = np.std(np.array(all_betas), axis=0)
-                if is_repeat:
-                    beta_repeat_idxs = shown_filenames[current_label]
-                    assert len(beta_repeat_idxs) > 1  # this image has been shown more than once
-                    betas_repeats = []
-                    for b in beta_repeat_idxs:
-                        # re-z-score the older betas in addition to the newest beta since we have more data to z-score with
-                        tmp = ((np.array(all_betas) - z_mean) / (z_std + 1e-6))[b-1]
-                        betas_repeats.append(tmp)
-                    betas = np.mean(np.array(betas_repeats), axis=0)  # average beta patterns over all available repeats
-                else:
-                    betas = ((np.array(all_betas) - z_mean) / (z_std + 1e-6))[-1]  # use only the beta pattern from the most recent image
-                betas = betas[np.newaxis, np.newaxis, :]
-                betas_tt = torch.Tensor(betas).to("cpu")
-                reconsTR, clipvoxelsTR = do_reconstructions(betas_tt)
-                if clipvoxelsTR is None:
-                    with torch.no_grad(), torch.cuda.amp.autocast(dtype=torch.float16):
-                        voxel = betas_tt
-                        voxel = voxel.to(device)
-                        assert voxel.shape[1] == 1
-                        voxel_ridge = model.ridge(voxel[:,[-1]],0) # 0th index of subj_list
-                        backbone0, clip_voxels0, blurry_image_enc0 = model.backbone(voxel_ridge)
-                        clip_voxels = clip_voxels0
-                        backbone = backbone0
-                        blurry_image_enc = blurry_image_enc0[0]
-                        clipvoxelsTR = clip_voxels.cpu()
+            if "MST_pairs" in current_label and run_num >= 2:
+                mst_trial_counter += 1
+                if mst_trial_counter in mst_recon_points:
+                    correct_image_index = np.where(current_label == vox_image_names)[0][0]  # using the first occurrence based on image name, assumes that repeated images are identical (which they should be)
+                    z_mean = np.mean(np.array(all_betas), axis=0)
+                    z_std = np.std(np.array(all_betas), axis=0)
+                    if is_repeat:
+                        beta_repeat_idxs = shown_filenames[current_label]
+                        assert len(beta_repeat_idxs) > 1  # this image has been shown more than once
+                        betas_repeats = []
+                        for b in beta_repeat_idxs:
+                            print(f"Averaging over {len(beta_repeat_idxs)} repeats")
+                            # re-z-score the older betas in addition to the newest beta since we have more data to z-score with
+                            tmp = ((np.array(all_betas) - z_mean) / (z_std + 1e-6))[b-1]
+                            betas_repeats.append(tmp)
+                        betas = np.mean(np.array(betas_repeats), axis=0)  # average beta patterns over all available repeats
+                    else:
+                        betas = ((np.array(all_betas) - z_mean) / (z_std + 1e-6))[-1]  # use only the beta pattern from the most recent image
+                    betas = betas[np.newaxis, np.newaxis, :]
+                    betas_tt = torch.Tensor(betas).to("cpu")
+                    reconsTR, clipvoxelsTR = do_reconstructions(betas_tt)
+                    if clipvoxelsTR is None:
+                        with torch.no_grad(), torch.cuda.amp.autocast(dtype=torch.float16):
+                            voxel = betas_tt
+                            voxel = voxel.to(device)
+                            assert voxel.shape[1] == 1
+                            voxel_ridge = model.ridge(voxel[:,[-1]],0) # 0th index of subj_list
+                            backbone0, clip_voxels0, blurry_image_enc0 = model.backbone(voxel_ridge)
+                            clip_voxels = clip_voxels0
+                            backbone = backbone0
+                            blurry_image_enc = blurry_image_enc0[0]
+                            clipvoxelsTR = clip_voxels.cpu()
 
-                values_dict = get_top_retrievals(clipvoxelsTR, all_images=images[MST_idx], total_retrievals=5)
-                values_dict["recons"] = compress_and_encode_image((reconsTR.squeeze(0).permute(1, 2, 0).clamp(0, 1) * 255).byte().numpy())
-                reconsTR = reconsTR.half().numpy()
+                    values_dict = get_top_retrievals(clipvoxelsTR, all_images=images[MST_idx], total_retrievals=5)
+                    values_dict["recons"] = compress_and_encode_image((reconsTR.squeeze(0).permute(1, 2, 0).clamp(0, 1) * 255).byte().numpy())
+                    reconsTR = reconsTR.half().numpy()
 
-                resized = transforms.Resize((imsize, imsize), antialias=True)(images[correct_image_index])
-                image_array = (resized.squeeze(0).permute(1, 2, 0).clamp(0, 1) * 255).byte().numpy()
-                encoded_image = compress_and_encode_image(image_array)
-                values_dict["ground_truth"] = encoded_image
+                    resized = transforms.Resize((imsize, imsize), antialias=True)(images[correct_image_index])
+                    image_array = (resized.squeeze(0).permute(1, 2, 0).clamp(0, 1) * 255).byte().numpy()
+                    encoded_image = compress_and_encode_image(image_array)
+                    values_dict["ground_truth"] = encoded_image
 
-                # values_dict["ground_truth"] = transforms.Resize((imsize,imsize))(images[correct_image_index]).half().numpy().tolist()  # half() == float16
+                    # subjInterface.setResultDict allows us to send to the analysis listener immediately
+                    subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
+                                                values=values_dict)
 
-                # subjInterface.setResultDict allows us to send to the analysis listener immediately
-                subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
-                                            values=values_dict)
+                    image_array = reconsTR[0]
+                    # If the image has 3 channels (RGB), you need to reorder the dimensions
+                    if image_array.ndim == 3 and image_array.shape[0] == 3:
+                        image_array = np.transpose(image_array, (1, 2, 0))  # Change shape to (height, width, 3)
 
-                image_array = reconsTR[0]
-                # If the image has 3 channels (RGB), you need to reorder the dimensions
-                if image_array.ndim == 3 and image_array.shape[0] == 3:
-                    image_array = np.transpose(image_array, (1, 2, 0))  # Change shape to (height, width, 3)
-
-                # Display the image
-                if plot_images:
-                    # plot original and reconstructed images
-                    plt.figure(figsize=(10, 5))
-                    plt.subplot(1, 2, 1)
-                    plt.title("Original Image")
-                    plt.imshow(images[correct_image_index].half().numpy().transpose(1, 2, 0), cmap='gray')
-                    plt.axis('off')
-                    plt.subplot(1, 2, 2)
-                    plt.title("Reconstructed Image")
-                    plt.imshow(image_array, cmap='gray' if image_array.ndim == 2 else None)
-                    plt.axis('off')
-                    plt.show()
-
-                    # plot original with top 5 retrievals
-                    plt.figure(figsize=(10, 5))
-                    plt.subplot(1, 6, 1)
-                    plt.title("Original Image")
-                    plt.imshow(images[correct_image_index].half().numpy().transpose(1, 2, 0), cmap='gray')
-                    plt.axis('off')
-                    for i in range(5):
-                        plt.subplot(1, 6, i+2)
-                        plt.title(f"Retrieval {i+1}")
-                        plt.imshow(np.array(values_dict[f"attempt{i+1}"][0]).transpose(1, 2, 0), cmap='gray')
+                    # Display the image
+                    if plot_images:
+                        # plot original and reconstructed images
+                        plt.figure(figsize=(10, 5))
+                        plt.subplot(1, 2, 1)
+                        plt.title("Original Image")
+                        plt.imshow(images[correct_image_index].half().numpy().transpose(1, 2, 0), cmap='gray')
                         plt.axis('off')
-                    plt.show()
+                        plt.subplot(1, 2, 2)
+                        plt.title("Reconstructed Image")
+                        plt.imshow(image_array, cmap='gray' if image_array.ndim == 2 else None)
+                        plt.axis('off')
+                        plt.show()
 
-                # save reconstructed image, retrieved images, clip_voxels, and ground truth image
-                if save_individual_images:
-                    # save the reconstructed image
-                    convert_image_array_to_PIL(image_array).save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_reconstructed.png"))
-                    # save the retrieved images
-                    for key, value in values_dict.items():
-                        if key not in ('ground_truth', 'recons'):
-                            convert_image_array_to_PIL(np.array(value)).save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_retrieved_{key}.png"))
-                    # save the clip_voxels
-                    np.save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_clip_voxels.npy"), clipvoxelsTR)
-                    # save the ground truth image
-                    convert_image_array_to_PIL(images[correct_image_index].half().numpy()).save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_ground_truth.png"))
-                all_recons_save.append(image_array)
-                all_clipvoxels_save.append(clipvoxelsTR)
-                all_ground_truth_save.append(images[correct_image_index].half().numpy())
-                all_retrieved_save.append([np.array(value) for key, value in values_dict.items() if (not ('ground_truth' in key))])
-            
+                        # plot original with top 5 retrievals
+                        plt.figure(figsize=(10, 5))
+                        plt.subplot(1, 6, 1)
+                        plt.title("Original Image")
+                        plt.imshow(images[correct_image_index].half().numpy().transpose(1, 2, 0), cmap='gray')
+                        plt.axis('off')
+                        for i in range(5):
+                            plt.subplot(1, 6, i+2)
+                            plt.title(f"Retrieval {i+1}")
+                            plt.imshow(np.array(values_dict[f"attempt{i+1}"][0]).transpose(1, 2, 0), cmap='gray')
+                            plt.axis('off')
+                        plt.show()
+
+                    # save reconstructed image, retrieved images, clip_voxels, and ground truth image
+                    if save_individual_images:
+                        # save the reconstructed image
+                        convert_image_array_to_PIL(image_array).save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_reconstructed.png"))
+                        # save the retrieved images
+                        for key, value in values_dict.items():
+                            if key not in ('ground_truth', 'recons'):
+                                convert_image_array_to_PIL(np.array(value)).save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_retrieved_{key}.png"))
+                        # save the clip_voxels
+                        np.save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_clip_voxels.npy"), clipvoxelsTR)
+                        # save the ground truth image
+                        convert_image_array_to_PIL(images[correct_image_index].half().numpy()).save(os.path.join(save_path, "individual_images", f"run{run_num}_TR{TR}_ground_truth.png"))
+                    all_recons_save.append(image_array)
+                    all_clipvoxels_save.append(clipvoxelsTR)
+                    all_ground_truth_save.append(images[correct_image_index].half().numpy())
+                    all_retrieved_save.append([np.array(value) for key, value in values_dict.items() if (not ('ground_truth' in key))])
+                else:
+                    subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
+                        values={'pass': "pass"})
+
             else:
                 subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
                     values={'pass': "pass"})
             
             stimulus_trial_counter += 1
         elif current_label == 'blank.jpg':
-            # values_dict = {}
-            # image_COCO_id = int(float(tr_labels_hrf[TR].split("_")[1])) - 1
-            # values_dict["ground_truth"] = transforms.Resize((imsize,imsize))(all_images[stimulus_trial_counter]).float().numpy().tolist()
-            # subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
-            #                             values=values_dict)
             subjInterface.setResultDict(name=f'run{run_num}_TR{TR}',
                 values={'pass': "pass"})
             stimulus_trial_counter += 1

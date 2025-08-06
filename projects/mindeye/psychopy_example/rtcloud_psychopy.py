@@ -55,10 +55,11 @@ waiting.draw()
 win.flip()
 
 # go through a run!
-for run in range(numRuns):
+for run in range(1, numRuns+1):
     print(f"run {run}")
     # go through each TR
     for TR in range(191):
+        # print('starting with TR 35 for debugging')
         print(f"TR {TR}")
         filename = f'{outPath}/run{run}_TR{TR}.json'
         print("filename: ", filename)
