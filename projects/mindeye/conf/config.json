@@ -1,8 +1,8 @@
 {
-    "storage_path": "/home/ri4541@pu.win.princeton.edu/rt_mindeye/rt_all_data",
+    "storage_path": "/home/ri4541@pu.win.princeton.edu/rtcloud-projects/mindeye/rt_all_data",
     "data_path": "/home/ri4541@pu.win.princeton.edu/rtcloud-projects/mindeye/3t/data",
     "derivatives_path": "/home/ri4541@pu.win.princeton.edu/rtcloud-projects/mindeye/3t/derivatives",
-    "output_path": "/home/ri4541@pu.win.princeton.edu/rt-cloud/projects/mindeye/outputs",
+    "output_path": "/home/ri4541@pu.win.princeton.edu/rtcloud-projects/mindeye/3t/derivatives/outputs",
     "fsl_path": "/home/ri4541@pu.win.princeton.edu/fsl/bin"
 }
   

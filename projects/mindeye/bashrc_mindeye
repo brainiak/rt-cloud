@@ -19,4 +19,5 @@ export FSLDIR PATH
 export LD_LIBRARY_PATH=${FSLDIR}/lib:${FSLDIR}/fslpython/lib:${LD_LIBRARY_PATH}
 
 # conda activate rt_mindEye2
-source rtcloud/bin/activate
+# source rtcloud/bin/activate
+source ~/rtcloud-projects/mindeye/conf/.venv/bin/activate

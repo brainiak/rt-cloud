@@ -1,11 +1,3 @@
-# drift correct, normalize, no slice time
-
-# set up main path where everything will be you should download the
-# hugging face directory described in readme and put it here on the same
-# server where the data analyzer is run so that the data analyzer code with 
-# the GPU can access these files
-# You should replace the below path with your location
-data_and_model_storage_path = '/home/ri4541@pu.win.princeton.edu/rt_mindeye/rt_all_data'
 """-----------------------------------------------------------------------------
 Imports and set up for mindEye
 -----------------------------------------------------------------------------"""
@@ -45,14 +37,9 @@ from models import *
 import pandas as pd
 import ants
 import nilearn
-import pdb
 from nilearn.plotting import plot_design_matrix
-import json
-import os
 import pickle
 from collections import defaultdict
-import pickle
-import pdb
 import imageio.v2 as imageio
 import zlib
 import base64
@@ -61,21 +48,13 @@ from copy import deepcopy
 """-----------------------------------------------------------------------------
 Imports for rtcloud
 -----------------------------------------------------------------------------"""
-import os
-import sys
-import argparse
-import json
 import tempfile
-import time
 import nibabel as nib
-import pandas as pd
-import numpy as np
 from subprocess import call
 from pathlib import Path
 from datetime import datetime, date
 from scipy.stats import zscore
 from nilearn.signal import clean
-import pdb
 from nilearn.glm.first_level import FirstLevelModel
 from nilearn.image import get_data, index_img, concat_imgs, new_img_like
 cwd = os.getcwd()
@@ -97,6 +76,11 @@ try:
     derivatives_path = config['derivatives_path']
     output_path = config['output_path']
     fsl_path = config['fsl_path']
+    print(f"Using storage path: {storage_path}")
+    print(f"Using data path: {data_path}")
+    print(f"Using derivatives path: {derivatives_path}")
+    print(f"Using output path: {output_path}")
+    print(f"Using FSL path: {fsl_path}")
     assert os.path.exists(storage_path), "The specified data and model storage path does not exist."
     assert os.path.exists(data_path), "The specified BOLD path does not exist."
     assert os.path.exists(derivatives_path), "The specified derivatives path does not exist."
@@ -105,9 +89,10 @@ try:
 except FileNotFoundError:
     raise FileNotFoundError("config.json file not found. Please create it with the required paths.")
 
-imsize = 224
 
-print(f"Using storage path: {storage_path}")
+
+
+imsize = 224
 
 ### Multi-GPU config ###
 local_rank = os.getenv('RANK')
@@ -118,14 +103,12 @@ else:
 accelerator = Accelerator(split_batches=False, mixed_precision="fp16")
 device = accelerator.device
 
-cache_dir= f"{data_and_model_storage_path}/cache"
+cache_dir= f"{storage_path}/cache"
 model_name = "sub-005_ses-01-03_task-C_bs24_MST_rishab_MSTsplit_unionmask_ses-01-03_finetune"
-subj=1
 hidden_dim=1024
-blurry_recon = False
 n_blocks=4 
 seq_len = 1
-with open(f"{data_and_model_storage_path}/clip_img_embedder", "rb") as input_file:
+with open(f"{storage_path}/clip_img_embedder", "rb") as input_file:
     clip_img_embedder = pickle.load(input_file)
 clip_img_embedder.to(device)
 clip_seq_dim = 256
@@ -291,7 +274,7 @@ disable_first_stage_autocast = unclip_params["disable_first_stage_autocast"]
 offset_noise_level = unclip_params["loss_fn_config"]["params"]["offset_noise_level"]
 # first_stage_config['target'] = 'sgm.models.autoencoder.AutoencoderKL'
 sampler_config['params']['num_steps'] = 38
-with open(f"{data_and_model_storage_path}/diffusion_engine", "rb") as input_file:
+with open(f"{storage_path}/diffusion_engine", "rb") as input_file:
     diffusion_engine = pickle.load(input_file)
 # set to inference
 diffusion_engine.eval().requires_grad_(False)
@@ -304,14 +287,12 @@ batch={"jpg": torch.randn(1,3,1,1).to(device), # jpg doesnt get used, it's just 
     "crop_coords_top_left": torch.zeros(1, 2).to(device)}
 out = diffusion_engine.conditioner(batch)
 vector_suffix = out["vector"].to(device)
-f = h5py.File(f'{data_and_model_storage_path}/coco_images_224_float16.hdf5', 'r')
-images = f['images']
 
 sub = "sub-005"
 session = "ses-06"
 task = 'C'  # 'study' or 'A'; used to search for functional run in bids format
 func_task_name = 'C'  # 'study' or 'A'; used to search for functional run in bids format
-n_runs = 7
+n_runs = 11
 
 ses_list = [session]
 design_ses_list = [session]
@@ -380,18 +361,11 @@ unique_MST_images = np.unique(list(all_MST_images.values()))
 MST_ID = np.array([], dtype=int)
 
 vox_idx = np.array([], dtype=int)
-j=0  # this is a counter keeping track of the remove_random_n used later to index vox based on the removed images; unused otherwise
-for i, im in enumerate(image_names):  # need unique_MST_images to be defined, so repeating the same loop structure
+for idx, im in enumerate(image_names):  # need unique_MST_images to be defined, so repeating the same loop structure
     # skip if blank, nan
-    if im == "blank.jpg":
-        i+=1
+    if im == "blank.jpg" or str(im) == "nan":
         continue
-    if str(im) == "nan":
-        i+=1
-        continue
-    j+=1
     curr = np.where(im == unique_MST_images)
-    # print(curr)
     if curr[0].size == 0:
         MST_ID = np.append(MST_ID, np.array(len(unique_MST_images)))  # add a value that should be out of range based on the for loop, will index it out later
     else:
@@ -417,7 +391,7 @@ for im_name in tqdm(image_idx):
         images = im
     else:
         images = torch.vstack((images, im))
-    if ("MST_pairs" in image_file): # ("_seed_" not in unique_images[im_name]) and (unique_images[im_name] != "blank.jpg") 
+    if ("MST_pairs" in image_file):
         MST_images.append(True)
     else:
         MST_images.append(False)
@@ -547,7 +521,7 @@ def do_reconstructions(betas_tt):
 
     returns reconstructions and clipvoxels for retrievals
     """
-    # start_reconstruction_time = time.time()
+    print('starting reconstruction!')
     model.to(device)
     model.eval().requires_grad_(False)
     clipvoxelsTR = None
@@ -662,12 +636,9 @@ assert np.all(fmriprep_boldref_nib.affine == union_mask_img.affine)
 all_betas = []
 shown_filenames = dict()
 
-# Loop over all 11 runs in the session
-n_runs = 11
-
 # go through each run
 for run_num in range(1, n_runs + 1):
-    print(f"==START OF DAY 2 RUN {run_num}!==\n")
+    print(f"Start of real-time session run {run_num}!\n")
     cwd = os.getcwd()
     print("cwd ", cwd)
     # print(os.listdir(f"{data_path}/raw_bids"))
@@ -783,6 +754,7 @@ for run_num in range(1, n_runs + 1):
             beta_map_np = beta_map.get_fdata()
             beta_map_np = fast_apply_mask(target=beta_map_np,mask=union_mask_img.get_fdata())
             all_betas.append(beta_map_np)
+            print('all_betas shape:', np.array(all_betas).shape)
             
             if current_label not in shown_filenames.keys():
                 shown_filenames[current_label] = [len(all_betas)]
