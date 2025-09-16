@@ -43,7 +43,7 @@ Assuming that Docker is installed (if not, see instructions below) you can follo
 
 Wait for the terminal to output "Listening on: http://localhost:8888" and then open your web browser and go to the url "localhost:8888" (if using a cloud machine, replace "localhost" to the cloud server's ip address). The login username/password for the web browser are both "test". Click the "Run" button to run through the simulated real-time scanning example. 
 
-# RTCloud Installation & Usage
+# Tutorial: RTCloud Installation & Usage
 
 ## 1. Install Docker, Singularity, or Miniconda
 
