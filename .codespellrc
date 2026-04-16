@@ -1,6 +1,6 @@
 [codespell]
 # Ref: https://github.com/codespell-project/codespell#using-a-config-file
-skip = .git,.gitignore,.gitattributes,*.pdf,*.svg,*.css,.codespellrc
+skip = .git,.gitignore,.gitattributes,*.pdf,*.svg,*.css,.codespellrc,web/jsPsych
 check-hidden = true
 ignore-regex = ^\s*"image/\S+": ".*
 # ignore-words-list =
