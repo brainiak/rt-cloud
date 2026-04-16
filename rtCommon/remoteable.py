@@ -87,7 +87,7 @@ class RemoteableExtensible(object):
     """
     A class that can be subclassed to allow remote invocation. The remote and local versions
     are the same class type (not a stub) and in the remote instance case attributes can
-    be registerd as 'local' meaning calls to them will be handled local, all other calls
+    be registered as 'local' meaning calls to them will be handled local, all other calls
     would be sent to the remote instance.
     """
     def __init__(self, isRemote=False):
@@ -156,7 +156,7 @@ class RemoteableExtensible(object):
 
 # TODO - support per client remote instances, either by having a per-client classInstanceDict
 #  or by supporting a 'new' function call, or by returning handles of the instances (although
-#  that might be more complext than needed)
+#  that might be more complex than needed)
 class RemoteHandler:
     """
     Class that runs at the remote and as message requests are received they are dispatched

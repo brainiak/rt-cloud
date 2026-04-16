@@ -28,7 +28,7 @@ https://bids-specification.readthedocs.io/en/stable/, a few key details are as
 follows:
 
 1.  **Brain imaging data is stored in the Neuroimaging Informatics
-    Technology Initative (NIfTI) format.** NIfTI is a binary file format
+    Technology Initiative (NIfTI) format.** NIfTI is a binary file format
     that starts with a header holding basic information about the brain
     data contained in the file. The header is followed by the raw brain
     data. A NIfTI volume's data typically has 4 dimensions, *x, y, z*

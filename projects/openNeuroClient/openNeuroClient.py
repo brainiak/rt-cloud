@@ -72,7 +72,7 @@ def main(argv=None):
     argParser.add_argument('--runs', '-r', default=None, type=str,
                            help='Comma separated list of run numbers')
     argParser.add_argument('--yesToPrompts', '-y', default=False, action='store_true',
-                           help='automatically answer tyes to any prompts')
+                           help='automatically answer yes to any prompts')
     argParser.add_argument('--archive', '-a', default=False, action='store_true',
                            help='Create a Bids Archive from the incoming Bids Incrementals.')
     args = argParser.parse_args(argv)

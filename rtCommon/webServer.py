@@ -104,7 +104,7 @@ class Web():
         Web.browserRequestHandler = WsBrowserRequestHandler(Web.webDisplayInterface, params, cfg)
         # Note that some application handlers are added after the Web.app is created, including
         # 'wsData' and 'wsSubject' which can't be added until after a handler instance is created.
-        # See projectServer.py where theses handlers are added.
+        # See projectServer.py where these handlers are added.
         Web.app = tornado.web.Application([
             (r'/', HttpHandler, dict(htmlDir=Web.htmlDir, page='index.html')),
             (r'/login', LoginHandler, dict(htmlDir=Web.htmlDir, page='login.html', testMode=Web.testMode)),

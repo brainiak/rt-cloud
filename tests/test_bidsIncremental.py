@@ -245,7 +245,7 @@ def testDatasetMetadata(sample4DNifti1, imageMetadata):
     with pytest.raises(MissingMetadataError):
         BidsIncremental(image=sample4DNifti1,
                         imageMetadata=imageMetadata,
-                        datasetDescription={"random_field": "doesnt work"})
+                        datasetDescription={"random_field": "doesn't work"})
 
     # Test valid dataset metadata
     dataset_name = "Test dataset"

@@ -286,7 +286,7 @@ def main(argv=None):
     argParser.add_argument('--scans', '-s', default=None, type=str,
                            help='Comma separated list of scan number')
     argParser.add_argument('--yesToPrompts', '-y', default=False, action='store_true',
-                           help='automatically answer tyes to any prompts')
+                           help='automatically answer yes to any prompts')
 
     # Some additional parameters only used for this sample project
     argParser.add_argument('--noVerbose', '-nv', default=False, action='store_true',

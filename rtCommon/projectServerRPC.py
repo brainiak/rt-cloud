@@ -139,7 +139,7 @@ class RPCHandlers:
         Args:
             ioLoopInst: The tornado webserver IO event loop. This is used to send
                 and synchronize web socket messages
-            webDisplayInterface: Interace to web browser display, to allow showing
+            webDisplayInterface: Interface to web browser display, to allow showing
                 error and log messages to user
         """
         self.ioLoopInst = ioLoopInst

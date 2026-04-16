@@ -93,7 +93,7 @@ if $BUILD_ANTS; then
   make
   sudo make install
   cd ..
-  # Complie ANTs
+  # Compile ANTs
   wget https://github.com/stnava/ANTs/tarball/master -O ants.tgz
   tar xzvf ants.tgz
   mkdir -p /opt/ants

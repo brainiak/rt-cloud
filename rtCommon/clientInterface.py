@@ -74,7 +74,7 @@ class ClientInterface:
                 self.exampleInterface = ExampleInterface(dataRemote=False)
                 # Without a webServer (projectServer) the webInterface won't be able to do
                 #   anything. Create a stub instance here with ioLoopInst=None so that calls
-                #   to it won't thow exceptions.
+                #   to it won't throw exceptions.
                 self.webInterface = WebDisplayInterface(ioLoopInst=None)
             else:
                 raise err
