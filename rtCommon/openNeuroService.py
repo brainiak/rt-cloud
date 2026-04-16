@@ -2,7 +2,7 @@
 A command-line service to be run where the OpenNeuro data is downloaded and cached.
 This service instantiates a BidsInterface object for serving the data back to the client
 running in the cloud. It connects to the remote projectServer.
-Once a connection is established it waits for requets and invokes the BidsInterface
+Once a connection is established it waits for requests and invokes the BidsInterface
 functions to handle them.
 """
 import os
@@ -34,7 +34,7 @@ class OpenNeuroService:
             webSocketChannelName: The websocket url extension used to connecy and communicate
                 to the remote projectServer, e.g. 'wsData' would connect to 'ws://server:port/wsData'
         """
-        # Not necessary to set the allowedDirs for BidsInterface here becasue we won't be
+        # Not necessary to set the allowedDirs for BidsInterface here because we won't be
         #  using the DicomToBidsStream interface, leave it as none allowed (default)
         self.bidsInterface = BidsInterface(dataRemote=False)
         self.wsRemoteService = WsRemoteService(args, webSocketChannelName)

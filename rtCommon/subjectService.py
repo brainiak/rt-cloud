@@ -4,7 +4,7 @@ classification results from the classification script.
 
 This service instantiates a SubjectInterface for serving sending/receiving subject feedback
 to the projectServer in the cloud. It connects to the remote projectServer. Once a connection
-is established it waits for requets and invokes the SubjecInterface functions to handle them.
+is established it waits for requests and invokes the SubjecInterface functions to handle them.
 
 Note: This service is intended as an example. In practice this subjectInterface would likely
 be instantiated within the presentation script and there it would use WsRemoteService

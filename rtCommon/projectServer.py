@@ -1,6 +1,6 @@
 """
 Main (command-line) program for running the projectServer.
-Instantiates both the web interface and an RPC server for handling client script commnds.
+Instantiates both the web interface and an RPC server for handling client script commands.
 """
 import os
 import sys

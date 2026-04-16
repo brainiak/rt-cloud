@@ -3,7 +3,7 @@
 initialize.py (Last Updated: 01/26/2021)
 
 The purpose of this script is to finalize the rt-cloud session. Specifically,
-here we want to dowload any important files from the cloud back to the stimulus
+here we want to download any important files from the cloud back to the stimulus
 computer and maybe even delete files from the cloud that we don't want to 
 stay there (maybe for privacy purposes).
 

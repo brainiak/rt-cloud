@@ -104,7 +104,7 @@ class Web():
         Web.browserRequestHandler = WsBrowserRequestHandler(Web.webDisplayInterface, params, cfg)
         # Note that some application handlers are added after the Web.app is created, including
         # 'wsData' and 'wsSubject' which can't be added until after a handler instance is created.
-        # See projectServer.py where theses handlers are added.
+        # See projectServer.py where these handlers are added.
         Web.app = tornado.web.Application([
             (r'/', HttpHandler, dict(htmlDir=Web.htmlDir, page='index.html')),
             (r'/login', LoginHandler, dict(htmlDir=Web.htmlDir, page='login.html', testMode=Web.testMode)),
@@ -209,7 +209,7 @@ class WsBrowserRequestHandler:
         if self.runInfo.threadId is not None:
             self.runInfo.threadId.join(timeout=1)
             if self.runInfo.threadId.is_alive():
-                self._setError("Client thread already runnning, skipping new request")
+                self._setError("Client thread already running, skipping new request")
                 return
             self.runInfo.threadId = None
         self.runInfo.stopRun = False
@@ -234,7 +234,7 @@ class WsBrowserRequestHandler:
         if self.runInfo.uploadThread is not None:
             self.runInfo.uploadThread.join(timeout=1)
             if self.runInfo.uploadThread.is_alive():
-                self._setError("Upload thread already runnning, skipping new request")
+                self._setError("Upload thread already running, skipping new request")
                 return
         self.runInfo.uploadThread = threading.Thread(name='uploadFiles',
                                                     target=self._uploadFilesHandler,

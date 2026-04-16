@@ -36,7 +36,7 @@ if [[ ! -z $PROJ_DIR ]]; then
   MAP_PARAM="-v $PROJ_DIR:/rt-cloud/projects/$PROJ_NAME"
 fi
 
-# create ~/certs if it doesnt exist
+# create ~/certs if it doesn't exist
 [[ -d ~/certs ]] || mkdir ~/certs
 
 echo "docker run -it --rm -v ~/certs:/rt-cloud/certs $MAP_PARAM -p 8888:8888 -p 6080:6080 $DOCKER_IMAGE" "${args[@]}"

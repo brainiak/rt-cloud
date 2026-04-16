@@ -6,7 +6,7 @@ projectServer.
 The client script instantiates a clientInterface object. It will automatically connect
 to the projectServer running on the localhost (i.e. same host as the client). If a
 connection is established the interfaces listed below will be stubs that forward requests
-to remote servers that will handle the requsts. If the connection fails (i.e. there is no
+to remote servers that will handle the requests. If the connection fails (i.e. there is no
 projectServer running), then local versions of the services will be instantiated, for example
 to access local files instead of remote files. The user will be prompted if local versions
 will be used.
@@ -74,7 +74,7 @@ class ClientInterface:
                 self.exampleInterface = ExampleInterface(dataRemote=False)
                 # Without a webServer (projectServer) the webInterface won't be able to do
                 #   anything. Create a stub instance here with ioLoopInst=None so that calls
-                #   to it won't thow exceptions.
+                #   to it won't throw exceptions.
                 self.webInterface = WebDisplayInterface(ioLoopInst=None)
             else:
                 raise err

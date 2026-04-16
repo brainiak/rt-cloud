@@ -93,7 +93,7 @@ jsPsych.plugins["brain-realtime-response"] = (function() {
       websocketEvent_time = performance.now() - start_time;
 
       if (onsetTimeDelayMs > 0) {
-        // setTimeout input is time in miliseconds
+        // setTimeout input is time in milliseconds
         jsPsych.pluginAPI.setTimeout(end_trial, onsetTimeDelayMs)
       } else{
         //otherwise we just end the trial now

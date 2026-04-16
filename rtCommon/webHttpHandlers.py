@@ -1,6 +1,6 @@
 """
 This module provides the callback handlers that the web server will utilize
-    when handling and rendering html page reqeusts.
+    when handling and rendering html page requests.
 """
 import os
 import time
@@ -36,7 +36,7 @@ class HttpHandler(tornado.web.RequestHandler):
 
 
 class LoginHandler(tornado.web.RequestHandler):
-    """Renders a login page and authenticates users. Sets a secure-cookie to remeber authenticated users."""
+    """Renders a login page and authenticates users. Sets a secure-cookie to remember authenticated users."""
     loginAttempts = {}
     loginRetryDelay = 10
 

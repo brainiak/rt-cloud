@@ -148,7 +148,7 @@ def createNiftiTestFiles(shouldValidate: bool = True):
     """
     nifti1_4D = concat_images_patched([nifti1_3D, nifti1_3D])
 
-    # TODO(spolcyn): Set this progamatically according to DICOM datatype
+    # TODO(spolcyn): Set this programmatically according to DICOM datatype
     nifti1_4D.header["datatype"] = 512  # unsigned short
     nifti1_4D.header['bitpix'] = 16  # 16 bits for unsigned short
     correct3DHeaderTo4D(nifti1_4D, repetitionTime=TR_TIME)

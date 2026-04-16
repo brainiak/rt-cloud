@@ -11,7 +11,7 @@ The source code components of jsPsych live in the `web/` directory. File `web/js
 
 2. Connect a web browser to the main page
     - http://localhost:8888/
-    - Enter 'test' for both the usnername and password since we are running it in unsecure test mode.
+    - Enter 'test' for both the username and password since we are running it in insecure test mode.
 
 3. Connect a web browser to the jsPsych feedback page
     - http://localhost:8888/jspsych

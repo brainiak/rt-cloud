@@ -20,7 +20,7 @@ There you can find full example projects, demos of Psychopy integration, and emp
 
 **Overview of RT-Cloud Components**
 ![](docs/rtcloud_schematic.png )<br>
-- **data_streamer** (runs on machine that recieves/sends DICOMs)
+- **data_streamer** (runs on machine that receives/sends DICOMs)
   - Watches for new DICOM brain images and sends them to whatever machine is analysing the data
   - Can simulate the transfer of DICOMs from the MRI scanner using a precollected folder of DICOMs or via an OpenNeuro dataset (OpenNeuroService)
 - **data_analyser** (runs on machine that analyses data in real-time)

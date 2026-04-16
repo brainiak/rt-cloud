@@ -15,7 +15,7 @@ we will reference are in 'rt-cloud/rtCommon/'.
 
 Finally, this script is called from the projectInterface which has a web interface
 and accepts commands to 'start' or 'stop' a run. When the 'start' button is
-pressed it will run this scirpt passing in whatever conifgurations have been
+pressed it will run this script passing in whatever configurations have been
 set in the web page as a configuration file. Note that projectInterface is
 started from the script 'run-projectInterface.sh'.
 
@@ -141,7 +141,7 @@ def doRuns(cfg, clientInterfaces):
                 accidentally grab a dicom before it's fully acquired)
     """
     if verbose:
-        print("• initalize a watch for the dicoms using 'initWatch'")
+        print("• initialize a watch for the dicoms using 'initWatch'")
     entities = {'subject': cfg.subjectName, 'task': 'test', 'run': runNum}
     streamId = bidsInterface.initDicomBidsStream(cfg.dicomDir, dicomScanNamePattern, 
                                                  cfg.minExpectedDicomSize, **entities)
@@ -286,7 +286,7 @@ def main(argv=None):
     argParser.add_argument('--scans', '-s', default=None, type=str,
                            help='Comma separated list of scan number')
     argParser.add_argument('--yesToPrompts', '-y', default=False, action='store_true',
-                           help='automatically answer tyes to any prompts')
+                           help='automatically answer yes to any prompts')
 
     # Some additional parameters only used for this sample project
     argParser.add_argument('--noVerbose', '-nv', default=False, action='store_true',

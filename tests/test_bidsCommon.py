@@ -80,7 +80,7 @@ def testMetadataExtraction(dicomImage, dicomMetadataSample):
         assert metadata.get(field) == str(value)
 
 
-# Ensure entitity dictionary is loaded and parsed properly
+# Ensure entity dictionary is loaded and parsed properly
 # Expected dictionary format:
 #   key: Full entity name, all lowercase
 def testEntitiesDictGeneration():

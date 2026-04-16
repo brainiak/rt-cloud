@@ -40,7 +40,7 @@ extensions = [
 # 2) AutoAPI uses code parsing instead of code imports, which means there's no
 # need to install the full RT-Cloud conda environment (takes >10m on RTD).
 autoapi_dirs = ['../rtCommon']
-# autoapi_keep_files = True  # Useful for debuggin warnings and errors
+# autoapi_keep_files = True  # Useful for debugging warnings and errors
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

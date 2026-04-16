@@ -3,6 +3,6 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - brainiak::brainiak  # specifing the channel
+  - brainiak::brainiak  # specifying the channel
   - nomkl
   - scikit-learn

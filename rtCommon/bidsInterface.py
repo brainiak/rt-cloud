@@ -61,7 +61,7 @@ class BidsInterface(RemoteableExtensible):
     def initDicomBidsStream(self, dicomDir, dicomFilePattern, dicomMinSize,
                             anonymize=True, **entities) -> int:
         """
-        Intialize a data stream that watches a directory for DICOM files to be written that
+        Initialize a data stream that watches a directory for DICOM files to be written that
         match the given file pattern. When a DICOM is written it will be converted to a BIDS
         incremental and returned.
 
@@ -176,7 +176,7 @@ class BidsInterface(RemoteableExtensible):
         # Adjust the caller's clock forward by 1/2 round trip time
         callerClockAdjToNow = callerClockTime + roundTripTime / 2.0
         now = time.time()
-        # calcluate the time this server's clock is ahead of the caller's clock
+        # calculate the time this server's clock is ahead of the caller's clock
         skew = now - callerClockAdjToNow
         # add the time skew from this server to the scanner clock
         totalSkew = skew + self.scannerClockSkew
@@ -201,7 +201,7 @@ class DicomToBidsStream():
     def initStream(self, dicomDir, dicomFilePattern, dicomMinSize,
                    anonymize=True, **entities):
         """
-        Intialize a new DicomToBids stream, watches for Dicoms and streams as BIDS
+        Initialize a new DicomToBids stream, watches for Dicoms and streams as BIDS
 
         Args:
             dicomDir: The directory where the scanner will write new DICOM files

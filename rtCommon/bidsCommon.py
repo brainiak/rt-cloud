@@ -30,7 +30,7 @@ DEFAULT_DATASET_DESC = {"Name": "bidsi_dataset",
                         "Authors": ["The RT-Cloud Authors",
                                     "The Dataset Author"]}
 
-# Deafult readme text for RT-Cloud
+# Default readme text for RT-Cloud
 DEFAULT_README = "Generated BIDS-Incremental Dataset from RT-Cloud"
 
 # Required columns for the BIDS events files
@@ -81,7 +81,7 @@ class BidsFileExtension(Enum):
     EVENTS = '.tsv'
 
 
-# BIDS Entitiy information dict
+# BIDS Entity information dict
 class BidsEntityKeys(Enum):
     ENTITY = "entity"
     FORMAT = "format"

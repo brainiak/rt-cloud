@@ -95,7 +95,7 @@ The experiment script doesn’t need to change anything to use the 3 ways of int
 **Q:** I’m not sure i understand the difference between “ProjectServer with local services” and “ProjectServer with remote services”. (Especially because earlier in this document you say that if a module is running remotely then you call it a service — so i thought service means “remote”, but here you refer to local vs remote services)
 - **A:** The projectServer and the experiment script always run on the same computer, this is baked into the code that the clientInterface is only allowed to make a localhost connection to the projectServer (for security reasons). So whether the dataInterface is running within the experiment script (case 1) or in the projectServer (case 2) it is still local to the computer that the experiment script is running on, so in that sense the data is local to the script.
 
-**Q:** Even if I am just testing things out (using --test flag) by running two terminals on my local machine, one as projectServer + dataService, the other as subjectService, I still need to have a valid ssl cert? and I cant test out the exporting of text files with dequeueResult via the outputDir flag unless I am using a “remote” subjectservice right?
+**Q:** Even if I am just testing things out (using --test flag) by running two terminals on my local machine, one as projectServer + dataService, the other as subjectService, I still need to have a valid ssl cert? and I can't test out the exporting of text files with dequeueResult via the outputDir flag unless I am using a “remote” subjectservice right?
 - **A:** You don’t need an ssl cert with --test flag, but you must specify --test for each process you start (the subjectInterface as well as projectServer).
 Yes, you need a remote subjectService to test the writing of text files.
 
@@ -107,10 +107,10 @@ Yes, you need a remote subjectService to test the writing of text files.
 
 
 **Q:** What’s the difference between initWatch and initScannerStream?
-- **A:**  initWatch and initScannerStream both accomplish the same thing. We originally had the initWatch/watchFile interface. Then we added a more “streaming” interface with BIDS and the initScannerStream/getImageData is that. So the BIDS interface uses initScannerStream internally, but it can also be used for a Dicom stream. I would say use the initScrannerStream interface and consider the initWatch as deprecated (or for backward compatibility).
+- **A:**  initWatch and initScannerStream both accomplish the same thing. We originally had the initWatch/watchFile interface. Then we added a more “streaming” interface with BIDS and the initScannerStream/getImageData is that. So the BIDS interface uses initScannerStream internally, but it can also be used for a Dicom stream. I would say use the initScannerStream interface and consider the initWatch as deprecated (or for backward compatibility).
 
 **Q:** Can I have the experiment script execute different code dependent on a subject’s button press? if so how would i let the experiment script have access to that information of what/if the subject pressed a button?
-- **A:** There is some support for getResponses, and I made an example in the jsPsych feedback. For PsychoPy the subject responses would need to be queued and returned whenever the experiment script calls getResponse or getAllReponses. So the stubs are there, it just needs to be filled out some.
+- **A:** There is some support for getResponses, and I made an example in the jsPsych feedback. For PsychoPy the subject responses would need to be queued and returned whenever the experiment script calls getResponse or getAllResponses. So the stubs are there, it just needs to be filled out some.
 
 **Q:** How can I can test the VNC Viewer locally? Can I run the DISPLAY=:1 code in the experiment script file?
 - **A:** You can install tigervnc and the websocket conda environment. See instructions [here](https://rt-cloud.readthedocs.io/en/latest/how-to-run.html?highlight=vnc#install-vnc-server-on-the-projectserver-computer).
@@ -119,5 +119,5 @@ The scripts/run-vnc.sh will then start the vnc server and create a websockify wr
 Other Notes from discussion:
 - How can I change the experiment script based on button presses? Answer: currently only implemented in javascript version of subjectinterface via getAllResponses(); not implemented in python subjectinterface yet; probably not good idea to go from control room machine to cloud directly.
 - we also talked about some vnc viewer specifics — needs its own installation, new conda environment, etc
-- also talked about how you cant easily view analyzed data on the control room machine (going from cloud back to the control room to bypass using VNC viewer), or you can depending on your MRI Center’s setup but we want rtcloud to be workable regardless of the setup
+- also talked about how you can't easily view analyzed data on the control room machine (going from cloud back to the control room to bypass using VNC viewer), or you can depending on your MRI Center’s setup but we want rtcloud to be workable regardless of the setup
 you can potentially bypass VNC Viewer by encoding the image you want to look at into a dictionary and sending that through to the presentation laptop, but at that point its probably not worth it compared to the initial setup cost of doing VNC viewer route
