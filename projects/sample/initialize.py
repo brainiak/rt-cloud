@@ -141,7 +141,7 @@ def main(argv=None):
 
 if __name__ == "__main__":
     """
-    If 'initalize.py' is invoked as a program, then actually go through all of the 
+    If 'initialize.py' is invoked as a program, then actually go through all of the 
     portions of this script. This statement is not satisfied if functions are called 
     from another script using "from initialize.py import FUNCTION"
     """
