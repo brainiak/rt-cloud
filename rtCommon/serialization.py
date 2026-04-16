@@ -138,7 +138,7 @@ def encodeMessageData(message, data, compress):
 def decodeMessageData(message):
     """
     Given a message encoded with encodeMessageData (above), decode that message.
-    Validate and retrive orignal bytes.
+    Validate and retrieve original bytes.
     Args:
         message (dict): encoded message to decode
     Returns:
@@ -167,7 +167,7 @@ def generateDataParts(data, msg, compress):
     Args:
         data (bytes): data to send
         msg (dict): message header for the request
-        compress (bool): whether to compress the data befor sending
+        compress (bool): whether to compress the data before sending
     Returns:
         Repeated calls return the next partial message to be sent until
             None is returned

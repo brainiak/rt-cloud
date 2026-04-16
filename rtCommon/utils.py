@@ -1,5 +1,5 @@
 """
-Utils - various utilites for rtfMRI
+Utils - various utilities for rtfMRI
 """
 
 import os
@@ -57,8 +57,8 @@ def find(A: np.ndarray) -> np.ndarray:
     # find indices of non-zero elements in roi
     inds = np.nonzero(A)
     dims = A.shape
-    # First convert to Matlab column-order raveled indicies in order to sort
-    #   the indicies to match the order the data appears in the p.raw matrix
+    # First convert to Matlab column-order raveled indices in order to sort
+    #   the indices to match the order the data appears in the p.raw matrix
     indsMatRavel = np.ravel_multi_index(inds, dims, order='F')
     indsMatRavel.sort()
     # convert back to python raveled indices
@@ -212,7 +212,7 @@ def demoDelay(demoStep, prevEventTime=None):
     if (now > prevEventTime + demoStep) or (demoStep == 0):
         return now
     # Calculate and sleep until next even demoStep
-    # Convert to miliseconds
+    # Convert to milliseconds
     step_ms = demoStep * 1000
     now_ms = now * 1000
     sleep_ms = step_ms - (now_ms % step_ms)
@@ -326,7 +326,7 @@ def getTimeToNextTR(lastTrTime, trRepSec, nowTime, clockSkew) -> float:
     if secSinceTr < 0:
         # lastTrTsec should be less than now
         raise ValidationError(f"lastTrTime later than current time: {secSinceTr}")
-    secSinceTr = secSinceTr % trRepSec  # remove any multipes of TRs that have elapsed
+    secSinceTr = secSinceTr % trRepSec  # remove any multiples of TRs that have elapsed
     secToNextTr = trRepSec - secSinceTr
     assert secToNextTr < trRepSec
     return secToNextTr

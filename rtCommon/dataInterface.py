@@ -44,7 +44,7 @@ class DataInterface(RemoteableExtensible):
         Args:
             dataRemote (bool): whether data will be served from the local instance or requests forwarded
                 to a remote instance for handling.
-            allowedDirs (list): list of directories from which files are allowed to be read/writting. File
+            allowedDirs (list): list of directories from which files are allowed to be read/writing. File
                 operations will not be permitted unless the file path is a child of an allowed directory.
             allowedFileTypes (list): list of file extensions, such as '.dcm', '.txt', for which file
                 operations are permitted. No file operations will be done unless the file extension matches
@@ -360,7 +360,7 @@ class DataInterface(RemoteableExtensible):
         # Adjust the caller's clock forward by 1/2 round trip time
         callerClockAdjToNow = callerClockTime + roundTripTime / 2.0
         now = time.time()
-        # calcluate the time this server's clock is ahead of the caller's clock
+        # calculate the time this server's clock is ahead of the caller's clock
         skew = now - callerClockAdjToNow
         # add the time skew from this server to the scanner clock
         return skew + self.scannerClockSkew
@@ -407,7 +407,7 @@ class DataInterface(RemoteableExtensible):
         return True
 
     def _filterFileList(self, fileList: List[str]) -> List[str]:
-        """Class-private funtion to filter a list of files to include only allowed ones.
+        """Class-private function to filter a list of files to include only allowed ones.
             Args: fileList - list of files to filter
             Returns: filtered fileList - containing only the allowed files
         """

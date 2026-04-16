@@ -372,7 +372,7 @@ def testNiftiHeaderValidation(sample4DNifti1, sample3DNifti1, sample2DNifti1,
     assert not compatible
 
 
-# Test metdata fields are correctly compared for append compatibility
+# Test metadata fields are correctly compared for append compatibility
 def testMetadataValidation(imageMetadata, caplog):
     metadataCopy = imageMetadata.copy()
 

@@ -113,7 +113,7 @@ class WebDisplayInterface:
         self.sendPreviousDataPoints()
 
     def clearRunPlot(self, runId):
-        """Clear the data plot for the specfied run"""
+        """Clear the data plot for the specified run"""
         self.plotDataPoint(runId, None, None)
 
     def getPreviousDataPoints(self):

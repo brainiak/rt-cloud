@@ -77,7 +77,7 @@ class WatchdogFileWatcher():
                 self.observer.join()
             except Exception as err:
                 # TODO - change back to log once can figure out what the observer.stop streamRef error is
-                print("FileWatcher: oberver.stop(): %s", str(err))
+                print("FileWatcher: observer.stop(): %s", str(err))
 
     def initFileNotifier(self, dir: str, filePattern: str, minFileSize: int, demoStep: int=0) -> None:
         """
@@ -87,8 +87,8 @@ class WatchdogFileWatcher():
         Args:
             dir (str): Directory to watch in
             filePattern (str): Regex-based filepattern to watch for
-            minFileSize (int): Minimum file size necessary to consider the file is wholely written.
-                Below this size the filewatcher will assume file is paritally written and continue
+            minFileSize (int): Minimum file size necessary to consider the file is wholly written.
+                Below this size the filewatcher will assume file is partially written and continue
                 to wait.
             demoStep (int): If non-zero then it will space out file notifications by demoStep seconds.
                 This is used when the image files are pre-existing but we want to simulate as if
@@ -155,7 +155,7 @@ class WatchdogFileWatcher():
             try:
                 event, ts = self.fileNotifyQ.get(block=True, timeout=timeCheckIncrement)
             except Empty:
-                # The timeout occured on fileNotifyQ.get()
+                # The timeout occurred on fileNotifyQ.get()
                 fileExists = os.path.exists(filename)
                 continue
             if event is None:
@@ -261,8 +261,8 @@ class InotifyFileWatcher():
         Args:
             dir (str): Directory to watch in
             filePattern (str): ignored by inotify implementation
-            minFileSize (int): Minimum file size necessary to consider the file is wholely written.
-                Below this size the filewatcher will assume file is paritally written and continue
+            minFileSize (int): Minimum file size necessary to consider the file is wholly written.
+                Below this size the filewatcher will assume file is partially written and continue
                 to wait.
             demoStep (int): If non-zero then it will space out file notifications by demoStep seconds.
                 This is used when the image files are pre-existing but we want to simulate as if
@@ -330,7 +330,7 @@ class InotifyFileWatcher():
             try:
                 eventfile, ts = self.fileNotifyQ.get(block=True, timeout=timeCheckIncrement)
             except Empty:
-                # The timeout occured on fileNotifyQ.get()
+                # The timeout occurred on fileNotifyQ.get()
                 fileExists = os.path.exists(filename)
                 continue
             if eventfile is None:

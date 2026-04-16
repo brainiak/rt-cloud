@@ -20,7 +20,7 @@ class websocketState:
 
 class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
     """
-    Generic web socket handler. Estabilishes and maintains a ws connection. Intitialized with 
+    Generic web socket handler. Establishes and maintains a ws connection. Initialized with 
         a callback function that gets called when messages are received on this socket instance.
     """
     def initialize(self, name, callback=None, connNotify=None):
@@ -158,7 +158,7 @@ def defaultWebsocketCallback(client, message):
 
 ###################
 '''
-Data Mesage Handler:
+Data Message Handler:
 This is for sending requests to a remote service and receiving replies (kind of an RPC)
 Step 1: Prepare to send request, cache a callback structure which will match with the request
 Step 2: Send the request
@@ -199,7 +199,7 @@ class RequestHandler:
 
     # Step 1 - Prepare the request, record the callback struct and ID for when the reply comes
     def prepare_request(self, msg):
-        """Prepate a request to be sent, including creating a callback structure and unique ID."""
+        """Prepare a request to be sent, including creating a callback structure and unique ID."""
         # Get data server connection the request will be sent on
         websocketState.wsConnLock.acquire()
         try:
@@ -238,7 +238,7 @@ class RequestHandler:
     # Step 2: Receive a reply and match up the orig callback structure, 
     #   then call semaphore release on that callback struct to trigger waiting threads
     def callback(self, client, message):
-        """Recieve a callback from the client and match it to the original request that was sent."""
+        """Receive a callback from the client and match it to the original request that was sent."""
         response = json.loads(message)
         if 'cmd' not in response:
             raise StateError('dataCallback: cmd field missing from response: {}'.format(response))
@@ -287,7 +287,7 @@ class RequestHandler:
                 raise StateError('sendDataMsgFromThread: no callbackStruct found for callId {}'.format(callId))
         finally:
             self.callbackLock.release()
-        # wait for semaphore signal indicating a callback for this callId has occured
+        # wait for semaphore signal indicating a callback for this callId has occurred
         signaled = callbackStruct.semaphore.acquire(timeout=timeout)
         if signaled is False:
             trimDictBytes(callbackStruct.msg)

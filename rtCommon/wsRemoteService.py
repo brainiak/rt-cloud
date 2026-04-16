@@ -198,7 +198,7 @@ def parseConnectionArgs():
     parser.add_argument('-p', '--password', action="store", dest="password", default=None,
                         help="rtcloud website password")
     parser.add_argument('--test', default=False, action='store_true',
-                        help='Use unsecure non-encrypted connection')
+                        help='Use insecure non-encrypted connection')
     args, _ = parser.parse_known_args()
 
     if not re.match(r'.*:\d+', args.server):
@@ -214,7 +214,7 @@ def parseConnectionArgs():
         if os.path.exists(certFile):
             if checkSSLCertAltName(certFile, addr) is False:
                 # Addr not listed in sslCert, recreate ssl Cert
-                print(f"Adding server addresss {addr} to ssl certificate")
+                print(f"Adding server address {addr} to ssl certificate")
                 makeSSLCertFile(addr) # used to add altName server
         sslCertId = md5SumFile(certFile)
         sslKeyId = md5SumFile(getSslKeyFilePath())

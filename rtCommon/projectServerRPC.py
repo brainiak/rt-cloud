@@ -71,7 +71,7 @@ class ProjectRPCService(rpyc.Service):
         """
         if (ProjectRPCService.exposed_DataInterface is None and
             ProjectRPCService.exposed_BidsInterface is None):
-            raise StateError("ServerRPC no dataInterface instatiated yet")
+            raise StateError("ServerRPC no dataInterface instantiated yet")
         if ProjectRPCService.exposed_DataInterface is not None:
             ProjectRPCService.exposed_DataInterface.registerCommFunction(commFunction)
         if ProjectRPCService.exposed_BidsInterface is not None:
@@ -86,7 +86,7 @@ class ProjectRPCService(rpyc.Service):
         communication for the second hop (described above) to the remote service.
         """
         if ProjectRPCService.exposed_SubjectInterface is None:
-            raise StateError("exposed_SubjectInterface not instatiated yet")
+            raise StateError("exposed_SubjectInterface not instantiated yet")
         ProjectRPCService.exposed_SubjectInterface.registerCommFunction(commFunction)
 
     def on_connect(self, conn):
@@ -195,7 +195,7 @@ class RPCHandlers:
             self.setError('close_pending_requests: ' + format(err))
 
     def setError(self, errStr):
-        """Set an error messsage in the user's browser window"""
+        """Set an error message in the user's browser window"""
         errStr = 'RPC Handler: ' + errStr
         print(errStr)
         logging.error(errStr)

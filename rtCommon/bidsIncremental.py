@@ -236,7 +236,7 @@ class BidsIncremental:
 
     def _preprocessMetadata(self, imageMetadata: dict) -> dict:
         """
-        Pre-process metadata to extract any additonal metadata that might be
+        Pre-process metadata to extract any additional metadata that might be
         embedded in the provided metadata, like ProtocolName, and ensure that
         certain metadata values (e.g., RepetitionTime) are within
         BIDS-specified ranges.
@@ -496,7 +496,7 @@ class BidsIncremental:
     BEGIN BIDS-I ARCHIVE EMULTATION API
 
     A BIDS-I is meant to emulate a valid BIDS archive. Thus, an API is included
-    that enables generating paths and filenames that would corresopnd to this
+    that enables generating paths and filenames that would correspond to this
     BIDS-I's data if it were actually in an on-disk archive.
 
     """

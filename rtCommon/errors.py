@@ -1,4 +1,4 @@
-"""Excpetion definitions for rtfMRI"""
+"""Exception definitions for rtfMRI"""
 
 
 class RTError(Exception):

@@ -790,7 +790,7 @@ class BidsArchive:
         Append a BIDS Run to this archive.
 
         Args:
-            run: Run to append to the archvie.
+            run: Run to append to the archive.
 
         Examples:
             >>> archive1 = BidsArchive('/tmp/dataset1')

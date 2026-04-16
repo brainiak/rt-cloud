@@ -6,7 +6,7 @@ projectServer.
 The client script instantiates a clientInterface object. It will automatically connect
 to the projectServer running on the localhost (i.e. same host as the client). If a
 connection is established the interfaces listed below will be stubs that forward requests
-to remote servers that will handle the requsts. If the connection fails (i.e. there is no
+to remote servers that will handle the requests. If the connection fails (i.e. there is no
 projectServer running), then local versions of the services will be instantiated, for example
 to access local files instead of remote files. The user will be prompted if local versions
 will be used.

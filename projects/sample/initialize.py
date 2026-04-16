@@ -13,7 +13,7 @@ print(""
     "-----------------------------------------------------------------------------\n"
     "The purpose of this script is to show you the ways in which you can utilize\n"
     "an initialization function. You will notice some comments printed on the\n"
-    "html browser, but if you want more details please look at initalize.py.\n"
+    "html browser, but if you want more details please look at initialize.py.\n"
     "-----------------------------------------------------------------------------")
 
 import os
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     """
     If 'initalize.py' is invoked as a program, then actually go through all of the 
     portions of this script. This statement is not satisfied if functions are called 
-    from another script using "from initalize.py import FUNCTION"
+    from another script using "from initialize.py import FUNCTION"
     """
     main()
     sys.exit(0)

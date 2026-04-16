@@ -20,7 +20,7 @@ from rtCommon.errors import ValidationError
 
 class SubjectInterface(RemoteableExtensible):
     """
-    Provides functions for sending feedback and receiving reponses from the subject in the scanner.
+    Provides functions for sending feedback and receiving responses from the subject in the scanner.
 
     If subjectRemote=True, then the RemoteExtensible parent class takes over and forwards all
     requests to a remote server via a callback function registered with the RemoteExtensible object.

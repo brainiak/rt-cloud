@@ -2,7 +2,7 @@
 A command-line service to be run where the scanner data is generated (i.e. the control
 room). This service instantiates a DataInterface and BidsInterface object for serving
 the data back to the client running in the cloud. It connects to the remote projectServer.
-Once a connection is established it waits for requets and invokes the DataInterface or
+Once a connection is established it waits for requests and invokes the DataInterface or
 BidsInterface functions to handle them.
 """
 import os

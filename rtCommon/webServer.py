@@ -209,7 +209,7 @@ class WsBrowserRequestHandler:
         if self.runInfo.threadId is not None:
             self.runInfo.threadId.join(timeout=1)
             if self.runInfo.threadId.is_alive():
-                self._setError("Client thread already runnning, skipping new request")
+                self._setError("Client thread already running, skipping new request")
                 return
             self.runInfo.threadId = None
         self.runInfo.stopRun = False
@@ -234,7 +234,7 @@ class WsBrowserRequestHandler:
         if self.runInfo.uploadThread is not None:
             self.runInfo.uploadThread.join(timeout=1)
             if self.runInfo.uploadThread.is_alive():
-                self._setError("Upload thread already runnning, skipping new request")
+                self._setError("Upload thread already running, skipping new request")
                 return
         self.runInfo.uploadThread = threading.Thread(name='uploadFiles',
                                                     target=self._uploadFilesHandler,

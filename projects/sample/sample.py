@@ -13,7 +13,7 @@ we will reference are in 'rt-cloud/rtCommon/'.
 
 Finally, this script is called from the projectInterface which has a web interface
 and accepts commands to 'start' or 'stop' a run. When the 'start' button is
-pressed it will run this scirpt passing in whatever conifgurations have been
+pressed it will run this script passing in whatever configurations have been
 set in the web page as a configuration file. Note that projectInterface is
 started from the script 'run-projectInterface.sh'.
 
@@ -82,7 +82,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
 
     INPUT:
         [1] cfg - configuration file with important variables)
-        [2] dataInterface - this will allow this script runnin in the cloud to access
+        [2] dataInterface - this will allow this script running in the cloud to access
                 files from the stimulus computer, which receives dicom files directly
                 from the MRI Scanner console
         [3] subjInterface - this allows sending feedback (e.g. classification results)
@@ -165,7 +165,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
                     accidentally grab a dicom before it's fully acquired)
         """
         if verbose:
-            print("• initalize a watch for the dicoms using 'initWatch'")
+            print("• initialize a watch for the dicoms using 'initWatch'")
         dataInterface.initWatch(cfg.dicomDir, dicomScanNamePattern, 
                                 cfg.minExpectedDicomSize, demoStep=demoTimeDelay)
 

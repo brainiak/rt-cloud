@@ -61,7 +61,7 @@ def compareArrays(A: np.ndarray, B: np.ndarray) -> dict:
 def areArraysClose(A: np.ndarray, B: np.ndarray,
                    mean_limit=.01, stddev_limit=1.0) -> bool:
     '''Compare to arrays element-wise and compute the percent difference.
-       Return True if the mean and stddev are withing the supplied limits.
+       Return True if the mean and stddev are within the supplied limits.
        Default limits:{mean: .01, stddev: 1.0}, i.e. no stddev limit by default
     '''
     res = compareArrays(A, B)
@@ -173,7 +173,7 @@ def pearsons_mean_corr(A: np.ndarray, B: np.ndarray):
         B_col = B[:, col]
         # ignore NaN values
         nans = np.logical_or(np.isnan(A_col), np.isnan(B_col))
-        if np.all(nans == True):  # noqa - np.all needs == comparision not 'is'
+        if np.all(nans == True):  # noqa - np.all needs == comparison not 'is'
             continue
         pearcol = sstats.pearsonr(A_col[~nans], B_col[~nans])
         pearsonsList.append(pearcol)

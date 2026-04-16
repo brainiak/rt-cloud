@@ -199,7 +199,7 @@ class TopPane extends React.Component {
 
 
   // ##############################################
-  // #### Message handlers for server reqeusts ####
+  // #### Message handlers for server requests ####
   // ##############################################
   on_userLog(request) {
     var logItem = request['value'].trim()
@@ -331,7 +331,7 @@ class TopPane extends React.Component {
     this.setState({plotVals: this.resultVals})
   }
 
-  // #### END Message handlers for server reqeusts ####
+  // #### END Message handlers for server requests ####
 
   createWebSocket() {
     var wsProtocol = 'wss://'

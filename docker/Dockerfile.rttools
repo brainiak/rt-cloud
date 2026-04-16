@@ -18,7 +18,7 @@ echo 'export FSLDIR PATH' >> ~/.bashrc && \
 echo 'export LD_LIBRARY_PATH=${FSLDIR}/lib:${FSLDIR}/fslpython/lib:${LD_LIBRARY_PATH}' >> ~/.bashrc && \
 echo "## FSL Install Complete ##" && \
 # Remove bulk of FSL (including fsleyes!) leaving only binary analysis functions
-echo "## Removing non-essential FSL utilites! ##" && \
+echo "## Removing non-essential FSL utilities! ##" && \
 source ~/.bashrc && \
 cd $FSLDIR && \
 yes | rm -r config data doc extras fslpython include lib python refdoc src tcl && \
